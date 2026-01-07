@@ -28,6 +28,8 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterVendedor, setFilterVendedor] = useState('todos');
   const [filterMes, setFilterMes] = useState('todos');
+  const [filterYear, setFilterYear] = useState(new Date().getFullYear());
+  const [filterEstado, setFilterEstado] = useState('todos');
   const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'asc' });
   const [selectedDate, setSelectedDate] = useState(null);
   const [calendarDate, setCalendarDate] = useState(new Date());
@@ -44,6 +46,8 @@ export default function App() {
     cliente: '',
     telefono: '',
     turno: 'Noche',
+    hora_inicio: '',
+    hora_fin: '',
     vendedor: 'Francisco',
     tipo_evento: 'Cumple 50',
     menu: 'Tapas',
@@ -56,6 +60,15 @@ export default function App() {
     precio_adulto: '',
     menores: '',
     precio_menor: '',
+    extra1_desc: '',
+    extra1_valor: '',
+    extra1_tipo: 'total',
+    extra2_desc: '',
+    extra2_valor: '',
+    extra2_tipo: 'total',
+    extra3_desc: '',
+    extra3_valor: '',
+    extra3_tipo: 'total',
     confirmado: false
   });
 
@@ -83,7 +96,15 @@ export default function App() {
     const precioAdulto = parseFloat(nuevoEvento.precio_adulto) || 0;
     const menores = parseInt(nuevoEvento.menores) || 0;
     const precioMenor = parseFloat(nuevoEvento.precio_menor) || 0;
-    return (adultos * precioAdulto) + (menores * precioMenor);
+
+    let totalExtras = 0;
+    [1, 2, 3].forEach(i => {
+      const valor = parseFloat(nuevoEvento[`extra${i}_valor`]) || 0;
+      const tipo = nuevoEvento[`extra${i}_tipo`];
+      totalExtras += tipo === 'por_persona' ? valor * adultos : valor;
+    });
+
+    return (adultos * precioAdulto) + (menores * precioMenor) + totalExtras;
   };
 
   const handleSubmit = async (e) => {
@@ -99,6 +120,8 @@ export default function App() {
         cliente: nuevoEvento.cliente,
         telefono: nuevoEvento.telefono,
         turno: nuevoEvento.turno,
+        hora_inicio: nuevoEvento.hora_inicio,
+        hora_fin: nuevoEvento.hora_fin,
         vendedor: nuevoEvento.vendedor,
         tipo_evento: nuevoEvento.tipo_evento,
         menu: nuevoEvento.menu,
@@ -111,10 +134,19 @@ export default function App() {
         precio_adulto: parseFloat(nuevoEvento.precio_adulto) || 0,
         menores: parseInt(nuevoEvento.menores) || 0,
         precio_menor: parseFloat(nuevoEvento.precio_menor) || 0,
+        extra1_desc: nuevoEvento.extra1_desc,
+        extra1_valor: parseFloat(nuevoEvento.extra1_valor) || 0,
+        extra1_tipo: nuevoEvento.extra1_tipo,
+        extra2_desc: nuevoEvento.extra2_desc,
+        extra2_valor: parseFloat(nuevoEvento.extra2_valor) || 0,
+        extra2_tipo: nuevoEvento.extra2_tipo,
+        extra3_desc: nuevoEvento.extra3_desc,
+        extra3_valor: parseFloat(nuevoEvento.extra3_valor) || 0,
+        extra3_tipo: nuevoEvento.extra3_tipo,
         total_evento: total,
         confirmado: nuevoEvento.confirmado
       }]);
-    
+
     if (error) {
       console.error('Error:', error);
       alert('Error al guardar el evento');
@@ -125,10 +157,12 @@ export default function App() {
         cliente: '',
         telefono: '',
         turno: 'Noche',
+        hora_inicio: '',
+        hora_fin: '',
         vendedor: 'Francisco',
         tipo_evento: 'Cumple 50',
         menu: 'Tapas',
-        salon: 'Completo',
+        salon: 'Tero',
         tecnica: false,
         dj: '',
         tecnica_superior: false,
@@ -137,6 +171,15 @@ export default function App() {
         precio_adulto: '',
         menores: '',
         precio_menor: '',
+        extra1_desc: '',
+        extra1_valor: '',
+        extra1_tipo: 'total',
+        extra2_desc: '',
+        extra2_valor: '',
+        extra2_tipo: 'total',
+        extra3_desc: '',
+        extra3_valor: '',
+        extra3_tipo: 'total',
         confirmado: false
       });
       fetchEventos();
@@ -151,6 +194,8 @@ export default function App() {
       cliente: evento.cliente,
       telefono: evento.telefono || '',
       turno: evento.turno,
+      hora_inicio: evento.hora_inicio || '',
+      hora_fin: evento.hora_fin || '',
       vendedor: evento.vendedor,
       tipo_evento: evento.tipo_evento,
       menu: evento.menu,
@@ -163,6 +208,15 @@ export default function App() {
       precio_adulto: evento.precio_adulto?.toString() || '',
       menores: evento.menores?.toString() || '',
       precio_menor: evento.precio_menor?.toString() || '',
+      extra1_desc: evento.extra1_desc || '',
+      extra1_valor: evento.extra1_valor?.toString() || '',
+      extra1_tipo: evento.extra1_tipo || 'total',
+      extra2_desc: evento.extra2_desc || '',
+      extra2_valor: evento.extra2_valor?.toString() || '',
+      extra2_tipo: evento.extra2_tipo || 'total',
+      extra3_desc: evento.extra3_desc || '',
+      extra3_valor: evento.extra3_valor?.toString() || '',
+      extra3_tipo: evento.extra3_tipo || 'total',
       confirmado: evento.confirmado || false
     });
     setSelectedEvento(null);
@@ -175,7 +229,15 @@ export default function App() {
     const precioAdulto = parseFloat(eventoEdit.precio_adulto) || 0;
     const menores = parseInt(eventoEdit.menores) || 0;
     const precioMenor = parseFloat(eventoEdit.precio_menor) || 0;
-    return (adultos * precioAdulto) + (menores * precioMenor);
+
+    let totalExtras = 0;
+    [1, 2, 3].forEach(i => {
+      const valor = parseFloat(eventoEdit[`extra${i}_valor`]) || 0;
+      const tipo = eventoEdit[`extra${i}_tipo`];
+      totalExtras += tipo === 'por_persona' ? valor * adultos : valor;
+    });
+
+    return (adultos * precioAdulto) + (menores * precioMenor) + totalExtras;
   };
 
   const handleUpdate = async (e) => {
@@ -191,6 +253,8 @@ export default function App() {
         cliente: eventoEdit.cliente,
         telefono: eventoEdit.telefono,
         turno: eventoEdit.turno,
+        hora_inicio: eventoEdit.hora_inicio,
+        hora_fin: eventoEdit.hora_fin,
         vendedor: eventoEdit.vendedor,
         tipo_evento: eventoEdit.tipo_evento,
         menu: eventoEdit.menu,
@@ -203,6 +267,15 @@ export default function App() {
         precio_adulto: parseFloat(eventoEdit.precio_adulto) || 0,
         menores: parseInt(eventoEdit.menores) || 0,
         precio_menor: parseFloat(eventoEdit.precio_menor) || 0,
+        extra1_desc: eventoEdit.extra1_desc,
+        extra1_valor: parseFloat(eventoEdit.extra1_valor) || 0,
+        extra1_tipo: eventoEdit.extra1_tipo,
+        extra2_desc: eventoEdit.extra2_desc,
+        extra2_valor: parseFloat(eventoEdit.extra2_valor) || 0,
+        extra2_tipo: eventoEdit.extra2_tipo,
+        extra3_desc: eventoEdit.extra3_desc,
+        extra3_valor: parseFloat(eventoEdit.extra3_valor) || 0,
+        extra3_tipo: eventoEdit.extra3_tipo,
         total_evento: total,
         confirmado: eventoEdit.confirmado
       })
@@ -240,26 +313,41 @@ export default function App() {
     return eventos.map(e => ({
       ...e,
       mes: new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'long' }),
+      year: new Date(e.fecha + 'T12:00:00').getFullYear(),
       tipoEvento: e.tipo_evento,
       totalEvento: Number(e.total_evento)
     }));
   }, [eventos]);
 
-  const vendedores = useMemo(() => ['todos', ...new Set(eventosData.map(e => e.vendedor))], [eventosData]);
-  const meses = useMemo(() => ['todos', ...new Set(eventosData.map(e => e.mes))], [eventosData]);
+  // Años disponibles
+  const yearsDisponibles = useMemo(() => {
+    const years = [...new Set(eventosData.map(e => e.year))].sort((a, b) => b - a);
+    return years.length > 0 ? years : [new Date().getFullYear()];
+  }, [eventosData]);
+
+  // Eventos filtrados por año
+  const eventosDelAño = useMemo(() => {
+    return eventosData.filter(e => e.year === filterYear);
+  }, [eventosData, filterYear]);
+
+  const vendedores = useMemo(() => ['todos', ...new Set(eventosDelAño.map(e => e.vendedor))], [eventosDelAño]);
+  const meses = useMemo(() => ['todos', ...new Set(eventosDelAño.map(e => e.mes))], [eventosDelAño]);
 
   const filteredEventos = useMemo(() => {
-    return eventosData
+    return eventosDelAño
       .filter(e => {
         const matchSearch = e.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            e.tipoEvento.toLowerCase().includes(searchTerm.toLowerCase());
         const matchVendedor = filterVendedor === 'todos' || e.vendedor === filterVendedor;
         const matchMes = filterMes === 'todos' || e.mes === filterMes;
-        return matchSearch && matchVendedor && matchMes;
+        const matchEstado = filterEstado === 'todos' ||
+                           (filterEstado === 'confirmados' && e.confirmado) ||
+                           (filterEstado === 'aconfirmar' && !e.confirmado);
+        return matchSearch && matchVendedor && matchMes && matchEstado;
       })
       .sort((a, b) => {
         if (sortConfig.key === 'fecha') {
-          return sortConfig.direction === 'asc' 
+          return sortConfig.direction === 'asc'
             ? new Date(a.fecha) - new Date(b.fecha)
             : new Date(b.fecha) - new Date(a.fecha);
         }
@@ -268,39 +356,39 @@ export default function App() {
         }
         return 0;
       });
-  }, [eventosData, searchTerm, filterVendedor, filterMes, sortConfig]);
+  }, [eventosDelAño, searchTerm, filterVendedor, filterMes, filterEstado, sortConfig]);
 
   const stats = useMemo(() => {
-    const totalEventos = eventosData.length;
-    const totalFacturado = eventosData.reduce((sum, e) => sum + e.totalEvento, 0);
-    const totalAdultos = eventosData.reduce((sum, e) => sum + e.adultos, 0);
+    const totalEventos = eventosDelAño.length;
+    const totalFacturado = eventosDelAño.reduce((sum, e) => sum + e.totalEvento, 0);
+    const totalAdultos = eventosDelAño.reduce((sum, e) => sum + e.adultos, 0);
     return { totalEventos, totalFacturado, totalAdultos };
-  }, [eventosData]);
+  }, [eventosDelAño]);
 
   const eventosPorMes = useMemo(() => {
-    const orden = ['marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-    const grouped = eventosData.reduce((acc, e) => {
+    const orden = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    const grouped = eventosDelAño.reduce((acc, e) => {
       acc[e.mes] = (acc[e.mes] || 0) + e.totalEvento;
       return acc;
     }, {});
     return orden.filter(m => grouped[m]).map(mes => ({ mes: mes.charAt(0).toUpperCase() + mes.slice(1, 3), total: grouped[mes] }));
-  }, [eventosData]);
+  }, [eventosDelAño]);
 
   const eventosPorVendedor = useMemo(() => {
-    const grouped = eventosData.reduce((acc, e) => {
+    const grouped = eventosDelAño.reduce((acc, e) => {
       acc[e.vendedor] = (acc[e.vendedor] || 0) + e.totalEvento;
       return acc;
     }, {});
     return Object.entries(grouped).map(([name, value]) => ({ name, value }));
-  }, [eventosData]);
+  }, [eventosDelAño]);
 
   const eventosPorTipo = useMemo(() => {
-    const grouped = eventosData.reduce((acc, e) => {
+    const grouped = eventosDelAño.reduce((acc, e) => {
       acc[e.tipoEvento] = (acc[e.tipoEvento] || 0) + 1;
       return acc;
     }, {});
     return Object.entries(grouped).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, [eventosData]);
+  }, [eventosDelAño]);
 
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
@@ -320,23 +408,23 @@ export default function App() {
     return eventosData.filter(e => e.fecha === selectedDate);
   }, [selectedDate, eventosData]);
 
-  // Próximos eventos (confirmados, desde hoy en adelante)
+  // Próximos eventos (confirmados, desde hoy en adelante, del año seleccionado)
   const proximosEventos = useMemo(() => {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
-    return eventosData
+    return eventosDelAño
       .filter(e => new Date(e.fecha + 'T12:00:00') >= hoy && e.confirmado === true)
       .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-  }, [eventosData]);
+  }, [eventosDelAño]);
 
-  // Eventos a confirmar (no confirmados, desde hoy en adelante)
+  // Eventos a confirmar (no confirmados, desde hoy en adelante, del año seleccionado)
   const eventosAConfirmar = useMemo(() => {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
-    return eventosData
+    return eventosDelAño
       .filter(e => new Date(e.fecha + 'T12:00:00') >= hoy && !e.confirmado)
       .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-  }, [eventosData]);
+  }, [eventosDelAño]);
 
   // Calcular días restantes
   const getDiasRestantes = (fecha) => {
@@ -437,7 +525,7 @@ export default function App() {
                 </div>
               </div>
               
-              {/* Turno, Tipo, Menú */}
+              {/* Turno y Horarios */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Turno</label>
@@ -449,6 +537,28 @@ export default function App() {
                     {TURNOS.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Hora Inicio</label>
+                  <input
+                    type="time"
+                    value={nuevoEvento.hora_inicio}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, hora_inicio: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/20 bg-white/10 text-white focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Hora Fin</label>
+                  <input
+                    type="time"
+                    value={nuevoEvento.hora_fin}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, hora_fin: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/20 bg-white/10 text-white focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
+                  />
+                </div>
+              </div>
+
+              {/* Tipo, Menú, Salón */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Tipo de Evento</label>
                   <select
@@ -469,18 +579,16 @@ export default function App() {
                     {MENUS.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
-              </div>
-
-              {/* Salón */}
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Salón</label>
-                <select
-                  value={nuevoEvento.salon}
-                  onChange={(e) => setNuevoEvento({...nuevoEvento, salon: e.target.value})}
-                  className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
-                >
-                  {SALONES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Salón</label>
+                  <select
+                    value={nuevoEvento.salon}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, salon: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  >
+                    {SALONES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
               </div>
 
               {/* Técnica, DJ, Técnica Superior */}
@@ -572,6 +680,44 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Extras */}
+              <div className="space-y-3">
+                <label className="block text-sm text-slate-400">Extras</label>
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="grid grid-cols-1 md:grid-cols-12 gap-2 p-3 rounded-xl bg-white/5 border border-white/10">
+                    <div className="md:col-span-5">
+                      <input
+                        type="text"
+                        placeholder={`Descripción extra ${i}`}
+                        value={nuevoEvento[`extra${i}_desc`]}
+                        onChange={(e) => setNuevoEvento({...nuevoEvento, [`extra${i}_desc`]: e.target.value})}
+                        className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 text-sm"
+                      />
+                    </div>
+                    <div className="md:col-span-3">
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="Valor $"
+                        value={nuevoEvento[`extra${i}_valor`]}
+                        onChange={(e) => setNuevoEvento({...nuevoEvento, [`extra${i}_valor`]: e.target.value})}
+                        className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 text-sm"
+                      />
+                    </div>
+                    <div className="md:col-span-4">
+                      <select
+                        value={nuevoEvento[`extra${i}_tipo`]}
+                        onChange={(e) => setNuevoEvento({...nuevoEvento, [`extra${i}_tipo`]: e.target.value})}
+                        className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50 text-sm"
+                      >
+                        <option value="total">Valor Total</option>
+                        <option value="por_persona">Por Persona</option>
+                      </select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               {/* Total calculado */}
               <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
                 <p className="text-sm text-slate-400">Total Evento</p>
@@ -657,6 +803,15 @@ export default function App() {
                   <p className="font-medium">{selectedEvento.turno}</p>
                 </div>
               </div>
+
+              {(selectedEvento.hora_inicio || selectedEvento.hora_fin) && (
+                <div className="bg-white/5 rounded-xl p-3 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-slate-400" />
+                  <span>
+                    {selectedEvento.hora_inicio || '--:--'} a {selectedEvento.hora_fin || '--:--'}
+                  </span>
+                </div>
+              )}
 
               {selectedEvento.telefono && (
                 <div className="bg-white/5 rounded-xl p-3 flex items-center gap-2">
@@ -808,7 +963,7 @@ export default function App() {
                 </div>
               </div>
               
-              {/* Turno, Tipo, Menú */}
+              {/* Turno y Horarios */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Turno</label>
@@ -820,6 +975,28 @@ export default function App() {
                     {TURNOS.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Hora Inicio</label>
+                  <input
+                    type="time"
+                    value={eventoEdit.hora_inicio}
+                    onChange={(e) => setEventoEdit({...eventoEdit, hora_inicio: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/20 bg-white/10 text-white focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Hora Fin</label>
+                  <input
+                    type="time"
+                    value={eventoEdit.hora_fin}
+                    onChange={(e) => setEventoEdit({...eventoEdit, hora_fin: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/20 bg-white/10 text-white focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
+                  />
+                </div>
+              </div>
+
+              {/* Tipo, Menú, Salón */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Tipo de Evento</label>
                   <select
@@ -840,18 +1017,16 @@ export default function App() {
                     {MENUS.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
-              </div>
-
-              {/* Salón */}
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Salón</label>
-                <select
-                  value={eventoEdit.salon}
-                  onChange={(e) => setEventoEdit({...eventoEdit, salon: e.target.value})}
-                  className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
-                >
-                  {SALONES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Salón</label>
+                  <select
+                    value={eventoEdit.salon}
+                    onChange={(e) => setEventoEdit({...eventoEdit, salon: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  >
+                    {SALONES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
               </div>
 
               {/* Técnica, DJ, Técnica Superior */}
@@ -938,6 +1113,44 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Extras */}
+              <div className="space-y-3">
+                <label className="block text-sm text-slate-400">Extras</label>
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="grid grid-cols-1 md:grid-cols-12 gap-2 p-3 rounded-xl bg-white/5 border border-white/10">
+                    <div className="md:col-span-5">
+                      <input
+                        type="text"
+                        placeholder={`Descripción extra ${i}`}
+                        value={eventoEdit[`extra${i}_desc`]}
+                        onChange={(e) => setEventoEdit({...eventoEdit, [`extra${i}_desc`]: e.target.value})}
+                        className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 text-sm"
+                      />
+                    </div>
+                    <div className="md:col-span-3">
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="Valor $"
+                        value={eventoEdit[`extra${i}_valor`]}
+                        onChange={(e) => setEventoEdit({...eventoEdit, [`extra${i}_valor`]: e.target.value})}
+                        className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 text-sm"
+                      />
+                    </div>
+                    <div className="md:col-span-4">
+                      <select
+                        value={eventoEdit[`extra${i}_tipo`]}
+                        onChange={(e) => setEventoEdit({...eventoEdit, [`extra${i}_tipo`]: e.target.value})}
+                        className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50 text-sm"
+                      >
+                        <option value="total">Valor Total</option>
+                        <option value="por_persona">Por Persona</option>
+                      </select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               {/* Total calculado */}
               <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
                 <p className="text-sm text-slate-400">Total Evento</p>
@@ -1000,13 +1213,28 @@ export default function App() {
                 <p className="text-sm text-slate-400">Panel de Control</p>
               </div>
             </div>
-            <button
-              onClick={() => setShowModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium hover:from-purple-700 hover:to-indigo-700 transition-all"
-            >
-              <Plus className="w-5 h-5" />
-              <span className="hidden sm:inline">Nuevo Evento</span>
-            </button>
+            <div className="flex items-center gap-3">
+              {/* Selector de Año */}
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
+                <Calendar className="w-4 h-4 text-slate-400" />
+                <select
+                  value={filterYear}
+                  onChange={(e) => setFilterYear(Number(e.target.value))}
+                  className="bg-transparent text-white font-medium focus:outline-none cursor-pointer"
+                >
+                  {yearsDisponibles.map(year => (
+                    <option key={year} value={year} className="bg-slate-900">{year}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={() => setShowModal(true)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium hover:from-purple-700 hover:to-indigo-700 transition-all"
+              >
+                <Plus className="w-5 h-5" />
+                <span className="hidden sm:inline">Nuevo Evento</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -1202,6 +1430,11 @@ export default function App() {
                             {e.turno === 'Noche' ? <Moon className="w-3 h-3" /> : <Sun className="w-3 h-3" />}
                             {e.turno}
                           </span>
+                          {(e.hora_inicio || e.hora_fin) && (
+                            <span className="flex items-center gap-1 text-slate-400">
+                              <Clock className="w-3 h-3" /> {e.hora_inicio || '--:--'} a {e.hora_fin || '--:--'}
+                            </span>
+                          )}
                           <span className="text-slate-400">👤 {e.vendedor}</span>
                           {e.telefono && (
                             <span className="flex items-center gap-1 text-slate-400">
@@ -1309,6 +1542,11 @@ export default function App() {
                             {e.turno === 'Noche' ? <Moon className="w-3 h-3" /> : <Sun className="w-3 h-3" />}
                             {e.turno}
                           </span>
+                          {(e.hora_inicio || e.hora_fin) && (
+                            <span className="flex items-center gap-1 text-slate-400">
+                              <Clock className="w-3 h-3" /> {e.hora_inicio || '--:--'} a {e.hora_fin || '--:--'}
+                            </span>
+                          )}
                           <span className="text-slate-400">👤 {e.vendedor}</span>
                           {e.telefono && (
                             <span className="flex items-center gap-1 text-slate-400">
@@ -1317,14 +1555,14 @@ export default function App() {
                           )}
                         </div>
                       </div>
-                      
+
                       {/* Total */}
                       <div className="flex-shrink-0 text-right">
                         <p className="text-xs text-slate-400">Total</p>
                         <p className="text-xl font-bold text-emerald-400 mono">{formatCurrency(e.totalEvento)}</p>
                       </div>
                     </div>
-                    
+
                     {e.otros && (
                       <div className="mt-3 pt-3 border-t border-white/10">
                         <p className="text-sm text-slate-400">📝 {e.otros}</p>
@@ -1390,9 +1628,9 @@ export default function App() {
                       {hasEventos && (
                         <div className="flex gap-0.5 mt-1">
                           {eventosDelDia.slice(0, 3).map((e, idx) => (
-                            <div 
-                              key={idx} 
-                              className={`w-1.5 h-1.5 rounded-full ${e.turno === 'Noche' ? 'bg-indigo-400' : 'bg-amber-400'}`}
+                            <div
+                              key={idx}
+                              className={`w-1.5 h-1.5 rounded-full ${e.confirmado ? 'bg-emerald-400' : 'bg-amber-400'}`}
                             />
                           ))}
                         </div>
@@ -1404,12 +1642,12 @@ export default function App() {
 
               <div className="flex items-center gap-4 mt-4 text-sm text-slate-400">
                 <div className="flex items-center gap-2">
-                  <Moon className="w-4 h-4 text-indigo-400" />
-                  <span>Noche</span>
+                  <CheckCircle className="w-4 h-4 text-emerald-400" />
+                  <span>Confirmado</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Sun className="w-4 h-4 text-amber-400" />
-                  <span>Mediodía</span>
+                  <AlertCircle className="w-4 h-4 text-amber-400" />
+                  <span>A confirmar</span>
                 </div>
               </div>
             </div>
@@ -1425,20 +1663,60 @@ export default function App() {
                     <button
                       key={i}
                       onClick={() => setSelectedEvento(e)}
-                      className="w-full text-left bg-white/5 rounded-xl p-4 border border-white/10 hover:border-purple-500/30 transition-all"
+                      className={`w-full text-left rounded-xl p-4 border transition-all ${
+                        e.confirmado
+                          ? 'bg-white/5 border-white/10 hover:border-purple-500/30'
+                          : 'bg-amber-500/5 border-amber-500/20 hover:border-amber-500/40'
+                      }`}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-semibold">{e.cliente}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 rounded-full text-xs flex items-center gap-1 ${
+                            e.confirmado
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                              : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                          }`}>
+                            {e.confirmado ? <CheckCircle className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
+                            {e.confirmado ? 'Confirmado' : 'A confirmar'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <span className={`px-2 py-1 rounded-full text-xs ${e.turno === 'Noche' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-amber-500/20 text-amber-300'}`}>
                           {e.turno}
                         </span>
+                        {(e.hora_inicio || e.hora_fin) && (
+                          <span className="text-xs text-slate-400 flex items-center gap-1">
+                            <Clock className="w-3 h-3" /> {e.hora_inicio || '--:--'} a {e.hora_fin || '--:--'}
+                          </span>
+                        )}
                       </div>
                       <div className="text-sm text-slate-400 space-y-1">
                         <p>📋 {e.tipoEvento}</p>
                         <p>🍽️ {e.menu} • {e.adultos} personas</p>
                         <p>👤 {e.vendedor}</p>
-                        <p className="text-emerald-400 font-semibold">{formatCurrency(e.totalEvento)}</p>
                       </div>
+                      {(e.tecnica || e.tecnica_superior || e.dj) && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {e.tecnica && (
+                            <span className="px-2 py-0.5 rounded-full text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                              <Mic className="w-3 h-3" /> Técnica
+                            </span>
+                          )}
+                          {e.tecnica_superior && (
+                            <span className="px-2 py-0.5 rounded-full text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                              <Mic className="w-3 h-3" /> Téc. Superior
+                            </span>
+                          )}
+                          {e.dj && (
+                            <span className="px-2 py-0.5 rounded-full text-xs bg-pink-500/20 text-pink-300 border border-pink-500/30 flex items-center gap-1">
+                              <Music className="w-3 h-3" /> {e.dj}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <p className="text-emerald-400 font-semibold text-sm mt-2">{formatCurrency(e.totalEvento)}</p>
                     </button>
                   ))}
                 </div>
@@ -1482,6 +1760,15 @@ export default function App() {
                 {meses.map(m => (
                   <option key={m} value={m}>{m === 'todos' ? 'Todos los meses' : m.charAt(0).toUpperCase() + m.slice(1)}</option>
                 ))}
+              </select>
+              <select
+                value={filterEstado}
+                onChange={(e) => setFilterEstado(e.target.value)}
+                className="px-4 py-2.5 rounded-xl border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5"
+              >
+                <option value="todos">Todos los estados</option>
+                <option value="confirmados">Confirmados</option>
+                <option value="aconfirmar">A confirmar</option>
               </select>
             </div>
 
