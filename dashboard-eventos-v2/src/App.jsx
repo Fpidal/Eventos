@@ -21,7 +21,7 @@ const VENDEDORES = ['Rodrigo', 'Francisco', 'Piru'];
 const TIPOS_EVENTO = ['Cumple 15', 'Cumple 40', 'Cumple 50', 'Cumple 60', 'Cumple 80', 'Cumple 1 año', 'Aniversario', 'Casamiento', 'Civil', 'Evento Empresa', 'Fiesta Privada', 'PRIVADO', 'Reunion', 'Cumpleaños', 'Bat/Bar Mitzvah'];
 const MENUS = ['Tapas', 'Asado', '3 pasos', 'Premium', 'Brunch'];
 const TURNOS = ['Noche', 'M. Dia'];
-const SALONES = ['Completo', 'Grolsh', 'Salentein'];
+const SALONES = ['Tero', 'Cristal', 'Salentein'];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -47,7 +47,7 @@ export default function App() {
     vendedor: 'Francisco',
     tipo_evento: 'Cumple 50',
     menu: 'Tapas',
-    salon: 'Completo',
+    salon: 'Tero',
     tecnica: false,
     dj: '',
     tecnica_superior: false,
@@ -154,7 +154,7 @@ export default function App() {
       vendedor: evento.vendedor,
       tipo_evento: evento.tipo_evento,
       menu: evento.menu,
-      salon: evento.salon || 'Completo',
+      salon: evento.salon || 'Tero',
       tecnica: evento.tecnica || false,
       dj: evento.dj || '',
       tecnica_superior: evento.tecnica_superior || false,
@@ -679,7 +679,7 @@ export default function App() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white/5 rounded-xl p-3">
                   <p className="text-xs text-slate-400">Salón</p>
-                  <p className="font-medium">{selectedEvento.salon || 'Completo'}</p>
+                  <p className="font-medium">{selectedEvento.salon || 'Tero'}</p>
                 </div>
                 <div className="bg-white/5 rounded-xl p-3">
                   <p className="text-xs text-slate-400">Vendedor</p>
@@ -1193,7 +1193,7 @@ export default function App() {
                             👥 {e.adultos + (e.menores || 0)} personas
                           </span>
                           <span className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3" /> {e.salon || 'Completo'}
+                            <MapPin className="w-3 h-3" /> {e.salon || 'Tero'}
                           </span>
                         </div>
 
@@ -1300,7 +1300,7 @@ export default function App() {
                             👥 {e.adultos + (e.menores || 0)} personas
                           </span>
                           <span className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3" /> {e.salon || 'Completo'}
+                            <MapPin className="w-3 h-3" /> {e.salon || 'Tero'}
                           </span>
                         </div>
 
@@ -1518,7 +1518,7 @@ export default function App() {
                             {e.tipoEvento}
                           </span>
                         </td>
-                        <td className="px-5 py-4 text-slate-300 hidden lg:table-cell">{e.salon || 'Completo'}</td>
+                        <td className="px-5 py-4 text-slate-300 hidden lg:table-cell">{e.salon || 'Tero'}</td>
                         <td className="px-5 py-4 hidden sm:table-cell">
                           <span className={`px-3 py-1 rounded-full text-xs ${e.turno === 'Noche' ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}`}>
                             {e.turno}
