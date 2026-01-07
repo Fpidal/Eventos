@@ -30,7 +30,7 @@ export default function App() {
   const [filterMes, setFilterMes] = useState('todos');
   const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'asc' });
   const [selectedDate, setSelectedDate] = useState(null);
-  const [calendarDate, setCalendarDate] = useState(new Date(2025, 2, 1));
+  const [calendarDate, setCalendarDate] = useState(new Date());
   const [selectedEvento, setSelectedEvento] = useState(null);
   
   const [eventos, setEventos] = useState([]);
