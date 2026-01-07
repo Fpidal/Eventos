@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2 } from 'lucide-react';
+import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { supabase } from './supabase';
 
@@ -55,7 +55,8 @@ export default function App() {
     adultos: '',
     precio_adulto: '',
     menores: '',
-    precio_menor: ''
+    precio_menor: '',
+    confirmado: false
   });
 
   useEffect(() => {
@@ -110,7 +111,8 @@ export default function App() {
         precio_adulto: parseFloat(nuevoEvento.precio_adulto) || 0,
         menores: parseInt(nuevoEvento.menores) || 0,
         precio_menor: parseFloat(nuevoEvento.precio_menor) || 0,
-        total_evento: total
+        total_evento: total,
+        confirmado: nuevoEvento.confirmado
       }]);
     
     if (error) {
@@ -134,7 +136,8 @@ export default function App() {
         adultos: '',
         precio_adulto: '',
         menores: '',
-        precio_menor: ''
+        precio_menor: '',
+        confirmado: false
       });
       fetchEventos();
     }
@@ -159,7 +162,8 @@ export default function App() {
       adultos: evento.adultos?.toString() || '',
       precio_adulto: evento.precio_adulto?.toString() || '',
       menores: evento.menores?.toString() || '',
-      precio_menor: evento.precio_menor?.toString() || ''
+      precio_menor: evento.precio_menor?.toString() || '',
+      confirmado: evento.confirmado || false
     });
     setSelectedEvento(null);
     setEditMode(true);
@@ -199,7 +203,8 @@ export default function App() {
         precio_adulto: parseFloat(eventoEdit.precio_adulto) || 0,
         menores: parseInt(eventoEdit.menores) || 0,
         precio_menor: parseFloat(eventoEdit.precio_menor) || 0,
-        total_evento: total
+        total_evento: total,
+        confirmado: eventoEdit.confirmado
       })
       .eq('id', eventoEdit.id);
     
@@ -315,12 +320,21 @@ export default function App() {
     return eventosData.filter(e => e.fecha === selectedDate);
   }, [selectedDate, eventosData]);
 
-  // Próximos eventos (desde hoy en adelante)
+  // Próximos eventos (confirmados, desde hoy en adelante)
   const proximosEventos = useMemo(() => {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
     return eventosData
-      .filter(e => new Date(e.fecha + 'T12:00:00') >= hoy)
+      .filter(e => new Date(e.fecha + 'T12:00:00') >= hoy && e.confirmado === true)
+      .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+  }, [eventosData]);
+
+  // Eventos a confirmar (no confirmados, desde hoy en adelante)
+  const eventosAConfirmar = useMemo(() => {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    return eventosData
+      .filter(e => new Date(e.fecha + 'T12:00:00') >= hoy && !e.confirmado)
       .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
   }, [eventosData]);
 
@@ -575,6 +589,23 @@ export default function App() {
                   className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 resize-none"
                 />
               </div>
+
+              {/* Confirmado */}
+              <div className={`flex items-center gap-3 p-4 rounded-xl border ${nuevoEvento.confirmado ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-white/10 bg-white/5'}`}>
+                <input
+                  type="checkbox"
+                  id="confirmado"
+                  checked={nuevoEvento.confirmado}
+                  onChange={(e) => setNuevoEvento({...nuevoEvento, confirmado: e.target.checked})}
+                  className="w-5 h-5 rounded accent-emerald-500"
+                />
+                <label htmlFor="confirmado" className="flex items-center gap-2 cursor-pointer">
+                  <CheckCircle className={`w-5 h-5 ${nuevoEvento.confirmado ? 'text-emerald-400' : 'text-slate-400'}`} />
+                  <span className={nuevoEvento.confirmado ? 'text-emerald-400 font-medium' : 'text-slate-400'}>
+                    {nuevoEvento.confirmado ? 'Evento Confirmado' : 'Marcar como confirmado'}
+                  </span>
+                </label>
+              </div>
               
               <button
                 type="submit"
@@ -598,6 +629,21 @@ export default function App() {
               <button onClick={() => setSelectedEvento(null)} className="p-2 hover:bg-white/10 rounded-xl">
                 <X className="w-5 h-5" />
               </button>
+            </div>
+
+            {/* Estado de confirmación */}
+            <div className={`mb-4 p-3 rounded-xl flex items-center gap-2 ${selectedEvento.confirmado ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-amber-500/10 border border-amber-500/30'}`}>
+              {selectedEvento.confirmado ? (
+                <>
+                  <CheckCircle className="w-5 h-5 text-emerald-400" />
+                  <span className="text-emerald-400 font-medium">Evento Confirmado</span>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="w-5 h-5 text-amber-400" />
+                  <span className="text-amber-400 font-medium">Pendiente de Confirmación</span>
+                </>
+              )}
             </div>
             
             <div className="space-y-4">
@@ -908,6 +954,23 @@ export default function App() {
                   className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50 resize-none"
                 />
               </div>
+
+              {/* Confirmado */}
+              <div className={`flex items-center gap-3 p-4 rounded-xl border ${eventoEdit.confirmado ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-white/10 bg-white/5'}`}>
+                <input
+                  type="checkbox"
+                  id="confirmado_edit"
+                  checked={eventoEdit.confirmado}
+                  onChange={(e) => setEventoEdit({...eventoEdit, confirmado: e.target.checked})}
+                  className="w-5 h-5 rounded accent-emerald-500"
+                />
+                <label htmlFor="confirmado_edit" className="flex items-center gap-2 cursor-pointer">
+                  <CheckCircle className={`w-5 h-5 ${eventoEdit.confirmado ? 'text-emerald-400' : 'text-slate-400'}`} />
+                  <span className={eventoEdit.confirmado ? 'text-emerald-400 font-medium' : 'text-slate-400'}>
+                    {eventoEdit.confirmado ? 'Evento Confirmado' : 'Marcar como confirmado'}
+                  </span>
+                </label>
+              </div>
               
               <button
                 type="submit"
@@ -954,6 +1017,7 @@ export default function App() {
           {[
             { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
             { id: 'proximos', label: 'Próximos', icon: Clock },
+            { id: 'aconfirmar', label: 'A Confirmar', icon: AlertCircle },
             { id: 'calendario', label: 'Calendario', icon: Calendar },
             { id: 'eventos', label: 'Eventos', icon: Briefcase },
           ].map(tab => (
@@ -1161,6 +1225,94 @@ export default function App() {
                           {e.dj && (
                             <span className="px-2 py-0.5 rounded-full text-xs bg-pink-500/20 text-pink-300 border border-pink-500/30">
                               DJ: {e.dj}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Total */}
+                      <div className="flex-shrink-0 text-right">
+                        <p className="text-xs text-slate-400">Total</p>
+                        <p className="text-xl font-bold text-emerald-400 mono">{formatCurrency(e.totalEvento)}</p>
+                      </div>
+                    </div>
+                    
+                    {e.otros && (
+                      <div className="mt-3 pt-3 border-t border-white/10">
+                        <p className="text-sm text-slate-400">📝 {e.otros}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* A Confirmar */}
+        {activeTab === 'aconfirmar' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">Cotizaciones a Confirmar</h2>
+                <p className="text-slate-400">{eventosAConfirmar.length} pendientes de confirmación</p>
+              </div>
+            </div>
+
+            {eventosAConfirmar.length === 0 ? (
+              <div className="glass rounded-2xl p-12 text-center glow">
+                <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
+                <p className="text-slate-400 text-lg">No hay cotizaciones pendientes</p>
+                <p className="text-slate-500 text-sm mt-2">Todas las cotizaciones han sido confirmadas</p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {eventosAConfirmar.map((e, i) => (
+                  <div 
+                    key={e.id || i}
+                    onClick={() => setSelectedEvento(e)}
+                    className="glass rounded-2xl p-5 glow cursor-pointer hover:border-amber-500/30 border border-amber-500/20 transition-all"
+                  >
+                    <div className="flex flex-col md:flex-row md:items-center gap-4">
+                      {/* Fecha destacada */}
+                      <div className="flex-shrink-0 w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-600 to-orange-600 flex flex-col items-center justify-center">
+                        <span className="text-2xl font-bold">{new Date(e.fecha + 'T12:00:00').getDate()}</span>
+                        <span className="text-xs uppercase">{new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
+                      </div>
+                      
+                      {/* Info principal */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h3 className="text-lg font-semibold truncate">{e.cliente}</h3>
+                          <span className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            Pendiente
+                          </span>
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-400">
+                          <span className="flex items-center gap-1">
+                            📋 {e.tipoEvento}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            🍽️ {e.menu}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            👥 {e.adultos + (e.menores || 0)} personas
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3" /> {e.salon || 'Completo'}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm mt-2">
+                          <span className={`flex items-center gap-1 ${e.turno === 'Noche' ? 'text-indigo-400' : 'text-amber-400'}`}>
+                            {e.turno === 'Noche' ? <Moon className="w-3 h-3" /> : <Sun className="w-3 h-3" />}
+                            {e.turno}
+                          </span>
+                          <span className="text-slate-400">👤 {e.vendedor}</span>
+                          {e.telefono && (
+                            <span className="flex items-center gap-1 text-slate-400">
+                              <Phone className="w-3 h-3" /> {e.telefono}
                             </span>
                           )}
                         </div>
