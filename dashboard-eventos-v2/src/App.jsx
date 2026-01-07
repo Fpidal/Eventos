@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, CreditCard, BarChart3, Clock } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
+import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, CreditCard, BarChart3, Clock, ChevronLeft, ChevronRight, Sun, Moon } from 'lucide-react';
+import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { eventosData, saldosData, cobranzasData } from './data';
 
 const formatCurrency = (value) => {
@@ -15,12 +15,17 @@ const formatDate = (dateStr) => {
 
 const COLORS = ['#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e'];
 
+const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const DIAS_SEMANA = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterVendedor, setFilterVendedor] = useState('todos');
   const [filterMes, setFilterMes] = useState('todos');
-  const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'asc' });
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [calendarDate, setCalendarDate] = useState(new Date(2025, 2, 1)); // Marzo 2025
 
   const vendedores = useMemo(() => ['todos', ...new Set(eventosData.map(e => e.vendedor))], []);
   const meses = useMemo(() => ['todos', ...new Set(eventosData.map(e => e.mes))], []);
@@ -64,11 +69,12 @@ export default function App() {
   }, []);
 
   const eventosPorMes = useMemo(() => {
+    const orden = ['marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
     const grouped = eventosData.reduce((acc, e) => {
       acc[e.mes] = (acc[e.mes] || 0) + e.totalEvento;
       return acc;
     }, {});
-    return Object.entries(grouped).map(([mes, total]) => ({ mes, total }));
+    return orden.filter(m => grouped[m]).map(mes => ({ mes: mes.charAt(0).toUpperCase() + mes.slice(1, 3), total: grouped[mes] }));
   }, []);
 
   const eventosPorVendedor = useMemo(() => {
@@ -84,8 +90,29 @@ export default function App() {
       acc[e.tipoEvento] = (acc[e.tipoEvento] || 0) + 1;
       return acc;
     }, {});
-    return Object.entries(grouped).map(([name, value]) => ({ name, value }));
+    return Object.entries(grouped).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   }, []);
+
+  // Funciones del calendario
+  const getDaysInMonth = (date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDay = firstDay.getDay();
+    return { daysInMonth, startingDay };
+  };
+
+  const getEventosForDate = (day) => {
+    const dateStr = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return eventosData.filter(e => e.fecha === dateStr);
+  };
+
+  const eventosDelDiaSeleccionado = useMemo(() => {
+    if (!selectedDate) return [];
+    return eventosData.filter(e => e.fecha === selectedDate);
+  }, [selectedDate]);
 
   const handleSort = (key) => {
     setSortConfig(prev => ({
@@ -100,6 +127,8 @@ export default function App() {
       ? <ChevronDown className="w-4 h-4" /> 
       : <ChevronUp className="w-4 h-4" />;
   };
+
+  const { daysInMonth, startingDay } = getDaysInMonth(calendarDate);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white">
@@ -131,7 +160,8 @@ export default function App() {
         <div className="flex gap-2 p-1 glass rounded-2xl w-fit overflow-x-auto">
           {[
             { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-            { id: 'eventos', label: 'Eventos', icon: Calendar },
+            { id: 'calendario', label: 'Calendario', icon: Calendar },
+            { id: 'eventos', label: 'Eventos', icon: Briefcase },
             { id: 'saldos', label: 'Cuentas', icon: CreditCard },
             { id: 'cobranzas', label: 'Cobranzas', icon: DollarSign },
           ].map(tab => (
@@ -153,12 +183,11 @@ export default function App() {
         {/* Dashboard */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            {/* Stats Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
-                { label: 'Total Eventos', value: stats.totalEventos, icon: Calendar, color: 'from-indigo-500 to-blue-600', suffix: '' },
+                { label: 'Total Eventos', value: stats.totalEventos, icon: Calendar, color: 'from-indigo-500 to-blue-600' },
                 { label: 'Facturación Total', value: stats.totalFacturado, icon: DollarSign, color: 'from-emerald-500 to-teal-600', format: true },
-                { label: 'Total Invitados', value: stats.totalAdultos, icon: Users, color: 'from-amber-500 to-orange-600', suffix: '' },
+                { label: 'Total Invitados', value: stats.totalAdultos, icon: Users, color: 'from-amber-500 to-orange-600' },
                 { label: 'Saldo Pendiente', value: stats.saldoPendiente, icon: TrendingUp, color: 'from-rose-500 to-pink-600', format: true },
               ].map((stat, i) => (
                 <div key={i} className="stat-card glass rounded-2xl p-5 glow">
@@ -177,7 +206,6 @@ export default function App() {
               ))}
             </div>
 
-            {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="glass rounded-2xl p-6 glow">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -210,15 +238,7 @@ export default function App() {
                 </h3>
                 <ResponsiveContainer width="100%" height={280}>
                   <PieChart>
-                    <Pie
-                      data={eventosPorVendedor}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={70}
-                      outerRadius={100}
-                      paddingAngle={4}
-                      dataKey="value"
-                    >
+                    <Pie data={eventosPorVendedor} cx="50%" cy="50%" innerRadius={70} outerRadius={100} paddingAngle={4} dataKey="value">
                       {eventosPorVendedor.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
@@ -240,17 +260,16 @@ export default function App() {
               </div>
             </div>
 
-            {/* Tipos de Evento */}
             <div className="glass rounded-2xl p-6 glow">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Briefcase className="w-5 h-5 text-pink-400" />
                 Tipos de Evento
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                {eventosPorTipo.map((tipo, i) => (
+                {eventosPorTipo.slice(0, 12).map((tipo) => (
                   <div key={tipo.name} className="bg-white/5 rounded-xl p-4 text-center border border-white/5 hover:border-purple-500/30 transition-all">
                     <p className="text-2xl font-bold text-purple-400 mono">{tipo.value}</p>
-                    <p className="text-xs sm:text-sm text-slate-400 mt-1">{tipo.name}</p>
+                    <p className="text-xs text-slate-400 mt-1 truncate">{tipo.name}</p>
                   </div>
                 ))}
               </div>
@@ -258,10 +277,119 @@ export default function App() {
           </div>
         )}
 
+        {/* Calendario */}
+        {activeTab === 'calendario' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 glass rounded-2xl p-6 glow">
+              <div className="flex items-center justify-between mb-6">
+                <button 
+                  onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1))}
+                  className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <h3 className="text-xl font-semibold">
+                  {MESES[calendarDate.getMonth()]} {calendarDate.getFullYear()}
+                </h3>
+                <button 
+                  onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1))}
+                  className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-7 gap-1 mb-2">
+                {DIAS_SEMANA.map(dia => (
+                  <div key={dia} className="text-center text-sm text-slate-400 py-2">{dia}</div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-7 gap-1">
+                {Array.from({ length: startingDay }).map((_, i) => (
+                  <div key={`empty-${i}`} className="aspect-square" />
+                ))}
+                {Array.from({ length: daysInMonth }).map((_, i) => {
+                  const day = i + 1;
+                  const eventos = getEventosForDate(day);
+                  const dateStr = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                  const isSelected = selectedDate === dateStr;
+                  const hasEventos = eventos.length > 0;
+                  
+                  return (
+                    <button
+                      key={day}
+                      onClick={() => setSelectedDate(hasEventos ? dateStr : null)}
+                      className={`aspect-square rounded-xl flex flex-col items-center justify-center text-sm transition-all relative ${
+                        isSelected ? 'bg-purple-600 text-white' :
+                        hasEventos ? 'bg-purple-500/20 hover:bg-purple-500/30 text-white' : 
+                        'hover:bg-white/5 text-slate-400'
+                      }`}
+                    >
+                      <span className="font-medium">{day}</span>
+                      {hasEventos && (
+                        <div className="flex gap-0.5 mt-1">
+                          {eventos.slice(0, 3).map((e, idx) => (
+                            <div 
+                              key={idx} 
+                              className={`w-1.5 h-1.5 rounded-full ${e.turno === 'Noche' ? 'bg-indigo-400' : 'bg-amber-400'}`}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center gap-4 mt-4 text-sm text-slate-400">
+                <div className="flex items-center gap-2">
+                  <Moon className="w-4 h-4 text-indigo-400" />
+                  <span>Noche</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Sun className="w-4 h-4 text-amber-400" />
+                  <span>Mediodía</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="glass rounded-2xl p-6 glow">
+              <h3 className="text-lg font-semibold mb-4">
+                {selectedDate ? `Eventos del ${formatDate(selectedDate)}` : 'Seleccioná un día'}
+              </h3>
+              
+              {eventosDelDiaSeleccionado.length > 0 ? (
+                <div className="space-y-3">
+                  {eventosDelDiaSeleccionado.map((e, i) => (
+                    <div key={i} className="bg-white/5 rounded-xl p-4 border border-white/10">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold">{e.cliente}</span>
+                        <span className={`px-2 py-1 rounded-full text-xs ${e.turno === 'Noche' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-amber-500/20 text-amber-300'}`}>
+                          {e.turno}
+                        </span>
+                      </div>
+                      <div className="text-sm text-slate-400 space-y-1">
+                        <p>📋 {e.tipoEvento}</p>
+                        <p>🍽️ {e.menu} • {e.adultos} personas</p>
+                        <p>👤 {e.vendedor}</p>
+                        <p className="text-emerald-400 font-semibold">{formatCurrency(e.totalEvento)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-slate-400 text-center py-8">
+                  {selectedDate ? 'No hay eventos este día' : 'Hacé click en un día con eventos para ver los detalles'}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Eventos */}
         {activeTab === 'eventos' && (
           <div className="space-y-4">
-            {/* Filters */}
             <div className="glass rounded-2xl p-4 flex flex-wrap gap-4 items-center">
               <div className="flex-1 min-w-[200px] relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -293,7 +421,6 @@ export default function App() {
               </select>
             </div>
 
-            {/* Table */}
             <div className="glass rounded-2xl overflow-hidden glow">
               <div className="overflow-x-auto scrollbar-thin">
                 <table className="w-full">
@@ -344,7 +471,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Saldos / Cuentas Corrientes */}
+        {/* Saldos */}
         {activeTab === 'saldos' && (
           <div className="space-y-4">
             <div className="glass rounded-2xl p-4 flex flex-wrap gap-4 items-center">
