@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
-import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, CreditCard, BarChart3, Clock, ChevronLeft, ChevronRight, Sun, Moon } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, CreditCard, BarChart3, Clock, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2 } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
-import { eventosData, saldosData, cobranzasData } from './data';
+import { supabase } from './supabase';
 
 const formatCurrency = (value) => {
   if (value === null || value === undefined) return '-';
@@ -9,14 +9,18 @@ const formatCurrency = (value) => {
 };
 
 const formatDate = (dateStr) => {
-  const date = new Date(dateStr);
+  const date = new Date(dateStr + 'T12:00:00');
   return date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 const COLORS = ['#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e'];
-
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const DIAS_SEMANA = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+const VENDEDORES = ['Rodrigo', 'Francisco', 'Piru'];
+const TIPOS_EVENTO = ['Cumple 15', 'Cumple 40', 'Cumple 50', 'Cumple 60', 'Cumple 80', 'Cumple 1 año', 'Aniversario', 'Casamiento', 'Civil', 'Evento Empresa', 'Fiesta Privada', 'PRIVADO', 'Reunion', 'Cumpleaños'];
+const MENUS = ['Tapas', 'Asado', '3 pasos', 'Premium', 'Brunch'];
+const TURNOS = ['Noche', 'M. Dia'];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -25,10 +29,93 @@ export default function App() {
   const [filterMes, setFilterMes] = useState('todos');
   const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'asc' });
   const [selectedDate, setSelectedDate] = useState(null);
-  const [calendarDate, setCalendarDate] = useState(new Date(2025, 2, 1)); // Marzo 2025
+  const [calendarDate, setCalendarDate] = useState(new Date(2025, 2, 1));
+  
+  // Supabase state
+  const [eventos, setEventos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [nuevoEvento, setNuevoEvento] = useState({
+    fecha: '',
+    turno: 'Noche',
+    vendedor: 'Francisco',
+    cliente: '',
+    tipo_evento: 'Cumple 50',
+    menu: 'Tapas',
+    adultos: '',
+    total_evento: ''
+  });
 
-  const vendedores = useMemo(() => ['todos', ...new Set(eventosData.map(e => e.vendedor))], []);
-  const meses = useMemo(() => ['todos', ...new Set(eventosData.map(e => e.mes))], []);
+  // Cargar eventos de Supabase
+  useEffect(() => {
+    fetchEventos();
+  }, []);
+
+  const fetchEventos = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('eventos')
+      .select('*')
+      .order('fecha', { ascending: true });
+    
+    if (error) {
+      console.error('Error:', error);
+    } else {
+      setEventos(data || []);
+    }
+    setLoading(false);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    
+    const { error } = await supabase
+      .from('eventos')
+      .insert([{
+        fecha: nuevoEvento.fecha,
+        turno: nuevoEvento.turno,
+        vendedor: nuevoEvento.vendedor,
+        cliente: nuevoEvento.cliente,
+        tipo_evento: nuevoEvento.tipo_evento,
+        menu: nuevoEvento.menu,
+        adultos: parseInt(nuevoEvento.adultos),
+        total_evento: parseFloat(nuevoEvento.total_evento)
+      }]);
+    
+    if (error) {
+      console.error('Error:', error);
+      alert('Error al guardar el evento');
+    } else {
+      setShowModal(false);
+      setNuevoEvento({
+        fecha: '',
+        turno: 'Noche',
+        vendedor: 'Francisco',
+        cliente: '',
+        tipo_evento: 'Cumple 50',
+        menu: 'Tapas',
+        adultos: '',
+        total_evento: ''
+      });
+      fetchEventos();
+    }
+    setSaving(false);
+  };
+
+  // Transformar datos de Supabase al formato esperado
+  const eventosData = useMemo(() => {
+    return eventos.map(e => ({
+      ...e,
+      mes: new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'long' }),
+      tipoEvento: e.tipo_evento,
+      totalEvento: Number(e.total_evento)
+    }));
+  }, [eventos]);
+
+  const vendedores = useMemo(() => ['todos', ...new Set(eventosData.map(e => e.vendedor))], [eventosData]);
+  const meses = useMemo(() => ['todos', ...new Set(eventosData.map(e => e.mes))], [eventosData]);
 
   const filteredEventos = useMemo(() => {
     return eventosData
@@ -50,23 +137,14 @@ export default function App() {
         }
         return 0;
       });
-  }, [searchTerm, filterVendedor, filterMes, sortConfig]);
-
-  const filteredSaldos = useMemo(() => {
-    return saldosData.filter(s => {
-      const matchSearch = s.cliente.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchVendedor = filterVendedor === 'todos' || s.vendedor === filterVendedor;
-      return matchSearch && matchVendedor;
-    });
-  }, [searchTerm, filterVendedor]);
+  }, [eventosData, searchTerm, filterVendedor, filterMes, sortConfig]);
 
   const stats = useMemo(() => {
     const totalEventos = eventosData.length;
     const totalFacturado = eventosData.reduce((sum, e) => sum + e.totalEvento, 0);
     const totalAdultos = eventosData.reduce((sum, e) => sum + e.adultos, 0);
-    const saldoPendiente = saldosData.reduce((sum, s) => sum + Math.max(0, s.saldo), 0);
-    return { totalEventos, totalFacturado, totalAdultos, saldoPendiente };
-  }, []);
+    return { totalEventos, totalFacturado, totalAdultos, saldoPendiente: 0 };
+  }, [eventosData]);
 
   const eventosPorMes = useMemo(() => {
     const orden = ['marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -75,7 +153,7 @@ export default function App() {
       return acc;
     }, {});
     return orden.filter(m => grouped[m]).map(mes => ({ mes: mes.charAt(0).toUpperCase() + mes.slice(1, 3), total: grouped[mes] }));
-  }, []);
+  }, [eventosData]);
 
   const eventosPorVendedor = useMemo(() => {
     const grouped = eventosData.reduce((acc, e) => {
@@ -83,7 +161,7 @@ export default function App() {
       return acc;
     }, {});
     return Object.entries(grouped).map(([name, value]) => ({ name, value }));
-  }, []);
+  }, [eventosData]);
 
   const eventosPorTipo = useMemo(() => {
     const grouped = eventosData.reduce((acc, e) => {
@@ -91,9 +169,8 @@ export default function App() {
       return acc;
     }, {});
     return Object.entries(grouped).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, []);
+  }, [eventosData]);
 
-  // Funciones del calendario
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
@@ -112,7 +189,7 @@ export default function App() {
   const eventosDelDiaSeleccionado = useMemo(() => {
     if (!selectedDate) return [];
     return eventosData.filter(e => e.fecha === selectedDate);
-  }, [selectedDate]);
+  }, [selectedDate, eventosData]);
 
   const handleSort = (key) => {
     setSortConfig(prev => ({
@@ -123,17 +200,147 @@ export default function App() {
 
   const SortIcon = ({ columnKey }) => {
     if (sortConfig.key !== columnKey) return <ChevronDown className="w-4 h-4 opacity-30" />;
-    return sortConfig.direction === 'desc' 
-      ? <ChevronDown className="w-4 h-4" /> 
-      : <ChevronUp className="w-4 h-4" />;
+    return sortConfig.direction === 'desc' ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />;
   };
 
   const { daysInMonth, startingDay } = getDaysInMonth(calendarDate);
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-purple-500 animate-spin mx-auto mb-4" />
+          <p className="text-slate-400">Cargando eventos...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white">
+      {/* Modal Nuevo Evento */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="glass rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold">Nuevo Evento</h2>
+              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-white/10 rounded-xl">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Fecha</label>
+                <input
+                  type="date"
+                  required
+                  value={nuevoEvento.fecha}
+                  onChange={(e) => setNuevoEvento({...nuevoEvento, fecha: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Cliente</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Nombre del cliente"
+                  value={nuevoEvento.cliente}
+                  onChange={(e) => setNuevoEvento({...nuevoEvento, cliente: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Turno</label>
+                  <select
+                    value={nuevoEvento.turno}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, turno: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  >
+                    {TURNOS.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Vendedor</label>
+                  <select
+                    value={nuevoEvento.vendedor}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, vendedor: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  >
+                    {VENDEDORES.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Tipo de Evento</label>
+                  <select
+                    value={nuevoEvento.tipo_evento}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, tipo_evento: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  >
+                    {TIPOS_EVENTO.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Menú</label>
+                  <select
+                    value={nuevoEvento.menu}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, menu: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  >
+                    {MENUS.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Adultos</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    placeholder="Cantidad"
+                    value={nuevoEvento.adultos}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, adultos: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Total $</label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    placeholder="Monto total"
+                    value={nuevoEvento.total_evento}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, total_evento: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+              </div>
+              
+              <button
+                type="submit"
+                disabled={saving}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+                {saving ? 'Guardando...' : 'Agregar Evento'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
-      <header className="glass border-b border-white/10 sticky top-0 z-50">
+      <header className="glass border-b border-white/10 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -147,10 +354,13 @@ export default function App() {
                 <p className="text-sm text-slate-400">Panel de Control</p>
               </div>
             </div>
-            <div className="hidden md:flex items-center gap-2 text-sm text-slate-400">
-              <Clock className="w-4 h-4" />
-              <span>{new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
-            </div>
+            <button
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium hover:from-purple-700 hover:to-indigo-700 transition-all"
+            >
+              <Plus className="w-5 h-5" />
+              <span className="hidden sm:inline">Nuevo Evento</span>
+            </button>
           </div>
         </div>
       </header>
@@ -162,8 +372,6 @@ export default function App() {
             { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
             { id: 'calendario', label: 'Calendario', icon: Calendar },
             { id: 'eventos', label: 'Eventos', icon: Briefcase },
-            { id: 'saldos', label: 'Cuentas', icon: CreditCard },
-            { id: 'cobranzas', label: 'Cobranzas', icon: DollarSign },
           ].map(tab => (
             <button
               key={tab.id}
@@ -188,7 +396,7 @@ export default function App() {
                 { label: 'Total Eventos', value: stats.totalEventos, icon: Calendar, color: 'from-indigo-500 to-blue-600' },
                 { label: 'Facturación Total', value: stats.totalFacturado, icon: DollarSign, color: 'from-emerald-500 to-teal-600', format: true },
                 { label: 'Total Invitados', value: stats.totalAdultos, icon: Users, color: 'from-amber-500 to-orange-600' },
-                { label: 'Saldo Pendiente', value: stats.saldoPendiente, icon: TrendingUp, color: 'from-rose-500 to-pink-600', format: true },
+                { label: 'Promedio x Evento', value: stats.totalEventos > 0 ? stats.totalFacturado / stats.totalEventos : 0, icon: TrendingUp, color: 'from-rose-500 to-pink-600', format: true },
               ].map((stat, i) => (
                 <div key={i} className="stat-card glass rounded-2xl p-5 glow">
                   <div className="flex items-start justify-between">
@@ -404,7 +612,7 @@ export default function App() {
               <select
                 value={filterVendedor}
                 onChange={(e) => setFilterVendedor(e.target.value)}
-                className="px-4 py-2.5 rounded-xl border border-white/10 text-white focus:outline-none focus:border-purple-500/50"
+                className="px-4 py-2.5 rounded-xl border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5"
               >
                 {vendedores.map(v => (
                   <option key={v} value={v}>{v === 'todos' ? 'Todos los vendedores' : v}</option>
@@ -413,7 +621,7 @@ export default function App() {
               <select
                 value={filterMes}
                 onChange={(e) => setFilterMes(e.target.value)}
-                className="px-4 py-2.5 rounded-xl border border-white/10 text-white focus:outline-none focus:border-purple-500/50"
+                className="px-4 py-2.5 rounded-xl border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5"
               >
                 {meses.map(m => (
                   <option key={m} value={m}>{m === 'todos' ? 'Todos los meses' : m.charAt(0).toUpperCase() + m.slice(1)}</option>
@@ -442,7 +650,7 @@ export default function App() {
                   </thead>
                   <tbody>
                     {filteredEventos.map((e, i) => (
-                      <tr key={i} className="border-b border-white/5 row-hover transition-colors">
+                      <tr key={e.id || i} className="border-b border-white/5 row-hover transition-colors">
                         <td className="px-5 py-4 mono text-sm">{formatDate(e.fecha)}</td>
                         <td className="px-5 py-4 font-medium">{e.cliente}</td>
                         <td className="px-5 py-4 hidden md:table-cell">
@@ -466,132 +674,6 @@ export default function App() {
               </div>
               <div className="px-5 py-3 bg-white/5 border-t border-white/10 text-sm text-slate-400">
                 Mostrando {filteredEventos.length} de {eventosData.length} eventos
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Saldos */}
-        {activeTab === 'saldos' && (
-          <div className="space-y-4">
-            <div className="glass rounded-2xl p-4 flex flex-wrap gap-4 items-center">
-              <div className="flex-1 min-w-[200px] relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Buscar cliente..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
-                />
-              </div>
-              <select
-                value={filterVendedor}
-                onChange={(e) => setFilterVendedor(e.target.value)}
-                className="px-4 py-2.5 rounded-xl border border-white/10 text-white focus:outline-none focus:border-purple-500/50"
-              >
-                {vendedores.map(v => (
-                  <option key={v} value={v}>{v === 'todos' ? 'Todos los vendedores' : v}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="glass rounded-2xl overflow-hidden glow">
-              <div className="overflow-x-auto scrollbar-thin">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-white/10 bg-white/5">
-                      <th className="text-left px-5 py-4 text-sm font-medium text-slate-300">Fecha</th>
-                      <th className="text-left px-5 py-4 text-sm font-medium text-slate-300">Cliente</th>
-                      <th className="text-left px-5 py-4 text-sm font-medium text-slate-300 hidden md:table-cell">Vendedor</th>
-                      <th className="text-right px-5 py-4 text-sm font-medium text-slate-300 hidden sm:table-cell">Total</th>
-                      <th className="text-right px-5 py-4 text-sm font-medium text-slate-300 hidden lg:table-cell">Pagos</th>
-                      <th className="text-right px-5 py-4 text-sm font-medium text-slate-300">Saldo</th>
-                      <th className="text-center px-5 py-4 text-sm font-medium text-slate-300">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredSaldos.map((s, i) => (
-                      <tr key={i} className="border-b border-white/5 row-hover transition-colors">
-                        <td className="px-5 py-4 mono text-sm">{formatDate(s.fecha)}</td>
-                        <td className="px-5 py-4 font-medium">{s.cliente}</td>
-                        <td className="px-5 py-4 text-slate-300 hidden md:table-cell">{s.vendedor}</td>
-                        <td className="px-5 py-4 text-right mono hidden sm:table-cell">{formatCurrency(s.totalGeneral)}</td>
-                        <td className="px-5 py-4 text-right mono text-emerald-400 hidden lg:table-cell">{formatCurrency(s.pagos)}</td>
-                        <td className={`px-5 py-4 text-right mono font-semibold ${s.saldo > 0 ? 'text-rose-400' : s.saldo < 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                          {formatCurrency(s.saldo)}
-                        </td>
-                        <td className="px-5 py-4 text-center">
-                          {s.saldo <= 0 ? (
-                            <span className="px-3 py-1 rounded-full text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Pagado</span>
-                          ) : (
-                            <span className="px-3 py-1 rounded-full text-xs bg-rose-500/20 text-rose-300 border border-rose-500/30">Pendiente</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="px-5 py-3 bg-white/5 border-t border-white/10 flex flex-wrap justify-between text-sm gap-2">
-                <span className="text-slate-400">Mostrando {filteredSaldos.length} clientes</span>
-                <span className="text-rose-400 font-medium">Saldo pendiente: {formatCurrency(stats.saldoPendiente)}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Cobranzas */}
-        {activeTab === 'cobranzas' && (
-          <div className="space-y-4">
-            <div className="glass rounded-2xl p-4 flex flex-wrap gap-4 items-center">
-              <div className="flex-1 min-w-[200px] relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Buscar cliente..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
-                />
-              </div>
-            </div>
-
-            <div className="glass rounded-2xl overflow-hidden glow">
-              <div className="overflow-x-auto scrollbar-thin">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-white/10 bg-white/5">
-                      <th className="text-left px-5 py-4 text-sm font-medium text-slate-300">Fecha</th>
-                      <th className="text-left px-5 py-4 text-sm font-medium text-slate-300 hidden sm:table-cell">Tipo</th>
-                      <th className="text-left px-5 py-4 text-sm font-medium text-slate-300">Cliente</th>
-                      <th className="text-left px-5 py-4 text-sm font-medium text-slate-300 hidden md:table-cell">Cobrado por</th>
-                      <th className="text-right px-5 py-4 text-sm font-medium text-slate-300">Pesos</th>
-                      <th className="text-right px-5 py-4 text-sm font-medium text-slate-300 hidden sm:table-cell">Dólares</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {cobranzasData
-                      .filter(c => c.cliente.toLowerCase().includes(searchTerm.toLowerCase()))
-                      .map((c, i) => (
-                      <tr key={i} className="border-b border-white/5 row-hover transition-colors">
-                        <td className="px-5 py-4 mono text-sm">{formatDate(c.fecha)}</td>
-                        <td className="px-5 py-4 hidden sm:table-cell">
-                          <span className="px-3 py-1 rounded-full text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                            {c.tipo}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 font-medium">{c.cliente}</td>
-                        <td className="px-5 py-4 text-slate-300 hidden md:table-cell">{c.cobro}</td>
-                        <td className="px-5 py-4 text-right mono text-emerald-400">{formatCurrency(c.pesos)}</td>
-                        <td className="px-5 py-4 text-right mono text-cyan-400 hidden sm:table-cell">{c.dolares > 0 ? `US$ ${c.dolares.toLocaleString()}` : '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="px-5 py-3 bg-white/5 border-t border-white/10 text-sm text-slate-400">
-                Total de registros: {cobranzasData.length}
               </div>
             </div>
           </div>
