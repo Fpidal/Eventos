@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, CreditCard, BarChart3, Clock, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2 } from 'lucide-react';
+import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { supabase } from './supabase';
 
@@ -18,9 +18,10 @@ const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', '
 const DIAS_SEMANA = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
 const VENDEDORES = ['Rodrigo', 'Francisco', 'Piru'];
-const TIPOS_EVENTO = ['Cumple 15', 'Cumple 40', 'Cumple 50', 'Cumple 60', 'Cumple 80', 'Cumple 1 año', 'Aniversario', 'Casamiento', 'Civil', 'Evento Empresa', 'Fiesta Privada', 'PRIVADO', 'Reunion', 'Cumpleaños'];
+const TIPOS_EVENTO = ['Cumple 15', 'Cumple 40', 'Cumple 50', 'Cumple 60', 'Cumple 80', 'Cumple 1 año', 'Aniversario', 'Casamiento', 'Civil', 'Evento Empresa', 'Fiesta Privada', 'PRIVADO', 'Reunion', 'Cumpleaños', 'Bat/Bar Mitzvah'];
 const MENUS = ['Tapas', 'Asado', '3 pasos', 'Premium', 'Brunch'];
 const TURNOS = ['Noche', 'M. Dia'];
+const SALONES = ['Completo', 'Grolsh', 'Salentein'];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -30,24 +31,31 @@ export default function App() {
   const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'asc' });
   const [selectedDate, setSelectedDate] = useState(null);
   const [calendarDate, setCalendarDate] = useState(new Date(2025, 2, 1));
+  const [selectedEvento, setSelectedEvento] = useState(null);
   
-  // Supabase state
   const [eventos, setEventos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [nuevoEvento, setNuevoEvento] = useState({
     fecha: '',
+    cliente: '',
+    telefono: '',
     turno: 'Noche',
     vendedor: 'Francisco',
-    cliente: '',
     tipo_evento: 'Cumple 50',
     menu: 'Tapas',
+    salon: 'Completo',
+    tecnica: false,
+    dj: '',
+    tecnica_superior: false,
+    otros: '',
     adultos: '',
-    total_evento: ''
+    precio_adulto: '',
+    menores: '',
+    precio_menor: ''
   });
 
-  // Cargar eventos de Supabase
   useEffect(() => {
     fetchEventos();
   }, []);
@@ -67,21 +75,40 @@ export default function App() {
     setLoading(false);
   };
 
+  const calcularTotal = () => {
+    const adultos = parseInt(nuevoEvento.adultos) || 0;
+    const precioAdulto = parseFloat(nuevoEvento.precio_adulto) || 0;
+    const menores = parseInt(nuevoEvento.menores) || 0;
+    const precioMenor = parseFloat(nuevoEvento.precio_menor) || 0;
+    return (adultos * precioAdulto) + (menores * precioMenor);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
+    
+    const total = calcularTotal();
     
     const { error } = await supabase
       .from('eventos')
       .insert([{
         fecha: nuevoEvento.fecha,
+        cliente: nuevoEvento.cliente,
+        telefono: nuevoEvento.telefono,
         turno: nuevoEvento.turno,
         vendedor: nuevoEvento.vendedor,
-        cliente: nuevoEvento.cliente,
         tipo_evento: nuevoEvento.tipo_evento,
         menu: nuevoEvento.menu,
-        adultos: parseInt(nuevoEvento.adultos),
-        total_evento: parseFloat(nuevoEvento.total_evento)
+        salon: nuevoEvento.salon,
+        tecnica: nuevoEvento.tecnica,
+        dj: nuevoEvento.dj,
+        tecnica_superior: nuevoEvento.tecnica_superior,
+        otros: nuevoEvento.otros,
+        adultos: parseInt(nuevoEvento.adultos) || 0,
+        precio_adulto: parseFloat(nuevoEvento.precio_adulto) || 0,
+        menores: parseInt(nuevoEvento.menores) || 0,
+        precio_menor: parseFloat(nuevoEvento.precio_menor) || 0,
+        total_evento: total
       }]);
     
     if (error) {
@@ -91,20 +118,27 @@ export default function App() {
       setShowModal(false);
       setNuevoEvento({
         fecha: '',
+        cliente: '',
+        telefono: '',
         turno: 'Noche',
         vendedor: 'Francisco',
-        cliente: '',
         tipo_evento: 'Cumple 50',
         menu: 'Tapas',
+        salon: 'Completo',
+        tecnica: false,
+        dj: '',
+        tecnica_superior: false,
+        otros: '',
         adultos: '',
-        total_evento: ''
+        precio_adulto: '',
+        menores: '',
+        precio_menor: ''
       });
       fetchEventos();
     }
     setSaving(false);
   };
 
-  // Transformar datos de Supabase al formato esperado
   const eventosData = useMemo(() => {
     return eventos.map(e => ({
       ...e,
@@ -143,7 +177,7 @@ export default function App() {
     const totalEventos = eventosData.length;
     const totalFacturado = eventosData.reduce((sum, e) => sum + e.totalEvento, 0);
     const totalAdultos = eventosData.reduce((sum, e) => sum + e.adultos, 0);
-    return { totalEventos, totalFacturado, totalAdultos, saldoPendiente: 0 };
+    return { totalEventos, totalFacturado, totalAdultos };
   }, [eventosData]);
 
   const eventosPorMes = useMemo(() => {
@@ -176,9 +210,7 @@ export default function App() {
     const month = date.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDay = firstDay.getDay();
-    return { daysInMonth, startingDay };
+    return { daysInMonth: lastDay.getDate(), startingDay: firstDay.getDay() };
   };
 
   const getEventosForDate = (day) => {
@@ -221,7 +253,7 @@ export default function App() {
       {/* Modal Nuevo Evento */}
       {showModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="glass rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="glass rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold">Nuevo Evento</h2>
               <button onClick={() => setShowModal(false)} className="p-2 hover:bg-white/10 rounded-xl">
@@ -230,39 +262,42 @@ export default function App() {
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Fecha</label>
-                <input
-                  type="date"
-                  required
-                  value={nuevoEvento.fecha}
-                  onChange={(e) => setNuevoEvento({...nuevoEvento, fecha: e.target.value})}
-                  className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Cliente</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Nombre del cliente"
-                  value={nuevoEvento.cliente}
-                  onChange={(e) => setNuevoEvento({...nuevoEvento, cliente: e.target.value})}
-                  className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
+              {/* Fecha y Cliente */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Turno</label>
-                  <select
-                    value={nuevoEvento.turno}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, turno: e.target.value})}
+                  <label className="block text-sm text-slate-400 mb-1">Fecha *</label>
+                  <input
+                    type="date"
+                    required
+                    value={nuevoEvento.fecha}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, fecha: e.target.value})}
                     className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
-                  >
-                    {TURNOS.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Cliente *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Nombre del cliente"
+                    value={nuevoEvento.cliente}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, cliente: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+              </div>
+
+              {/* Teléfono y Vendedor */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Teléfono</label>
+                  <input
+                    type="tel"
+                    placeholder="Número de teléfono"
+                    value={nuevoEvento.telefono}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, telefono: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Vendedor</label>
@@ -276,7 +311,18 @@ export default function App() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              {/* Turno, Tipo, Menú */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Turno</label>
+                  <select
+                    value={nuevoEvento.turno}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, turno: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  >
+                    {TURNOS.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Tipo de Evento</label>
                   <select
@@ -298,14 +344,67 @@ export default function App() {
                   </select>
                 </div>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
+
+              {/* Salón */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Salón</label>
+                <select
+                  value={nuevoEvento.salon}
+                  onChange={(e) => setNuevoEvento({...nuevoEvento, salon: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                >
+                  {SALONES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+
+              {/* Técnica, DJ, Técnica Superior */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/5">
+                  <input
+                    type="checkbox"
+                    id="tecnica"
+                    checked={nuevoEvento.tecnica}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica: e.target.checked})}
+                    className="w-5 h-5 rounded accent-purple-500"
+                  />
+                  <label htmlFor="tecnica" className="flex items-center gap-2 text-sm cursor-pointer">
+                    <Mic className="w-4 h-4 text-purple-400" />
+                    Técnica
+                  </label>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/5">
+                  <input
+                    type="checkbox"
+                    id="tecnica_superior"
+                    checked={nuevoEvento.tecnica_superior}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica_superior: e.target.checked})}
+                    className="w-5 h-5 rounded accent-purple-500"
+                  />
+                  <label htmlFor="tecnica_superior" className="flex items-center gap-2 text-sm cursor-pointer">
+                    <Mic className="w-4 h-4 text-amber-400" />
+                    Técnica Superior
+                  </label>
+                </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Adultos</label>
+                  <label className="block text-sm text-slate-400 mb-1">DJ</label>
+                  <input
+                    type="text"
+                    placeholder="Nombre del DJ"
+                    value={nuevoEvento.dj}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, dj: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+              </div>
+
+              {/* Adultos y Menores */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Adultos *</label>
                   <input
                     type="number"
                     required
-                    min="1"
+                    min="0"
                     placeholder="Cantidad"
                     value={nuevoEvento.adultos}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, adultos: e.target.value})}
@@ -313,17 +412,56 @@ export default function App() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Total $</label>
+                  <label className="block text-sm text-slate-400 mb-1">Precio Adulto $</label>
                   <input
                     type="number"
-                    required
                     min="0"
-                    placeholder="Monto total"
-                    value={nuevoEvento.total_evento}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, total_evento: e.target.value})}
+                    placeholder="Precio"
+                    value={nuevoEvento.precio_adulto}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, precio_adulto: e.target.value})}
                     className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Menores</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Cantidad"
+                    value={nuevoEvento.menores}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, menores: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Precio Menor $</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Precio"
+                    value={nuevoEvento.precio_menor}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, precio_menor: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+              </div>
+
+              {/* Total calculado */}
+              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                <p className="text-sm text-slate-400">Total Evento</p>
+                <p className="text-2xl font-bold text-emerald-400 mono">{formatCurrency(calcularTotal())}</p>
+              </div>
+
+              {/* Otros */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Otros / Aclaraciones</label>
+                <textarea
+                  placeholder="Notas adicionales..."
+                  value={nuevoEvento.otros}
+                  onChange={(e) => setNuevoEvento({...nuevoEvento, otros: e.target.value})}
+                  rows={3}
+                  className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 resize-none"
+                />
               </div>
               
               <button
@@ -335,6 +473,103 @@ export default function App() {
                 {saving ? 'Guardando...' : 'Agregar Evento'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Detalle Evento */}
+      {selectedEvento && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="glass rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold">{selectedEvento.cliente}</h2>
+              <button onClick={() => setSelectedEvento(null)} className="p-2 hover:bg-white/10 rounded-xl">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white/5 rounded-xl p-3">
+                  <p className="text-xs text-slate-400">Fecha</p>
+                  <p className="font-medium">{formatDate(selectedEvento.fecha)}</p>
+                </div>
+                <div className="bg-white/5 rounded-xl p-3">
+                  <p className="text-xs text-slate-400">Turno</p>
+                  <p className="font-medium">{selectedEvento.turno}</p>
+                </div>
+              </div>
+
+              {selectedEvento.telefono && (
+                <div className="bg-white/5 rounded-xl p-3 flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-slate-400" />
+                  <span>{selectedEvento.telefono}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white/5 rounded-xl p-3">
+                  <p className="text-xs text-slate-400">Tipo</p>
+                  <p className="font-medium">{selectedEvento.tipoEvento}</p>
+                </div>
+                <div className="bg-white/5 rounded-xl p-3">
+                  <p className="text-xs text-slate-400">Menú</p>
+                  <p className="font-medium">{selectedEvento.menu}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white/5 rounded-xl p-3">
+                  <p className="text-xs text-slate-400">Salón</p>
+                  <p className="font-medium">{selectedEvento.salon || 'Completo'}</p>
+                </div>
+                <div className="bg-white/5 rounded-xl p-3">
+                  <p className="text-xs text-slate-400">Vendedor</p>
+                  <p className="font-medium">{selectedEvento.vendedor}</p>
+                </div>
+              </div>
+
+              <div className="flex gap-2 flex-wrap">
+                {selectedEvento.tecnica && (
+                  <span className="px-3 py-1 rounded-full text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                    <Mic className="w-3 h-3" /> Técnica
+                  </span>
+                )}
+                {selectedEvento.tecnica_superior && (
+                  <span className="px-3 py-1 rounded-full text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                    <Mic className="w-3 h-3" /> Técnica Superior
+                  </span>
+                )}
+                {selectedEvento.dj && (
+                  <span className="px-3 py-1 rounded-full text-xs bg-pink-500/20 text-pink-300 border border-pink-500/30 flex items-center gap-1">
+                    <Music className="w-3 h-3" /> DJ: {selectedEvento.dj}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white/5 rounded-xl p-3">
+                  <p className="text-xs text-slate-400">Adultos</p>
+                  <p className="font-medium">{selectedEvento.adultos} × {formatCurrency(selectedEvento.precio_adulto || 0)}</p>
+                </div>
+                <div className="bg-white/5 rounded-xl p-3">
+                  <p className="text-xs text-slate-400">Menores</p>
+                  <p className="font-medium">{selectedEvento.menores || 0} × {formatCurrency(selectedEvento.precio_menor || 0)}</p>
+                </div>
+              </div>
+
+              {selectedEvento.otros && (
+                <div className="bg-white/5 rounded-xl p-3">
+                  <p className="text-xs text-slate-400">Notas</p>
+                  <p className="text-sm">{selectedEvento.otros}</p>
+                </div>
+              )}
+
+              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                <p className="text-sm text-slate-400">Total Evento</p>
+                <p className="text-2xl font-bold text-emerald-400 mono">{formatCurrency(selectedEvento.totalEvento)}</p>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -519,10 +754,10 @@ export default function App() {
                 ))}
                 {Array.from({ length: daysInMonth }).map((_, i) => {
                   const day = i + 1;
-                  const eventos = getEventosForDate(day);
+                  const eventosDelDia = getEventosForDate(day);
                   const dateStr = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                   const isSelected = selectedDate === dateStr;
-                  const hasEventos = eventos.length > 0;
+                  const hasEventos = eventosDelDia.length > 0;
                   
                   return (
                     <button
@@ -537,7 +772,7 @@ export default function App() {
                       <span className="font-medium">{day}</span>
                       {hasEventos && (
                         <div className="flex gap-0.5 mt-1">
-                          {eventos.slice(0, 3).map((e, idx) => (
+                          {eventosDelDia.slice(0, 3).map((e, idx) => (
                             <div 
                               key={idx} 
                               className={`w-1.5 h-1.5 rounded-full ${e.turno === 'Noche' ? 'bg-indigo-400' : 'bg-amber-400'}`}
@@ -570,7 +805,11 @@ export default function App() {
               {eventosDelDiaSeleccionado.length > 0 ? (
                 <div className="space-y-3">
                   {eventosDelDiaSeleccionado.map((e, i) => (
-                    <div key={i} className="bg-white/5 rounded-xl p-4 border border-white/10">
+                    <button
+                      key={i}
+                      onClick={() => setSelectedEvento(e)}
+                      className="w-full text-left bg-white/5 rounded-xl p-4 border border-white/10 hover:border-purple-500/30 transition-all"
+                    >
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-semibold">{e.cliente}</span>
                         <span className={`px-2 py-1 rounded-full text-xs ${e.turno === 'Noche' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-amber-500/20 text-amber-300'}`}>
@@ -583,7 +822,7 @@ export default function App() {
                         <p>👤 {e.vendedor}</p>
                         <p className="text-emerald-400 font-semibold">{formatCurrency(e.totalEvento)}</p>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               ) : (
@@ -639,10 +878,10 @@ export default function App() {
                       </th>
                       <th className="text-left px-5 py-4 text-sm font-medium text-slate-300">Cliente</th>
                       <th className="text-left px-5 py-4 text-sm font-medium text-slate-300 hidden md:table-cell">Tipo</th>
-                      <th className="text-left px-5 py-4 text-sm font-medium text-slate-300 hidden lg:table-cell">Menú</th>
+                      <th className="text-left px-5 py-4 text-sm font-medium text-slate-300 hidden lg:table-cell">Salón</th>
                       <th className="text-left px-5 py-4 text-sm font-medium text-slate-300 hidden sm:table-cell">Turno</th>
                       <th className="text-left px-5 py-4 text-sm font-medium text-slate-300 hidden lg:table-cell">Vendedor</th>
-                      <th className="text-right px-5 py-4 text-sm font-medium text-slate-300 hidden sm:table-cell">Adultos</th>
+                      <th className="text-right px-5 py-4 text-sm font-medium text-slate-300 hidden sm:table-cell">Personas</th>
                       <th className="text-right px-5 py-4 text-sm font-medium text-slate-300 cursor-pointer hover:text-white" onClick={() => handleSort('totalEvento')}>
                         <div className="flex items-center justify-end gap-1">Total <SortIcon columnKey="totalEvento" /></div>
                       </th>
@@ -650,7 +889,11 @@ export default function App() {
                   </thead>
                   <tbody>
                     {filteredEventos.map((e, i) => (
-                      <tr key={e.id || i} className="border-b border-white/5 row-hover transition-colors">
+                      <tr 
+                        key={e.id || i} 
+                        className="border-b border-white/5 row-hover transition-colors cursor-pointer"
+                        onClick={() => setSelectedEvento(e)}
+                      >
                         <td className="px-5 py-4 mono text-sm">{formatDate(e.fecha)}</td>
                         <td className="px-5 py-4 font-medium">{e.cliente}</td>
                         <td className="px-5 py-4 hidden md:table-cell">
@@ -658,14 +901,14 @@ export default function App() {
                             {e.tipoEvento}
                           </span>
                         </td>
-                        <td className="px-5 py-4 text-slate-300 hidden lg:table-cell">{e.menu}</td>
+                        <td className="px-5 py-4 text-slate-300 hidden lg:table-cell">{e.salon || 'Completo'}</td>
                         <td className="px-5 py-4 hidden sm:table-cell">
                           <span className={`px-3 py-1 rounded-full text-xs ${e.turno === 'Noche' ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}`}>
                             {e.turno}
                           </span>
                         </td>
                         <td className="px-5 py-4 text-slate-300 hidden lg:table-cell">{e.vendedor}</td>
-                        <td className="px-5 py-4 text-right mono hidden sm:table-cell">{e.adultos}</td>
+                        <td className="px-5 py-4 text-right mono hidden sm:table-cell">{e.adultos + (e.menores || 0)}</td>
                         <td className="px-5 py-4 text-right font-semibold text-emerald-400 mono">{formatCurrency(e.totalEvento)}</td>
                       </tr>
                     ))}
