@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic } from 'lucide-react';
+import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { supabase } from './supabase';
 
@@ -222,6 +222,26 @@ export default function App() {
     if (!selectedDate) return [];
     return eventosData.filter(e => e.fecha === selectedDate);
   }, [selectedDate, eventosData]);
+
+  // Próximos eventos (desde hoy en adelante)
+  const proximosEventos = useMemo(() => {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    return eventosData
+      .filter(e => new Date(e.fecha + 'T12:00:00') >= hoy)
+      .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+  }, [eventosData]);
+
+  // Calcular días restantes
+  const getDiasRestantes = (fecha) => {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const fechaEvento = new Date(fecha + 'T12:00:00');
+    const diff = Math.ceil((fechaEvento - hoy) / (1000 * 60 * 60 * 24));
+    if (diff === 0) return 'Hoy';
+    if (diff === 1) return 'Mañana';
+    return `En ${diff} días`;
+  };
 
   const handleSort = (key) => {
     setSortConfig(prev => ({
@@ -605,6 +625,7 @@ export default function App() {
         <div className="flex gap-2 p-1 glass rounded-2xl w-fit overflow-x-auto">
           {[
             { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+            { id: 'proximos', label: 'Próximos', icon: Clock },
             { id: 'calendario', label: 'Calendario', icon: Calendar },
             { id: 'eventos', label: 'Eventos', icon: Briefcase },
           ].map(tab => (
@@ -717,6 +738,122 @@ export default function App() {
                 ))}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Próximos Eventos */}
+        {activeTab === 'proximos' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">Próximos Eventos</h2>
+                <p className="text-slate-400">{proximosEventos.length} eventos programados</p>
+              </div>
+            </div>
+
+            {proximosEventos.length === 0 ? (
+              <div className="glass rounded-2xl p-12 text-center glow">
+                <Calendar className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+                <p className="text-slate-400 text-lg">No hay eventos próximos</p>
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="mt-4 px-6 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 transition-colors"
+                >
+                  Agregar evento
+                </button>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {proximosEventos.map((e, i) => (
+                  <div 
+                    key={e.id || i}
+                    onClick={() => setSelectedEvento(e)}
+                    className="glass rounded-2xl p-5 glow cursor-pointer hover:border-purple-500/30 border border-transparent transition-all"
+                  >
+                    <div className="flex flex-col md:flex-row md:items-center gap-4">
+                      {/* Fecha destacada */}
+                      <div className="flex-shrink-0 w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 flex flex-col items-center justify-center">
+                        <span className="text-2xl font-bold">{new Date(e.fecha + 'T12:00:00').getDate()}</span>
+                        <span className="text-xs uppercase">{new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
+                      </div>
+                      
+                      {/* Info principal */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h3 className="text-lg font-semibold truncate">{e.cliente}</h3>
+                          <span className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium ${
+                            getDiasRestantes(e.fecha) === 'Hoy' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
+                            getDiasRestantes(e.fecha) === 'Mañana' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
+                            'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                          }`}>
+                            {getDiasRestantes(e.fecha)}
+                          </span>
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-400">
+                          <span className="flex items-center gap-1">
+                            📋 {e.tipoEvento}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            🍽️ {e.menu}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            👥 {e.adultos + (e.menores || 0)} personas
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3" /> {e.salon || 'Completo'}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm mt-2">
+                          <span className={`flex items-center gap-1 ${e.turno === 'Noche' ? 'text-indigo-400' : 'text-amber-400'}`}>
+                            {e.turno === 'Noche' ? <Moon className="w-3 h-3" /> : <Sun className="w-3 h-3" />}
+                            {e.turno}
+                          </span>
+                          <span className="text-slate-400">👤 {e.vendedor}</span>
+                          {e.telefono && (
+                            <span className="flex items-center gap-1 text-slate-400">
+                              <Phone className="w-3 h-3" /> {e.telefono}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Extras */}
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {e.tecnica && (
+                            <span className="px-2 py-0.5 rounded-full text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                              Técnica
+                            </span>
+                          )}
+                          {e.tecnica_superior && (
+                            <span className="px-2 py-0.5 rounded-full text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                              Técnica Superior
+                            </span>
+                          )}
+                          {e.dj && (
+                            <span className="px-2 py-0.5 rounded-full text-xs bg-pink-500/20 text-pink-300 border border-pink-500/30">
+                              DJ: {e.dj}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Total */}
+                      <div className="flex-shrink-0 text-right">
+                        <p className="text-xs text-slate-400">Total</p>
+                        <p className="text-xl font-bold text-emerald-400 mono">{formatCurrency(e.totalEvento)}</p>
+                      </div>
+                    </div>
+                    
+                    {e.otros && (
+                      <div className="mt-3 pt-3 border-t border-white/10">
+                        <p className="text-sm text-slate-400">📝 {e.otros}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
