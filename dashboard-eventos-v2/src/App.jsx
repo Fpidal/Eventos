@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin } from 'lucide-react';
+import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2 } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { supabase } from './supabase';
 
@@ -37,6 +37,8 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [eventoEdit, setEventoEdit] = useState(null);
   const [nuevoEvento, setNuevoEvento] = useState({
     fecha: '',
     cliente: '',
@@ -137,6 +139,96 @@ export default function App() {
       fetchEventos();
     }
     setSaving(false);
+  };
+
+  const handleEdit = (evento) => {
+    setEventoEdit({
+      id: evento.id,
+      fecha: evento.fecha,
+      cliente: evento.cliente,
+      telefono: evento.telefono || '',
+      turno: evento.turno,
+      vendedor: evento.vendedor,
+      tipo_evento: evento.tipo_evento,
+      menu: evento.menu,
+      salon: evento.salon || 'Completo',
+      tecnica: evento.tecnica || false,
+      dj: evento.dj || '',
+      tecnica_superior: evento.tecnica_superior || false,
+      otros: evento.otros || '',
+      adultos: evento.adultos?.toString() || '',
+      precio_adulto: evento.precio_adulto?.toString() || '',
+      menores: evento.menores?.toString() || '',
+      precio_menor: evento.precio_menor?.toString() || ''
+    });
+    setSelectedEvento(null);
+    setEditMode(true);
+  };
+
+  const calcularTotalEdit = () => {
+    if (!eventoEdit) return 0;
+    const adultos = parseInt(eventoEdit.adultos) || 0;
+    const precioAdulto = parseFloat(eventoEdit.precio_adulto) || 0;
+    const menores = parseInt(eventoEdit.menores) || 0;
+    const precioMenor = parseFloat(eventoEdit.precio_menor) || 0;
+    return (adultos * precioAdulto) + (menores * precioMenor);
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    
+    const total = calcularTotalEdit();
+    
+    const { error } = await supabase
+      .from('eventos')
+      .update({
+        fecha: eventoEdit.fecha,
+        cliente: eventoEdit.cliente,
+        telefono: eventoEdit.telefono,
+        turno: eventoEdit.turno,
+        vendedor: eventoEdit.vendedor,
+        tipo_evento: eventoEdit.tipo_evento,
+        menu: eventoEdit.menu,
+        salon: eventoEdit.salon,
+        tecnica: eventoEdit.tecnica,
+        dj: eventoEdit.dj,
+        tecnica_superior: eventoEdit.tecnica_superior,
+        otros: eventoEdit.otros,
+        adultos: parseInt(eventoEdit.adultos) || 0,
+        precio_adulto: parseFloat(eventoEdit.precio_adulto) || 0,
+        menores: parseInt(eventoEdit.menores) || 0,
+        precio_menor: parseFloat(eventoEdit.precio_menor) || 0,
+        total_evento: total
+      })
+      .eq('id', eventoEdit.id);
+    
+    if (error) {
+      console.error('Error:', error);
+      alert('Error al actualizar el evento');
+    } else {
+      setEditMode(false);
+      setEventoEdit(null);
+      fetchEventos();
+    }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('¿Estás seguro de eliminar este evento?')) return;
+    
+    const { error } = await supabase
+      .from('eventos')
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Error:', error);
+      alert('Error al eliminar el evento');
+    } else {
+      setSelectedEvento(null);
+      fetchEventos();
+    }
   };
 
   const eventosData = useMemo(() => {
@@ -589,7 +681,243 @@ export default function App() {
                 <p className="text-sm text-slate-400">Total Evento</p>
                 <p className="text-2xl font-bold text-emerald-400 mono">{formatCurrency(selectedEvento.totalEvento)}</p>
               </div>
+
+              {/* Botones Editar y Eliminar */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => handleEdit(selectedEvento)}
+                  className="flex-1 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-2"
+                >
+                  <Edit3 className="w-4 h-4" />
+                  Editar
+                </button>
+                <button
+                  onClick={() => handleDelete(selectedEvento.id)}
+                  className="px-6 py-3 rounded-xl bg-red-500/20 text-red-400 font-semibold hover:bg-red-500/30 transition-all border border-red-500/30 flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar Evento */}
+      {editMode && eventoEdit && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="glass rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold">Editar Evento</h2>
+              <button onClick={() => { setEditMode(false); setEventoEdit(null); }} className="p-2 hover:bg-white/10 rounded-xl">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleUpdate} className="space-y-4">
+              {/* Fecha y Cliente */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Fecha *</label>
+                  <input
+                    type="date"
+                    required
+                    value={eventoEdit.fecha}
+                    onChange={(e) => setEventoEdit({...eventoEdit, fecha: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Cliente *</label>
+                  <input
+                    type="text"
+                    required
+                    value={eventoEdit.cliente}
+                    onChange={(e) => setEventoEdit({...eventoEdit, cliente: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+              </div>
+
+              {/* Teléfono y Vendedor */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Teléfono</label>
+                  <input
+                    type="tel"
+                    value={eventoEdit.telefono}
+                    onChange={(e) => setEventoEdit({...eventoEdit, telefono: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Vendedor</label>
+                  <select
+                    value={eventoEdit.vendedor}
+                    onChange={(e) => setEventoEdit({...eventoEdit, vendedor: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  >
+                    {VENDEDORES.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+              </div>
+              
+              {/* Turno, Tipo, Menú */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Turno</label>
+                  <select
+                    value={eventoEdit.turno}
+                    onChange={(e) => setEventoEdit({...eventoEdit, turno: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  >
+                    {TURNOS.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Tipo de Evento</label>
+                  <select
+                    value={eventoEdit.tipo_evento}
+                    onChange={(e) => setEventoEdit({...eventoEdit, tipo_evento: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  >
+                    {TIPOS_EVENTO.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Menú</label>
+                  <select
+                    value={eventoEdit.menu}
+                    onChange={(e) => setEventoEdit({...eventoEdit, menu: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  >
+                    {MENUS.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Salón */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Salón</label>
+                <select
+                  value={eventoEdit.salon}
+                  onChange={(e) => setEventoEdit({...eventoEdit, salon: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                >
+                  {SALONES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+
+              {/* Técnica, DJ, Técnica Superior */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/5">
+                  <input
+                    type="checkbox"
+                    id="tecnica_edit"
+                    checked={eventoEdit.tecnica}
+                    onChange={(e) => setEventoEdit({...eventoEdit, tecnica: e.target.checked})}
+                    className="w-5 h-5 rounded accent-purple-500"
+                  />
+                  <label htmlFor="tecnica_edit" className="flex items-center gap-2 text-sm cursor-pointer">
+                    <Mic className="w-4 h-4 text-purple-400" />
+                    Técnica
+                  </label>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/5">
+                  <input
+                    type="checkbox"
+                    id="tecnica_superior_edit"
+                    checked={eventoEdit.tecnica_superior}
+                    onChange={(e) => setEventoEdit({...eventoEdit, tecnica_superior: e.target.checked})}
+                    className="w-5 h-5 rounded accent-purple-500"
+                  />
+                  <label htmlFor="tecnica_superior_edit" className="flex items-center gap-2 text-sm cursor-pointer">
+                    <Mic className="w-4 h-4 text-amber-400" />
+                    Técnica Superior
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">DJ</label>
+                  <input
+                    type="text"
+                    value={eventoEdit.dj}
+                    onChange={(e) => setEventoEdit({...eventoEdit, dj: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+              </div>
+
+              {/* Adultos y Menores */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Adultos *</label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={eventoEdit.adultos}
+                    onChange={(e) => setEventoEdit({...eventoEdit, adultos: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Precio Adulto $</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={eventoEdit.precio_adulto}
+                    onChange={(e) => setEventoEdit({...eventoEdit, precio_adulto: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Menores</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={eventoEdit.menores}
+                    onChange={(e) => setEventoEdit({...eventoEdit, menores: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Precio Menor $</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={eventoEdit.precio_menor}
+                    onChange={(e) => setEventoEdit({...eventoEdit, precio_menor: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+              </div>
+
+              {/* Total calculado */}
+              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                <p className="text-sm text-slate-400">Total Evento</p>
+                <p className="text-2xl font-bold text-emerald-400 mono">{formatCurrency(calcularTotalEdit())}</p>
+              </div>
+
+              {/* Otros */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Otros / Aclaraciones</label>
+                <textarea
+                  value={eventoEdit.otros}
+                  onChange={(e) => setEventoEdit({...eventoEdit, otros: e.target.value})}
+                  rows={3}
+                  className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50 resize-none"
+                />
+              </div>
+              
+              <button
+                type="submit"
+                disabled={saving}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Edit3 className="w-5 h-5" />}
+                {saving ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
+            </form>
           </div>
         </div>
       )}
