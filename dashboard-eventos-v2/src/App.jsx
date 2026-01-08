@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText } from 'lucide-react';
-import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
+import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed } from 'lucide-react';
+import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar } from 'recharts';
 import { supabase } from './supabase';
 import { jsPDF } from 'jspdf';
 
@@ -34,8 +34,147 @@ const DIAS_SEMANA = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const VENDEDORES = ['Rodrigo', 'Francisco', 'Piru'];
 const TIPOS_EVENTO = ['Cumple 15', 'Cumple 40', 'Cumple 50', 'Cumple 60', 'Cumple 80', 'Cumple 1 año', 'Aniversario', 'Casamiento', 'Civil', 'Evento Empresa', 'Fiesta Privada', 'PRIVADO', 'Reunion', 'Cumpleaños', 'Bat/Bar Mitzvah'];
 const MENUS = ['Tapas', 'Asado', '3 pasos', 'Premium', 'Brunch'];
+const TIPOS_MENU = ['Menu Tapeo', 'Menu Asado', 'Menu 3 Pasos', 'Menu Premium', 'Menu Brunch', 'Otro'];
 const TURNOS = ['Noche', 'M. Dia'];
 const SALONES = ['Tero', 'Cristal', 'Salentein'];
+
+// Categorías por tipo de menú
+const CATEGORIAS_POR_MENU = {
+  'Menu Tapeo': ['Tapeo Frío', 'Tapeo Caliente', 'Cazuelas', 'Mesa de Dulces', 'Fin de Fiesta', 'Bebidas'],
+  'Menu Asado': ['Entradas', 'Principales', 'Postres', 'Bebidas'],
+  'Menu 3 Pasos': ['Entradas', 'Principales', 'Postres', 'Bebidas'],
+  'Menu Premium': ['Entradas', 'Principales', 'Postres', 'Bebidas'],
+  'Menu Brunch': ['Salado', 'Dulce', 'Bebidas'],
+  'Otro': ['Entradas', 'Principales', 'Postres', 'Bebidas']
+};
+
+// Platos por tipo de menú y categoría
+const PLATOS_POR_MENU = {
+  'Menu Tapeo': {
+    'Tapeo Frío': [
+      'Montadito De Salmon Ahumado',
+      'Langostino & Mousse De Palta',
+      'Crostini Jamon Crudo & Huevo De Codorniz',
+      'Tortilla Española & Morron Asado',
+      'Montadito Queso Brie, Rucula & Salmon Ahumado',
+      'Montadito De Tomates Confitados Y Albahaca',
+      'Focaccia Con Caponata Siciliana',
+      'Mini De Bondiola Braseada A La Barbacoa & Coleslaw',
+      'Pintxo Capresse'
+    ],
+    'Tapeo Caliente': [
+      'Langostinos Apanados & Alioli',
+      'Empanadillas De Langostinos & Muzzarella',
+      'Pincho De Pollo, Panceta Ahumada, Verdeo & Salsa Thai',
+      'Tapas De Solomillo & Cebolla Caramelizada',
+      'Pinchos De Solomillo Marinados',
+      'Croquetas Catalanas',
+      'Montaditos De Chorizos Con Chimichurri',
+      'Albondiguillas Griegas',
+      'Bastones Mozzarella Apanado',
+      'Mini Hamburguesas',
+      'Finger De Ave Apanado & Barbacoa'
+    ],
+    'Cazuelas': [],
+    'Mesa de Dulces': [
+      'Mini Lemon Pie',
+      'Mini Brownie, Dulce De Leche & Almendras',
+      'Tartines De Coco Con Dulce De Leche',
+      'Cuadraditos De Pastafrola',
+      'Bocaditos Artesanales Chocolate & Dulce De Leche',
+      'Shot Mousse De Chocolate',
+      'Shot Bavarois De Frutilla',
+      'Espuma De Durazno Con Salsa De Maracuya'
+    ],
+    'Fin de Fiesta': [],
+    'Bebidas': []
+  },
+  'Menu Asado': {
+    'Entradas': [
+      'Chorizo Criollo',
+      'Morcilla',
+      'Mollejas',
+      'Chinchulin',
+      'Provoleta',
+      'Tabla de Picada Regional',
+      'Langostinos a la Parrilla Saborizados'
+    ],
+    'Principales': [
+      'Asado Banderita',
+      'Asado al Asador',
+      'Picanha',
+      'Colita de Cuadril',
+      'Bife de Chorizo',
+      'Entraña',
+      'Lomo',
+      'Ojo de Bife',
+      'Prime Ribs',
+      'Pechito de Cerdo',
+      'Brochete de Pollo',
+      'Bondiola',
+      'Vacío'
+    ],
+    'Postres': [
+      'Queso y Dulce',
+      'Helado 2 Sabores',
+      'Tiramisú',
+      'Volcán de Chocolate'
+    ],
+    'Bebidas': []
+  },
+  'Menu 3 Pasos': {
+    'Entradas': [
+      'Vieiras Gratinadas',
+      'Burratina con Salmorejo',
+      'Langostinos a la Milanesa',
+      'Gambas al Ajillo',
+      'Muzzarella Apanada',
+      'Rabas a la Romana'
+    ],
+    'Principales': [
+      'Risotto del Bosque',
+      'Cintas Mediterránea',
+      'Risotto de Mariscos',
+      'Ñoquis Soufflé',
+      'Sorrentinos de Pollo y Hongos',
+      'Ensalada Caesar',
+      'Ensalada de Mar y Huerto',
+      'Bife de Chorizo a la Pimienta',
+      'Pollo Relleno de Espinaca y Parmesano',
+      'Bondiola con Barbacoa',
+      'Costilla Braseada en su Jugo',
+      'Pescado Blanco con Salsa de Azafrán',
+      'Agnolotis de Jamón y Queso'
+    ],
+    'Postres': [
+      'Clásico Tiramisú',
+      'Flan Casero',
+      'Creppes de DDL, Rum, Nueces y Pasas',
+      'Macedonia de Frutas',
+      'Helado con Frutos Rojos',
+      'Volcán de Dulce de Leche',
+      'Volcán de Chocolate'
+    ],
+    'Bebidas': []
+  },
+  'Menu Premium': {
+    'Entradas': [],
+    'Principales': [],
+    'Postres': [],
+    'Bebidas': []
+  },
+  'Menu Brunch': {
+    'Salado': [],
+    'Dulce': [],
+    'Bebidas': []
+  },
+  'Otro': {
+    'Entradas': [],
+    'Principales': [],
+    'Postres': [],
+    'Bebidas': []
+  }
+};
 
 export default function App() {
   // Auth states
@@ -58,6 +197,10 @@ export default function App() {
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
   const [filterEstado, setFilterEstado] = useState('todos');
   const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'asc' });
+
+  // Filtros de cobranzas
+  const [filterCobranzasMes, setFilterCobranzasMes] = useState('todos');
+  const [filterCobranzasEstado, setFilterCobranzasEstado] = useState('todos');
   const [selectedDate, setSelectedDate] = useState(null);
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [selectedEvento, setSelectedEvento] = useState(null);
@@ -79,6 +222,26 @@ export default function App() {
   const [showUserModal, setShowUserModal] = useState(false);
   const [nuevoUsuario, setNuevoUsuario] = useState({ email: '', password: '', nombre: '', rol: 'lectura' });
   const [userError, setUserError] = useState('');
+
+  // Estados para menús
+  const [menus, setMenus] = useState([]);
+  const [showMenuModal, setShowMenuModal] = useState(false);
+  const [editingMenu, setEditingMenu] = useState(null);
+  const [nuevoMenu, setNuevoMenu] = useState({
+    nombre: '',
+    categorias: [
+      { nombre: 'Tapeo Frío', items: [] },
+      { nombre: 'Tapeo Caliente', items: [] },
+      { nombre: 'Cazuelas', items: [] },
+      { nombre: 'Mesa de Dulces', items: [] },
+      { nombre: 'Fin de Fiesta', items: [] },
+      { nombre: 'Bebidas', items: [] }
+    ],
+    extras: []
+  });
+  const [nuevoItem, setNuevoItem] = useState('');
+  const [nuevoExtra, setNuevoExtra] = useState('');
+  const [menuTipoOtro, setMenuTipoOtro] = useState(false);
   const [nuevoEvento, setNuevoEvento] = useState({
     fecha: '',
     cliente: '',
@@ -107,7 +270,8 @@ export default function App() {
     extra3_desc: '',
     extra3_valor: '',
     extra3_tipo: 'total',
-    confirmado: false
+    confirmado: false,
+    menu_detalle: null
   });
 
   // Obtener rol del usuario
@@ -190,6 +354,7 @@ export default function App() {
     if (user) {
       fetchEventos();
       fetchPagos();
+      fetchMenus();
       if (userRole === 'admin') {
         fetchUsuarios();
       }
@@ -366,6 +531,126 @@ export default function App() {
     }
   };
 
+  // Funciones para menús
+  const fetchMenus = async () => {
+    const { data, error } = await supabase
+      .from('menus')
+      .select('*')
+      .eq('activo', true)
+      .order('nombre', { ascending: true });
+
+    if (!error && data) {
+      setMenus(data);
+    }
+  };
+
+  const resetNuevoMenu = () => {
+    setNuevoMenu({
+      nombre: '',
+      categorias: [
+        { nombre: 'Tapeo Frío', items: [] },
+        { nombre: 'Tapeo Caliente', items: [] },
+        { nombre: 'Cazuelas', items: [] },
+        { nombre: 'Mesa de Dulces', items: [] },
+        { nombre: 'Fin de Fiesta', items: [] },
+        { nombre: 'Bebidas', items: [] }
+      ],
+      extras: []
+    });
+    setEditingMenu(null);
+    setMenuTipoOtro(false);
+  };
+
+  const handleAddItemToCategory = (categoriaIndex) => {
+    if (!nuevoItem.trim()) return;
+    const newCategorias = [...nuevoMenu.categorias];
+    newCategorias[categoriaIndex].items.push(nuevoItem.trim());
+    setNuevoMenu({ ...nuevoMenu, categorias: newCategorias });
+    setNuevoItem('');
+  };
+
+  const handleRemoveItemFromCategory = (categoriaIndex, itemIndex) => {
+    const newCategorias = [...nuevoMenu.categorias];
+    newCategorias[categoriaIndex].items.splice(itemIndex, 1);
+    setNuevoMenu({ ...nuevoMenu, categorias: newCategorias });
+  };
+
+  const handleAddExtra = () => {
+    if (!nuevoExtra.trim()) return;
+    setNuevoMenu({
+      ...nuevoMenu,
+      extras: [...nuevoMenu.extras, nuevoExtra.trim()]
+    });
+    setNuevoExtra('');
+  };
+
+  const handleRemoveExtra = (index) => {
+    const newExtras = [...nuevoMenu.extras];
+    newExtras.splice(index, 1);
+    setNuevoMenu({ ...nuevoMenu, extras: newExtras });
+  };
+
+  const handleSaveMenu = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+
+    const menuData = {
+      nombre: nuevoMenu.nombre,
+      categorias: nuevoMenu.categorias,
+      extras: nuevoMenu.extras
+    };
+
+    console.log('Guardando menú:', menuData);
+
+    let result;
+    if (editingMenu) {
+      result = await supabase
+        .from('menus')
+        .update(menuData)
+        .eq('id', editingMenu.id);
+    } else {
+      result = await supabase
+        .from('menus')
+        .insert([menuData]);
+    }
+
+    console.log('Resultado:', result);
+
+    if (result.error) {
+      console.error('Error:', result.error);
+      alert('Error al guardar menú: ' + result.error.message);
+    } else {
+      setShowMenuModal(false);
+      resetNuevoMenu();
+      fetchMenus();
+    }
+    setSaving(false);
+  };
+
+  const handleEditMenu = (menu) => {
+    setEditingMenu(menu);
+    setNuevoMenu({
+      nombre: menu.nombre,
+      categorias: menu.categorias || [],
+      extras: menu.extras || []
+    });
+    setMenuTipoOtro(!TIPOS_MENU.some(t => menu.nombre.startsWith(t)));
+    setShowMenuModal(true);
+  };
+
+  const handleDeleteMenu = async (menuId) => {
+    if (!confirm('¿Eliminar este menú?')) return;
+
+    const { error } = await supabase
+      .from('menus')
+      .update({ activo: false })
+      .eq('id', menuId);
+
+    if (!error) {
+      fetchMenus();
+    }
+  };
+
   // Generar PDF del evento
   const generarPDF = (evento) => {
     const doc = new jsPDF();
@@ -523,8 +808,18 @@ export default function App() {
   const generarCotizacion = (evento) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const menuDetalle = evento.menu_detalle;
 
-    // Logo (manteniendo proporción original)
+    const checkNewPage = (currentY, neededSpace = 30) => {
+      if (currentY + neededSpace > pageHeight - 20) {
+        doc.addPage();
+        return 20;
+      }
+      return currentY;
+    };
+
+    // Logo
     try {
       const logoImg = new Image();
       logoImg.src = '/logo-tero.jpg';
@@ -533,7 +828,7 @@ export default function App() {
       console.log('Logo no disponible');
     }
 
-    // Encabezado con info del salón
+    // Encabezado
     doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(51, 51, 51);
@@ -545,17 +840,16 @@ export default function App() {
     doc.text('Av. Agustín García 9501, Benavídez', pageWidth / 2, 35, { align: 'center' });
     doc.text('Tel: 11-3112-8757 | Email: francisco.pidal@gmail.com', pageWidth / 2, 42, { align: 'center' });
 
-    // Línea separadora
     doc.setDrawColor(200, 200, 200);
     doc.line(20, 50, pageWidth - 20, 50);
 
-    // Título de cotización
+    // Título
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(41, 128, 185);
     doc.text('COTIZACIÓN DE EVENTO', pageWidth / 2, 65, { align: 'center' });
 
-    // Fecha de cotización y validez
+    // Fechas
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 100, 100);
@@ -568,12 +862,10 @@ export default function App() {
     let y = 90;
     doc.setFillColor(245, 245, 245);
     doc.rect(20, y - 5, pageWidth - 40, 25, 'F');
-
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(51, 51, 51);
     doc.text('DATOS DEL CLIENTE', 25, y + 3);
-
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     y += 12;
@@ -595,19 +887,79 @@ export default function App() {
     doc.setFont('helvetica', 'normal');
     y += 15;
     doc.text(`Fecha: ${new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`, 25, y);
-    y += 8;
+    y += 7;
     doc.text(`Tipo de evento: ${evento.tipo_evento}`, 25, y);
     doc.text(`Turno: ${evento.turno}`, pageWidth / 2, y);
-    y += 8;
+    y += 7;
     if (evento.hora_inicio && evento.hora_fin) {
       doc.text(`Horario: ${evento.hora_inicio} a ${evento.hora_fin} hs`, 25, y);
-      y += 8;
+      y += 7;
     }
-    doc.text(`Menú: ${evento.menu}`, 25, y);
-    doc.text(`Salón: ${evento.salon}`, pageWidth / 2, y);
+    doc.text(`Salón: ${evento.salon}`, 25, y);
+    doc.text(`Invitados: ${evento.adultos || 0} adultos${evento.menores ? `, ${evento.menores} menores` : ''}`, pageWidth / 2, y);
+
+    // MENÚ DETALLADO
+    if (menuDetalle && menuDetalle.categorias) {
+      y += 20;
+      y = checkNewPage(y, 20);
+
+      doc.setFillColor(139, 92, 246);
+      doc.rect(20, y - 5, pageWidth - 40, 10, 'F');
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text(`MENÚ: ${menuDetalle.nombre}`, 25, y + 2);
+
+      y += 15;
+
+      menuDetalle.categorias.forEach(categoria => {
+        if (categoria.items && categoria.items.length > 0) {
+          y = checkNewPage(y, 15 + categoria.items.length * 6);
+
+          doc.setFontSize(11);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(139, 92, 246);
+          doc.text(categoria.nombre, 25, y);
+          y += 6;
+
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(80, 80, 80);
+
+          categoria.items.forEach(item => {
+            y = checkNewPage(y, 6);
+            doc.text(`• ${item}`, 30, y);
+            y += 5;
+          });
+          y += 5;
+        }
+      });
+
+      // Extras del menú
+      if (menuDetalle.extras && menuDetalle.extras.length > 0) {
+        y = checkNewPage(y, 20);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(16, 185, 129);
+        doc.text('Extras Opcionales del Menú:', 25, y);
+        y += 6;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(80, 80, 80);
+
+        menuDetalle.extras.forEach(extra => {
+          y = checkNewPage(y, 6);
+          doc.text(`• ${extra}`, 30, y);
+          y += 5;
+        });
+      }
+    }
 
     // Detalle de precios
-    y += 20;
+    y += 15;
+    y = checkNewPage(y, 80);
+
     doc.setFillColor(41, 128, 185);
     doc.rect(20, y - 5, pageWidth - 40, 10, 'F');
     doc.setFontSize(12);
@@ -618,7 +970,6 @@ export default function App() {
     doc.setTextColor(51, 51, 51);
     y += 15;
 
-    // Tabla de precios
     doc.setFont('helvetica', 'bold');
     doc.text('Concepto', 25, y);
     doc.text('Cant.', 100, y);
@@ -632,7 +983,6 @@ export default function App() {
     doc.setFont('helvetica', 'normal');
     y += 10;
 
-    // Adultos
     const adultos = evento.adultos || 0;
     const precioAdulto = evento.precio_adulto || 0;
     doc.text('Adultos', 25, y);
@@ -641,7 +991,6 @@ export default function App() {
     doc.text(`$${(adultos * precioAdulto).toLocaleString('es-AR')}`, 165, y);
     y += 8;
 
-    // Menores
     if (evento.menores > 0) {
       const menores = evento.menores || 0;
       const precioMenor = evento.precio_menor || 0;
@@ -652,7 +1001,6 @@ export default function App() {
       y += 8;
     }
 
-    // Extras
     [1, 2, 3].forEach(i => {
       const desc = evento[`extra${i}_desc`];
       const valor = evento[`extra${i}_valor`] || 0;
@@ -667,45 +1015,69 @@ export default function App() {
       }
     });
 
-    // Línea antes del total
     doc.line(25, y, pageWidth - 25, y);
     y += 10;
 
-    // Total
+    // Calcular subtotal, IVA y total
+    const subtotal = evento.totalEvento || evento.total_evento || 0;
+    const iva = subtotal * 0.21;
+    const totalConIva = subtotal + iva;
+
+    // Subtotal
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(41, 128, 185);
+    doc.text('SUBTOTAL:', 125, y);
+    doc.text(`$${subtotal.toLocaleString('es-AR')}`, 165, y);
+    y += 8;
+
+    // IVA 21%
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80, 80, 80);
+    doc.text('IVA 21%:', 125, y);
+    doc.text(`$${Math.round(iva).toLocaleString('es-AR')}`, 165, y);
+    y += 10;
+
+    // Total con IVA
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(41, 128, 185);
     doc.text('TOTAL:', 125, y);
-    doc.text(`$${(evento.totalEvento || evento.total_evento || 0).toLocaleString('es-AR')}`, 165, y);
+    doc.text(`$${Math.round(totalConIva).toLocaleString('es-AR')}`, 165, y);
 
     // Condiciones de pago
-    y += 25;
+    y += 20;
+    y = checkNewPage(y, 50);
+
     doc.setFillColor(245, 245, 245);
-    doc.rect(20, y - 5, pageWidth - 40, 45, 'F');
+    doc.rect(20, y - 5, pageWidth - 40, 40, 'F');
 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(51, 51, 51);
-    doc.text('CONDICIONES DE PAGO', 25, y + 3);
+    doc.text('CONDICIONES', 25, y + 3);
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     y += 12;
     doc.text('• Seña del 50% para confirmar el evento', 25, y);
-    y += 7;
+    y += 6;
     doc.text('• El saldo se ajustará por IPC al momento del pago', 25, y);
-    y += 7;
+    y += 6;
     doc.text('• Cancelación: hasta 7 días antes del evento', 25, y);
-    y += 7;
-    doc.text('• La presente cotización tiene validez de 15 días', 25, y);
+    y += 6;
+    doc.text('• Cotización válida por 15 días', 25, y);
 
     // Pie de página
-    y = 280;
-    doc.setFontSize(9);
-    doc.setTextColor(150, 150, 150);
-    doc.text('Gracias por confiar en nosotros', pageWidth / 2, y, { align: 'center' });
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(9);
+      doc.setTextColor(150, 150, 150);
+      doc.text('Gracias por confiar en nosotros', pageWidth / 2, pageHeight - 10, { align: 'center' });
+    }
 
-    // Descargar
     const fileName = `Cotizacion_${evento.cliente.replace(/\s+/g, '_')}_${evento.fecha}.pdf`;
     doc.save(fileName);
   };
@@ -763,7 +1135,8 @@ export default function App() {
         extra3_valor: parseFloat(nuevoEvento.extra3_valor) || 0,
         extra3_tipo: nuevoEvento.extra3_tipo,
         total_evento: total,
-        confirmado: nuevoEvento.confirmado
+        confirmado: nuevoEvento.confirmado,
+        menu_detalle: nuevoEvento.menu_detalle
       }]);
 
     if (error) {
@@ -799,7 +1172,8 @@ export default function App() {
         extra3_desc: '',
         extra3_valor: '',
         extra3_tipo: 'total',
-        confirmado: false
+        confirmado: false,
+        menu_detalle: null
       });
       fetchEventos();
     }
@@ -836,7 +1210,8 @@ export default function App() {
       extra3_desc: evento.extra3_desc || '',
       extra3_valor: evento.extra3_valor?.toString() || '',
       extra3_tipo: evento.extra3_tipo || 'total',
-      confirmado: evento.confirmado || false
+      confirmado: evento.confirmado || false,
+      menu_detalle: evento.menu_detalle || null
     });
     setSelectedEvento(null);
     setEditMode(true);
@@ -896,7 +1271,8 @@ export default function App() {
         extra3_valor: parseFloat(eventoEdit.extra3_valor) || 0,
         extra3_tipo: eventoEdit.extra3_tipo,
         total_evento: total,
-        confirmado: eventoEdit.confirmado
+        confirmado: eventoEdit.confirmado,
+        menu_detalle: eventoEdit.menu_detalle
       })
       .eq('id', eventoEdit.id);
     
@@ -1009,6 +1385,44 @@ export default function App() {
     return Object.entries(grouped).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   }, [eventosDelAño]);
 
+  const eventosPorMenu = useMemo(() => {
+    const grouped = eventosDelAño.reduce((acc, e) => {
+      const menu = e.menu || 'Sin menú';
+      acc[menu] = (acc[menu] || 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(grouped).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  }, [eventosDelAño]);
+
+  const eventosPorSalon = useMemo(() => {
+    const grouped = eventosDelAño.reduce((acc, e) => {
+      const salon = e.salon || 'Tero';
+      acc[salon] = (acc[salon] || 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(grouped).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  }, [eventosDelAño]);
+
+  const comensalesPorMes = useMemo(() => {
+    const orden = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    const grouped = eventosDelAño.reduce((acc, e) => {
+      const adultos = e.adultos || 0;
+      const menores = e.menores || 0;
+      if (!acc[e.mes]) {
+        acc[e.mes] = { adultos: 0, menores: 0 };
+      }
+      acc[e.mes].adultos += adultos;
+      acc[e.mes].menores += menores;
+      return acc;
+    }, {});
+    return orden.filter(m => grouped[m]).map(mes => ({
+      mes: mes.charAt(0).toUpperCase() + mes.slice(1, 3),
+      adultos: grouped[mes].adultos,
+      menores: grouped[mes].menores,
+      total: grouped[mes].adultos + grouped[mes].menores
+    }));
+  }, [eventosDelAño]);
+
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
@@ -1073,6 +1487,29 @@ export default function App() {
       };
     }).sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
   }, [eventosDelAño, pagos]);
+
+  // Filtrado de cobranzas
+  const cobranzasDataFiltrado = useMemo(() => {
+    return cobranzasData.filter(evento => {
+      // Filtro por mes
+      if (filterCobranzasMes !== 'todos') {
+        const mesEvento = new Date(evento.fecha + 'T12:00:00').getMonth();
+        if (mesEvento !== parseInt(filterCobranzasMes)) return false;
+      }
+      // Filtro por estado
+      if (filterCobranzasEstado === 'pendientes') {
+        // No pagaron nada
+        if (evento.pagosYSenas > 0) return false;
+      } else if (filterCobranzasEstado === 'saldo') {
+        // Pagaron algo pero deben
+        if (evento.pagosYSenas === 0 || evento.saldo <= 0) return false;
+      } else if (filterCobranzasEstado === 'cancelados') {
+        // Pagaron todo
+        if (evento.saldo > 0) return false;
+      }
+      return true;
+    });
+  }, [cobranzasData, filterCobranzasMes, filterCobranzasEstado]);
 
   const statsCobranzas = useMemo(() => {
     const totalFacturado = cobranzasData.reduce((sum, e) => sum + e.totalEvento, 0);
@@ -1292,8 +1729,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Tipo, Menú, Salón */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Tipo de Evento y Salón */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Tipo de Evento</label>
                   <select
@@ -1305,7 +1742,21 @@ export default function App() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Menú</label>
+                  <label className="block text-sm text-slate-400 mb-1">Salón</label>
+                  <select
+                    value={nuevoEvento.salon}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, salon: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  >
+                    {SALONES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Menú Base y Menú Detallado */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Menú Base</label>
                   <select
                     value={nuevoEvento.menu}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, menu: e.target.value})}
@@ -1315,13 +1766,17 @@ export default function App() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Salón</label>
+                  <label className="block text-sm text-slate-400 mb-1">Menú Detallado (para cotización)</label>
                   <select
-                    value={nuevoEvento.salon}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, salon: e.target.value})}
+                    value={nuevoEvento.menu_detalle?.id || ''}
+                    onChange={(e) => {
+                      const selectedMenu = menus.find(m => m.id === e.target.value);
+                      setNuevoEvento({...nuevoEvento, menu_detalle: selectedMenu || null});
+                    }}
                     className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
                   >
-                    {SALONES.map(s => <option key={s} value={s}>{s}</option>)}
+                    <option value="">Sin menú detallado</option>
+                    {menus.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
                   </select>
                 </div>
               </div>
@@ -1754,8 +2209,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Tipo, Menú, Salón */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Tipo de Evento y Salón */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Tipo de Evento</label>
                   <select
@@ -1767,7 +2222,21 @@ export default function App() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Menú</label>
+                  <label className="block text-sm text-slate-400 mb-1">Salón</label>
+                  <select
+                    value={eventoEdit.salon}
+                    onChange={(e) => setEventoEdit({...eventoEdit, salon: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  >
+                    {SALONES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Menú Base y Menú Detallado */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Menú Base</label>
                   <select
                     value={eventoEdit.menu}
                     onChange={(e) => setEventoEdit({...eventoEdit, menu: e.target.value})}
@@ -1777,13 +2246,17 @@ export default function App() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Salón</label>
+                  <label className="block text-sm text-slate-400 mb-1">Menú Detallado (para cotización)</label>
                   <select
-                    value={eventoEdit.salon}
-                    onChange={(e) => setEventoEdit({...eventoEdit, salon: e.target.value})}
+                    value={eventoEdit.menu_detalle?.id || ''}
+                    onChange={(e) => {
+                      const selectedMenu = menus.find(m => m.id === e.target.value);
+                      setEventoEdit({...eventoEdit, menu_detalle: selectedMenu || null});
+                    }}
                     className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
                   >
-                    {SALONES.map(s => <option key={s} value={s}>{s}</option>)}
+                    <option value="">Sin menú detallado</option>
+                    {menus.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
                   </select>
                 </div>
               </div>
@@ -2128,6 +2601,7 @@ export default function App() {
             { id: 'calendario', label: 'Calendario', icon: Calendar },
             { id: 'eventos', label: 'Eventos', icon: Briefcase },
             { id: 'cobranzas', label: 'Cobranzas', icon: Wallet },
+            { id: 'menus', label: 'Menús', icon: UtensilsCrossed },
             ...(userRole === 'admin' ? [{ id: 'usuarios', label: 'Usuarios', icon: Users }] : []),
           ].map(tab => (
             <button
@@ -2201,26 +2675,58 @@ export default function App() {
                   <Users className="w-5 h-5 text-purple-400" />
                   Ventas por Vendedor
                 </h3>
-                <ResponsiveContainer width="100%" height={280}>
+                <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
-                    <Pie data={eventosPorVendedor} cx="50%" cy="50%" innerRadius={70} outerRadius={100} paddingAngle={4} dataKey="value">
+                    <Pie data={eventosPorVendedor} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={4} dataKey="value">
                       {eventosPorVendedor.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip 
-                      contentStyle={{ background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '12px', color: 'white' }}
-                      formatter={(value) => [formatCurrency(value), 'Total']}
+                    <Tooltip
+                      contentStyle={{ background: '#1e293b', border: '1px solid #8b5cf6', borderRadius: '12px', color: '#fff', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}
+                      itemStyle={{ color: '#fff' }}
+                      formatter={(value) => [formatCurrency(value), 'Facturado']}
                     />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="flex justify-center gap-4 mt-2 flex-wrap">
+                <div className="flex justify-center gap-6 mt-3 flex-wrap">
                   {eventosPorVendedor.map((v, i) => (
-                    <div key={v.name} className="flex items-center gap-2 text-sm">
+                    <div key={v.name} className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: `${COLORS[i]}20` }}>
                       <div className="w-3 h-3 rounded-full" style={{ background: COLORS[i] }} />
-                      <span className="text-slate-300">{v.name}</span>
+                      <span className="font-medium" style={{ color: COLORS[i] }}>{v.name}</span>
+                      <span className="text-slate-400 text-xs ml-1">{formatCurrency(v.value)}</span>
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Gráfico de Comensales por Mes */}
+            <div className="glass rounded-2xl p-6 glow">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5 text-cyan-400" />
+                Comensales por Mes
+              </h3>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={comensalesPorMes}>
+                  <XAxis dataKey="mes" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: '#1e293b', border: '1px solid #06b6d4', borderRadius: '12px', color: '#fff', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}
+                    itemStyle={{ color: '#fff' }}
+                  />
+                  <Bar dataKey="adultos" name="Adultos" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="menores" name="Menores" fill="#06b6d4" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="flex justify-center gap-6 mt-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-purple-500" />
+                  <span className="text-slate-300 text-sm">Adultos</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-cyan-500" />
+                  <span className="text-slate-300 text-sm">Menores</span>
                 </div>
               </div>
             </div>
@@ -2237,6 +2743,56 @@ export default function App() {
                     <p className="text-xs text-slate-400 mt-1 truncate">{tipo.name}</p>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Eventos por Menú */}
+              <div className="glass rounded-2xl p-6 glow">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <UtensilsCrossed className="w-5 h-5 text-emerald-400" />
+                  Eventos por Menú
+                </h3>
+                <div className="space-y-3">
+                  {eventosPorMenu.map((menu, idx) => {
+                    const maxValue = Math.max(...eventosPorMenu.map(m => m.value));
+                    const percentage = (menu.value / maxValue) * 100;
+                    return (
+                      <div key={menu.name} className="flex items-center gap-3">
+                        <div className="w-24 text-sm text-slate-300 truncate">{menu.name}</div>
+                        <div className="flex-1 h-8 bg-white/5 rounded-lg overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg flex items-center justify-end pr-2 transition-all"
+                            style={{ width: `${percentage}%` }}
+                          >
+                            <span className="text-xs font-bold text-white">{menu.value}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Eventos por Salón */}
+              <div className="glass rounded-2xl p-6 glow">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-amber-400" />
+                  Eventos por Salón
+                </h3>
+                <div className="grid grid-cols-3 gap-4">
+                  {eventosPorSalon.map((salon, idx) => {
+                    const colores = ['from-amber-500 to-orange-500', 'from-blue-500 to-cyan-500', 'from-purple-500 to-pink-500'];
+                    return (
+                      <div key={salon.name} className="text-center">
+                        <div className={`w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br ${colores[idx % colores.length]} flex items-center justify-center mb-3`}>
+                          <span className="text-2xl font-bold text-white">{salon.value}</span>
+                        </div>
+                        <p className="text-sm text-slate-300 font-medium">{salon.name}</p>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
@@ -2750,6 +3306,39 @@ export default function App() {
               </div>
             </div>
 
+            {/* Filtros de Cobranzas */}
+            <div className="glass rounded-2xl p-4 flex flex-wrap gap-4 items-center">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-400">Mes:</span>
+                <select
+                  value={filterCobranzasMes}
+                  onChange={(e) => setFilterCobranzasMes(e.target.value)}
+                  className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                >
+                  <option value="todos" className="bg-slate-900">Todos</option>
+                  {MESES.map((mes, idx) => (
+                    <option key={idx} value={idx} className="bg-slate-900">{mes}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-400">Estado:</span>
+                <select
+                  value={filterCobranzasEstado}
+                  onChange={(e) => setFilterCobranzasEstado(e.target.value)}
+                  className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                >
+                  <option value="todos" className="bg-slate-900">Todos</option>
+                  <option value="pendientes" className="bg-slate-900">Pendientes</option>
+                  <option value="saldo" className="bg-slate-900">Con Saldo</option>
+                  <option value="cancelados" className="bg-slate-900">Cancelados</option>
+                </select>
+              </div>
+              <span className="text-sm text-slate-500">
+                {cobranzasDataFiltrado.length} de {cobranzasData.length} eventos
+              </span>
+            </div>
+
             {/* Lista de Cobranzas */}
             <div className="glass rounded-2xl overflow-hidden glow">
               <div className="p-4 border-b border-white/10">
@@ -2770,7 +3359,7 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {cobranzasData.map((evento) => (
+                    {cobranzasDataFiltrado.map((evento) => (
                       <tr key={evento.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                         <td className="px-5 py-4 text-sm">{formatDate(evento.fecha)}</td>
                         <td className="px-5 py-4">
@@ -2877,6 +3466,91 @@ export default function App() {
           </div>
         )}
 
+        {/* Menús */}
+        {activeTab === 'menus' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">Plantillas de Menú</h2>
+              {canCreate && (
+                <button
+                  onClick={() => {
+                    resetNuevoMenu();
+                    setShowMenuModal(true);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium hover:from-purple-700 hover:to-indigo-700 transition-all"
+                >
+                  <Plus className="w-5 h-5" />
+                  Nuevo Menú
+                </button>
+              )}
+            </div>
+
+            {menus.length === 0 ? (
+              <div className="glass rounded-2xl p-12 text-center">
+                <UtensilsCrossed className="w-16 h-16 mx-auto text-slate-600 mb-4" />
+                <p className="text-slate-400 text-lg">No hay menús creados</p>
+                <p className="text-slate-500 text-sm mt-2">Creá tu primer menú para usarlo en las cotizaciones</p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {menus.map(menu => (
+                  <div key={menu.id} className="glass rounded-2xl p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <h3 className="text-lg font-bold text-white">{menu.nombre}</h3>
+                      {canEdit && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditMenu(menu)}
+                            className="p-2 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-all"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDeleteMenu(menu.id)}
+                              className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {menu.categorias && menu.categorias.map((cat, idx) => (
+                        cat.items && cat.items.length > 0 && (
+                          <div key={idx} className="bg-white/5 rounded-xl p-4">
+                            <h4 className="text-sm font-semibold text-purple-400 mb-2">{cat.nombre}</h4>
+                            <ul className="space-y-1">
+                              {cat.items.map((item, itemIdx) => (
+                                <li key={itemIdx} className="text-sm text-slate-300">• {item}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )
+                      ))}
+                    </div>
+
+                    {menu.extras && menu.extras.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-white/10">
+                        <h4 className="text-sm font-semibold text-emerald-400 mb-2">Extras Opcionales</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {menu.extras.map((extra, idx) => (
+                            <span key={idx} className="px-3 py-1 bg-emerald-500/20 text-emerald-300 rounded-full text-sm">
+                              {extra}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Usuarios (solo admin) */}
         {activeTab === 'usuarios' && userRole === 'admin' && (
           <div className="space-y-6">
@@ -2939,6 +3613,218 @@ export default function App() {
                   <p className="text-center text-slate-400 py-8">No hay usuarios registrados</p>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Nuevo/Editar Menú */}
+        {showMenuModal && (
+          <div className="fixed inset-0 bg-black/70 flex items-start justify-center z-50 p-4 overflow-y-auto">
+            <div className="glass rounded-2xl p-6 w-full max-w-4xl mt-8 mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold">{editingMenu ? 'Editar Menú' : 'Nuevo Menú'}</h2>
+                <button onClick={() => { setShowMenuModal(false); resetNuevoMenu(); }} className="p-2 hover:bg-white/10 rounded-xl">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveMenu} className="space-y-6">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Tipo de Menú</label>
+                  <select
+                    value={menuTipoOtro ? 'Otro' : (TIPOS_MENU.find(t => nuevoMenu.nombre.startsWith(t)) || '')}
+                    onChange={(e) => {
+                      const tipoSeleccionado = e.target.value;
+                      if (tipoSeleccionado === 'Otro') {
+                        setMenuTipoOtro(true);
+                        const categorias = CATEGORIAS_POR_MENU['Otro'].map(cat => ({ nombre: cat, items: [] }));
+                        setNuevoMenu({...nuevoMenu, nombre: '', categorias});
+                      } else if (tipoSeleccionado) {
+                        setMenuTipoOtro(false);
+                        const categorias = CATEGORIAS_POR_MENU[tipoSeleccionado].map(cat => ({ nombre: cat, items: [] }));
+                        // Calcular número de opción
+                        const menusDelMismoTipo = menus.filter(m => m.nombre.startsWith(tipoSeleccionado)).length;
+                        const numeroOpcion = menusDelMismoTipo + 1;
+                        const nombreConOpcion = `${tipoSeleccionado} - Opción ${numeroOpcion}`;
+                        setNuevoMenu({...nuevoMenu, nombre: nombreConOpcion, categorias});
+                      }
+                    }}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  >
+                    <option value="" className="bg-slate-900">Seleccionar tipo de menú...</option>
+                    {TIPOS_MENU.map(tipo => (
+                      <option key={tipo} value={tipo} className="bg-slate-900">{tipo}</option>
+                    ))}
+                  </select>
+                </div>
+                {menuTipoOtro && (
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Nombre personalizado</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Escribí el nombre del menú..."
+                      value={nuevoMenu.nombre}
+                      onChange={(e) => setNuevoMenu({...nuevoMenu, nombre: e.target.value})}
+                      className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Categorías</h3>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {nuevoMenu.categorias.map((categoria, catIdx) => (
+                      <div key={catIdx} className="bg-white/5 rounded-xl p-4">
+                        <h4 className="text-sm font-semibold text-purple-400 mb-3">{categoria.nombre}</h4>
+
+                        <div className="space-y-2 mb-3">
+                          {categoria.items.map((item, itemIdx) => (
+                            <div key={itemIdx} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
+                              <span className="text-sm text-slate-300">{item}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveItemFromCategory(catIdx, itemIdx)}
+                                className="text-red-400 hover:text-red-300"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="space-y-2">
+                          {/* Select de platos predefinidos */}
+                          {(() => {
+                            const tipoMenu = menuTipoOtro ? 'Otro' : (TIPOS_MENU.find(t => nuevoMenu.nombre.startsWith(t)) || nuevoMenu.nombre);
+                            const platosDisponibles = PLATOS_POR_MENU[tipoMenu]?.[categoria.nombre] || [];
+                            const platosSinSeleccionar = platosDisponibles.filter(p => !categoria.items.includes(p));
+
+                            return platosSinSeleccionar.length > 0 && (
+                              <select
+                                className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                                onChange={(e) => {
+                                  if (e.target.value) {
+                                    const newCategorias = [...nuevoMenu.categorias];
+                                    newCategorias[catIdx].items.push(e.target.value);
+                                    setNuevoMenu({ ...nuevoMenu, categorias: newCategorias });
+                                    e.target.value = '';
+                                  }
+                                }}
+                                defaultValue=""
+                              >
+                                <option value="" className="bg-slate-900">Seleccionar plato...</option>
+                                {platosSinSeleccionar.map((plato, pIdx) => (
+                                  <option key={pIdx} value={plato} className="bg-slate-900">{plato}</option>
+                                ))}
+                              </select>
+                            );
+                          })()}
+
+                          {/* Input para agregar manualmente */}
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder="Escribir plato personalizado..."
+                              className="flex-1 px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  const value = e.target.value.trim();
+                                  if (value && !categoria.items.includes(value)) {
+                                    const newCategorias = [...nuevoMenu.categorias];
+                                    newCategorias[catIdx].items.push(value);
+                                    setNuevoMenu({ ...nuevoMenu, categorias: newCategorias });
+                                    e.target.value = '';
+                                  }
+                                }
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                const input = e.target.closest('.flex').querySelector('input');
+                                const value = input.value.trim();
+                                if (value && !categoria.items.includes(value)) {
+                                  const newCategorias = [...nuevoMenu.categorias];
+                                  newCategorias[catIdx].items.push(value);
+                                  setNuevoMenu({ ...nuevoMenu, categorias: newCategorias });
+                                  input.value = '';
+                                }
+                              }}
+                              className="px-3 py-2 bg-purple-500/20 text-purple-400 rounded-lg hover:bg-purple-500/30"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Extras Opcionales</h3>
+
+                  {nuevoMenu.extras.length > 0 && (
+                    <div className="space-y-2 mb-4">
+                      {nuevoMenu.extras.map((extra, idx) => (
+                        <div key={idx} className="flex items-center justify-between bg-white/5 rounded-lg px-4 py-3">
+                          <span className="text-slate-300">{extra}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveExtra(idx)}
+                            className="text-red-400 hover:text-red-300"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Ej: J&W Etiqueta Negra"
+                      value={nuevoExtra}
+                      onChange={(e) => setNuevoExtra(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddExtra();
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddExtra}
+                      className="px-4 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/30"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => { setShowMenuModal(false); resetNuevoMenu(); }}
+                    className="flex-1 py-3 rounded-xl border border-white/10 text-slate-400 hover:bg-white/5 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="flex-1 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <UtensilsCrossed className="w-5 h-5" />}
+                    {saving ? 'Guardando...' : (editingMenu ? 'Actualizar Menú' : 'Crear Menú')}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
