@@ -1288,13 +1288,20 @@ export default function App() {
   };
 
   const handleDelete = async (id) => {
+    // Verificar si el evento tiene pagos registrados
+    const pagosDelEvento = pagos.filter(p => p.evento_id === id);
+    if (pagosDelEvento.length > 0) {
+      alert(`No se puede eliminar este evento porque tiene ${pagosDelEvento.length} pago(s) registrado(s).\n\nPrimero debe eliminar los pagos en la sección de Cobranzas.`);
+      return;
+    }
+
     if (!confirm('¿Estás seguro de eliminar este evento?')) return;
-    
+
     const { error } = await supabase
       .from('eventos')
       .delete()
       .eq('id', id);
-    
+
     if (error) {
       console.error('Error:', error);
       alert('Error al eliminar el evento');
@@ -1461,8 +1468,9 @@ export default function App() {
 
   // Cobranzas: eventos con pagos y saldos
   // IPC se suma al saldo (cargo adicional), pagos y señas restan del saldo
+  // Solo eventos confirmados (los pendientes no van a cobranzas)
   const cobranzasData = useMemo(() => {
-    return eventosDelAño.map(evento => {
+    return eventosDelAño.filter(evento => evento.confirmado).map(evento => {
       const pagosEvento = pagos.filter(p => p.evento_id === evento.id);
       // Pagos y señas (lo que se pagó del evento, sin IPC)
       const pagosYSenas = pagosEvento
