@@ -520,6 +520,196 @@ export default function App() {
     doc.save(fileName);
   };
 
+  const generarCotizacion = (evento) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Logo (manteniendo proporción original)
+    try {
+      const logoImg = new Image();
+      logoImg.src = '/logo-tero.jpg';
+      doc.addImage(logoImg, 'JPEG', 15, 10, 35, 25);
+    } catch (e) {
+      console.log('Logo no disponible');
+    }
+
+    // Encabezado con info del salón
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(51, 51, 51);
+    doc.text(`Salón ${evento.salon}`, pageWidth / 2, 25, { align: 'center' });
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 100, 100);
+    doc.text('Av. Agustín García 9501, Benavídez', pageWidth / 2, 35, { align: 'center' });
+    doc.text('Tel: 11-3112-8757 | Email: francisco.pidal@gmail.com', pageWidth / 2, 42, { align: 'center' });
+
+    // Línea separadora
+    doc.setDrawColor(200, 200, 200);
+    doc.line(20, 50, pageWidth - 20, 50);
+
+    // Título de cotización
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(41, 128, 185);
+    doc.text('COTIZACIÓN DE EVENTO', pageWidth / 2, 65, { align: 'center' });
+
+    // Fecha de cotización y validez
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 100, 100);
+    const fechaCotizacion = new Date().toLocaleDateString('es-AR');
+    const fechaValidez = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('es-AR');
+    doc.text(`Fecha: ${fechaCotizacion}`, 20, 75);
+    doc.text(`Válida hasta: ${fechaValidez}`, pageWidth - 20, 75, { align: 'right' });
+
+    // Datos del cliente
+    let y = 90;
+    doc.setFillColor(245, 245, 245);
+    doc.rect(20, y - 5, pageWidth - 40, 25, 'F');
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(51, 51, 51);
+    doc.text('DATOS DEL CLIENTE', 25, y + 3);
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    y += 12;
+    doc.text(`Cliente: ${evento.cliente}`, 25, y);
+    if (evento.telefono) {
+      doc.text(`Teléfono: ${evento.telefono}`, pageWidth / 2, y);
+    }
+
+    // Detalles del evento
+    y += 25;
+    doc.setFillColor(41, 128, 185);
+    doc.rect(20, y - 5, pageWidth - 40, 10, 'F');
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text('DETALLES DEL EVENTO', 25, y + 2);
+
+    doc.setTextColor(51, 51, 51);
+    doc.setFont('helvetica', 'normal');
+    y += 15;
+    doc.text(`Fecha: ${new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`, 25, y);
+    y += 8;
+    doc.text(`Tipo de evento: ${evento.tipo_evento}`, 25, y);
+    doc.text(`Turno: ${evento.turno}`, pageWidth / 2, y);
+    y += 8;
+    if (evento.hora_inicio && evento.hora_fin) {
+      doc.text(`Horario: ${evento.hora_inicio} a ${evento.hora_fin} hs`, 25, y);
+      y += 8;
+    }
+    doc.text(`Menú: ${evento.menu}`, 25, y);
+    doc.text(`Salón: ${evento.salon}`, pageWidth / 2, y);
+
+    // Detalle de precios
+    y += 20;
+    doc.setFillColor(41, 128, 185);
+    doc.rect(20, y - 5, pageWidth - 40, 10, 'F');
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text('DETALLE DE PRECIOS', 25, y + 2);
+
+    doc.setTextColor(51, 51, 51);
+    y += 15;
+
+    // Tabla de precios
+    doc.setFont('helvetica', 'bold');
+    doc.text('Concepto', 25, y);
+    doc.text('Cant.', 100, y);
+    doc.text('Precio Unit.', 125, y);
+    doc.text('Subtotal', 165, y);
+
+    doc.setDrawColor(200, 200, 200);
+    y += 3;
+    doc.line(25, y, pageWidth - 25, y);
+
+    doc.setFont('helvetica', 'normal');
+    y += 10;
+
+    // Adultos
+    const adultos = evento.adultos || 0;
+    const precioAdulto = evento.precio_adulto || 0;
+    doc.text('Adultos', 25, y);
+    doc.text(adultos.toString(), 100, y);
+    doc.text(`$${precioAdulto.toLocaleString('es-AR')}`, 125, y);
+    doc.text(`$${(adultos * precioAdulto).toLocaleString('es-AR')}`, 165, y);
+    y += 8;
+
+    // Menores
+    if (evento.menores > 0) {
+      const menores = evento.menores || 0;
+      const precioMenor = evento.precio_menor || 0;
+      doc.text('Menores', 25, y);
+      doc.text(menores.toString(), 100, y);
+      doc.text(`$${precioMenor.toLocaleString('es-AR')}`, 125, y);
+      doc.text(`$${(menores * precioMenor).toLocaleString('es-AR')}`, 165, y);
+      y += 8;
+    }
+
+    // Extras
+    [1, 2, 3].forEach(i => {
+      const desc = evento[`extra${i}_desc`];
+      const valor = evento[`extra${i}_valor`] || 0;
+      const tipo = evento[`extra${i}_tipo`];
+      if (desc && valor > 0) {
+        const subtotal = tipo === 'por_persona' ? valor * adultos : valor;
+        doc.text(desc, 25, y);
+        doc.text(tipo === 'por_persona' ? adultos.toString() : '1', 100, y);
+        doc.text(`$${valor.toLocaleString('es-AR')}`, 125, y);
+        doc.text(`$${subtotal.toLocaleString('es-AR')}`, 165, y);
+        y += 8;
+      }
+    });
+
+    // Línea antes del total
+    doc.line(25, y, pageWidth - 25, y);
+    y += 10;
+
+    // Total
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(41, 128, 185);
+    doc.text('TOTAL:', 125, y);
+    doc.text(`$${(evento.totalEvento || evento.total_evento || 0).toLocaleString('es-AR')}`, 165, y);
+
+    // Condiciones de pago
+    y += 25;
+    doc.setFillColor(245, 245, 245);
+    doc.rect(20, y - 5, pageWidth - 40, 45, 'F');
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(51, 51, 51);
+    doc.text('CONDICIONES DE PAGO', 25, y + 3);
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    y += 12;
+    doc.text('• Seña del 50% para confirmar el evento', 25, y);
+    y += 7;
+    doc.text('• El saldo se ajustará por IPC al momento del pago', 25, y);
+    y += 7;
+    doc.text('• Cancelación: hasta 7 días antes del evento', 25, y);
+    y += 7;
+    doc.text('• La presente cotización tiene validez de 15 días', 25, y);
+
+    // Pie de página
+    y = 280;
+    doc.setFontSize(9);
+    doc.setTextColor(150, 150, 150);
+    doc.text('Gracias por confiar en nosotros', pageWidth / 2, y, { align: 'center' });
+
+    // Descargar
+    const fileName = `Cotizacion_${evento.cliente.replace(/\s+/g, '_')}_${evento.fecha}.pdf`;
+    doc.save(fileName);
+  };
+
   const calcularTotal = () => {
     const adultos = parseInt(nuevoEvento.adultos) || 0;
     const precioAdulto = parseFloat(nuevoEvento.precio_adulto) || 0;
@@ -1428,14 +1618,21 @@ export default function App() {
                 <p className="text-2xl font-bold text-emerald-400 mono">{formatCurrency(selectedEvento.totalEvento)}</p>
               </div>
 
-              {/* Botón Descargar PDF */}
-              <div className="pt-2">
+              {/* Botones PDF y Cotización */}
+              <div className="pt-2 flex gap-3">
                 <button
                   onClick={() => generarPDF(selectedEvento)}
-                  className="w-full py-3 rounded-xl bg-emerald-500/20 text-emerald-400 font-semibold hover:bg-emerald-500/30 transition-all border border-emerald-500/30 flex items-center justify-center gap-2"
+                  className="flex-1 py-3 rounded-xl bg-emerald-500/20 text-emerald-400 font-semibold hover:bg-emerald-500/30 transition-all border border-emerald-500/30 flex items-center justify-center gap-2"
                 >
                   <FileText className="w-4 h-4" />
-                  Descargar PDF
+                  PDF Evento
+                </button>
+                <button
+                  onClick={() => generarCotizacion(selectedEvento)}
+                  className="flex-1 py-3 rounded-xl bg-blue-500/20 text-blue-400 font-semibold hover:bg-blue-500/30 transition-all border border-blue-500/30 flex items-center justify-center gap-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  Cotización
                 </button>
               </div>
 
