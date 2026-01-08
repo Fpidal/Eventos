@@ -53,6 +53,7 @@ dashboard-eventos-v2/
 | [DATA_MODEL.md](./DATA_MODEL.md) | Modelo de datos y relaciones |
 | [SETUP.md](./SETUP.md) | Guia de instalacion y configuracion |
 | [MIGRATION_MYSQL.md](./MIGRATION_MYSQL.md) | Guia de migracion a MySQL |
+| [DEPLOY_SERVER.md](./DEPLOY_SERVER.md) | Migracion de Vercel a servidor propio (con claves) |
 
 ## Estado Actual
 
