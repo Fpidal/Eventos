@@ -1,94 +1,79 @@
 # Dashboard de Eventos
 
-Sistema de gestion de eventos para salon de fiestas.
+Sistema de gestion de eventos para salon de fiestas con control de cobranzas, menus personalizados y generacion de cotizaciones.
 
-## Funcionalidades
+## Funcionalidades (MVP)
 
-### Dashboard
-- Estadisticas de facturacion, eventos, invitados
-- Graficos de ventas por vendedor y por mes
-- Comensales por mes (adultos/menores)
-- Eventos por tipo, menu y salon
+El sistema incluye cinco modulos principales:
 
-### Gestion de Eventos
-- Crear, editar y eliminar eventos
-- Confirmar eventos
-- Generar cotizacion PDF con IVA 21%
-- Calendario mensual
-- Filtros y ordenamiento
+1. **Dashboard** - Estadisticas de facturacion, graficos de ventas por vendedor, comensales por mes, eventos por tipo/menu/salon
 
-### Cobranzas
-- Registro de pagos, senas y ajustes IPC
-- Filtros por mes y estado (Pendientes/Con Saldo/Cancelados)
-- Solo eventos confirmados
+2. **Gestion de Eventos** - CRUD completo, confirmacion de eventos, calendario mensual, filtros y ordenamiento
 
-### Menus
-- Menus personalizados (Tapeo, Asado, 3 Pasos)
-- Categorias y platos predefinidos
-- Extras opcionales
+3. **Cotizaciones PDF** - Generacion automatica con desglose de Subtotal, IVA 21% y Total
 
-### Usuarios
-- Roles: Admin, Escritura, Lectura
-- Gestion de permisos
+4. **Cobranzas** - Registro de pagos, senas y ajustes IPC. Filtros por estado (Pendientes/Con Saldo/Cancelados)
 
-## Tecnologias
+5. **Menus** - Creacion de menus personalizados con categorias, platos predefinidos y extras
 
-- **Frontend:** React 18 + Vite
-- **Estilos:** Tailwind CSS
-- **Graficos:** Recharts
-- **PDF:** jsPDF
-- **Base de Datos:** Supabase (PostgreSQL)
-- **Autenticacion:** Supabase Auth
+## Stack Tecnologico
 
-## Instalacion
+| Capa | Tecnologia |
+|------|------------|
+| Frontend | React 18 + Vite |
+| Estilos | Tailwind CSS |
+| Graficos | Recharts |
+| PDF | jsPDF |
+| Base de Datos | PostgreSQL (Supabase) |
+| Autenticacion | Supabase Auth |
+| Hosting | Vercel |
 
-```bash
-npm install
-npm run dev
+## Estructura del Repositorio
+
+```
+dashboard-eventos-v2/
+├── src/
+│   ├── App.jsx          # Componente principal
+│   ├── supabase.js      # Configuracion BD
+│   └── index.css        # Estilos
+├── SCHEMA.sql           # Estructura de BD
+├── PROJECT_SPEC.md      # Especificaciones
+├── DATA_MODEL.md        # Modelo de datos
+├── SETUP.md             # Guia de instalacion
+├── MIGRATION_MYSQL.md   # Guia migracion MySQL
+└── README.md
 ```
 
 ## Documentacion
 
-Ver [DOCUMENTACION_MIGRACION.md](./DOCUMENTACION_MIGRACION.md) para:
-- Esquema de base de datos
-- Guia de migracion a MySQL
-- Variables de entorno
-- Estructura del proyecto
+| Archivo | Descripcion |
+|---------|-------------|
+| [SCHEMA.sql](./SCHEMA.sql) | Estructura de base de datos PostgreSQL |
+| [PROJECT_SPEC.md](./PROJECT_SPEC.md) | Especificaciones del proyecto |
+| [DATA_MODEL.md](./DATA_MODEL.md) | Modelo de datos y relaciones |
+| [SETUP.md](./SETUP.md) | Guia de instalacion y configuracion |
+| [MIGRATION_MYSQL.md](./MIGRATION_MYSQL.md) | Guia de migracion a MySQL |
 
-## Configuracion
+## Estado Actual
 
-Crear archivo `src/supabase.js`:
+**MVP operativo** con:
+- Sistema de eventos completo
+- Cobranzas con filtros por estado
+- Menus personalizables (Tapeo, Asado, 3 Pasos)
+- Cotizaciones PDF con IVA
+- Dashboard con estadisticas
+- Sistema de usuarios con roles
 
-```javascript
-import { createClient } from '@supabase/supabase-js'
+## Instalacion Rapida
 
-const supabaseUrl = 'TU_URL_SUPABASE'
-const supabaseKey = 'TU_KEY_SUPABASE'
-
-export const supabase = createClient(supabaseUrl, supabaseKey)
+```bash
+git clone https://github.com/Fpidal/Eventos.git
+cd dashboard-eventos-v2
+npm install
+npm run dev
 ```
 
-## Estructura de Base de Datos
-
-| Tabla | Descripcion |
-|-------|-------------|
-| eventos | Datos de eventos (fecha, cliente, precios, etc.) |
-| pagos | Pagos, senas y ajustes IPC |
-| menus | Menus personalizados con categorias |
-| usuarios | Usuarios y roles |
-
-## Salones
-
-- Tero
-- Cristal
-- Salentein
-
-## Tipos de Menu
-
-- Menu Tapeo
-- Menu Asado
-- Menu 3 Pasos
-- Otro (personalizado)
+Ver [SETUP.md](./SETUP.md) para configuracion completa.
 
 ---
 
