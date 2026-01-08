@@ -1,11 +1,25 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { supabase } from './supabase';
+import { jsPDF } from 'jspdf';
 
 const formatCurrency = (value) => {
   if (value === null || value === undefined) return '-';
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(value);
+};
+
+// Formatear número con puntos de miles para inputs
+const formatNumberInput = (value) => {
+  if (!value && value !== 0) return '';
+  const num = String(value).replace(/\D/g, '');
+  return num.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+};
+
+// Parsear número (quitar puntos) para guardar
+const parseNumberInput = (value) => {
+  if (!value) return '';
+  return String(value).replace(/\./g, '');
 };
 
 const formatDate = (dateStr) => {
@@ -24,6 +38,19 @@ const TURNOS = ['Noche', 'M. Dia'];
 const SALONES = ['Tero', 'Cristal', 'Salentein'];
 
 export default function App() {
+  // Auth states
+  const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  // Permisos según rol
+  const canCreate = userRole === 'admin' || userRole === 'vendedor';
+  const canEdit = userRole === 'admin' || userRole === 'vendedor';
+  const canDelete = userRole === 'admin';
+
   const [activeTab, setActiveTab] = useState('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterVendedor, setFilterVendedor] = useState('todos');
@@ -34,13 +61,24 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [selectedEvento, setSelectedEvento] = useState(null);
-  
+
   const [eventos, setEventos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [eventoEdit, setEventoEdit] = useState(null);
+  const [pagos, setPagos] = useState([]);
+  const [showPagoModal, setShowPagoModal] = useState(false);
+  const [selectedEventoPago, setSelectedEventoPago] = useState(null);
+  const [nuevoPago, setNuevoPago] = useState({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '' });
+  const [editingPagoId, setEditingPagoId] = useState(null);
+
+  // Estados para gestión de usuarios
+  const [usuarios, setUsuarios] = useState([]);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [nuevoUsuario, setNuevoUsuario] = useState({ email: '', password: '', nombre: '', rol: 'lectura' });
+  const [userError, setUserError] = useState('');
   const [nuevoEvento, setNuevoEvento] = useState({
     fecha: '',
     cliente: '',
@@ -72,9 +110,91 @@ export default function App() {
     confirmado: false
   });
 
+  // Obtener rol del usuario
+  const fetchUserRole = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('usuarios')
+        .select('rol')
+        .eq('user_id', userId)
+        .single();
+
+      if (data) {
+        setUserRole(data.rol);
+      } else {
+        // Si no tiene registro en usuarios, es lectura por defecto
+        setUserRole('lectura');
+      }
+    } catch (err) {
+      console.error('Error fetching role:', err);
+      setUserRole('lectura');
+    }
+  };
+
+  // Auth: verificar sesión al cargar
   useEffect(() => {
-    fetchEventos();
+    // Timeout de seguridad
+    const timeoutId = setTimeout(() => {
+      setAuthLoading(false);
+    }, 3000);
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      clearTimeout(timeoutId);
+      setUser(session?.user || null);
+      if (session?.user) {
+        fetchUserRole(session.user.id);
+      }
+      setAuthLoading(false);
+    }).catch(() => {
+      clearTimeout(timeoutId);
+      setAuthLoading(false);
+    });
+
+    // Escuchar cambios de auth
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+      if (session?.user) {
+        fetchUserRole(session.user.id);
+      } else {
+        setUserRole(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  // Login
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoginError('');
+    setLoginLoading(true);
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: loginForm.email,
+      password: loginForm.password
+    });
+
+    if (error) {
+      setLoginError('Email o contraseña incorrectos');
+    }
+    setLoginLoading(false);
+  };
+
+  // Logout
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchEventos();
+      fetchPagos();
+      if (userRole === 'admin') {
+        fetchUsuarios();
+      }
+    }
+  }, [user, userRole]);
 
   const fetchEventos = async () => {
     setLoading(true);
@@ -82,13 +202,322 @@ export default function App() {
       .from('eventos')
       .select('*')
       .order('fecha', { ascending: true });
-    
+
     if (error) {
       console.error('Error:', error);
     } else {
       setEventos(data || []);
     }
     setLoading(false);
+  };
+
+  const fetchPagos = async () => {
+    const { data, error } = await supabase
+      .from('pagos')
+      .select('*')
+      .order('fecha', { ascending: true });
+
+    if (error) {
+      console.error('Error pagos:', error);
+    } else {
+      setPagos(data || []);
+    }
+  };
+
+  const handleAddPago = async (e) => {
+    e.preventDefault();
+    if (!selectedEventoPago) return;
+    setSaving(true);
+
+    let error;
+    if (editingPagoId) {
+      // Actualizar pago existente
+      const result = await supabase
+        .from('pagos')
+        .update({
+          fecha: nuevoPago.fecha,
+          monto: parseFloat(nuevoPago.monto) || 0,
+          concepto: nuevoPago.concepto
+        })
+        .eq('id', editingPagoId);
+      error = result.error;
+    } else {
+      // Insertar nuevo pago
+      const result = await supabase
+        .from('pagos')
+        .insert([{
+          evento_id: selectedEventoPago.id,
+          fecha: nuevoPago.fecha,
+          monto: parseFloat(nuevoPago.monto) || 0,
+          concepto: nuevoPago.concepto
+        }]);
+      error = result.error;
+    }
+
+    if (error) {
+      console.error('Error:', error);
+      alert(editingPagoId ? 'Error al actualizar el pago' : 'Error al registrar el pago');
+    } else {
+      setShowPagoModal(false);
+      setNuevoPago({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '' });
+      setSelectedEventoPago(null);
+      setEditingPagoId(null);
+      fetchPagos();
+    }
+    setSaving(false);
+  };
+
+  const handleEditPago = (pago, evento) => {
+    setEditingPagoId(pago.id);
+    setSelectedEventoPago(evento);
+    setNuevoPago({
+      fecha: pago.fecha,
+      monto: String(pago.monto),
+      concepto: pago.concepto
+    });
+    setShowPagoModal(true);
+  };
+
+  const handleDeletePago = async (pagoId) => {
+    if (!confirm('¿Eliminar este pago?')) return;
+
+    const { error } = await supabase
+      .from('pagos')
+      .delete()
+      .eq('id', pagoId);
+
+    if (error) {
+      console.error('Error:', error);
+    } else {
+      fetchPagos();
+    }
+  };
+
+  // Funciones para gestión de usuarios
+  const fetchUsuarios = async () => {
+    const { data, error } = await supabase
+      .from('usuarios')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setUsuarios(data);
+    }
+  };
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    setUserError('');
+    setSaving(true);
+
+    // 1. Crear usuario en Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: nuevoUsuario.email,
+      password: nuevoUsuario.password
+    });
+
+    if (authError) {
+      setUserError(authError.message);
+      setSaving(false);
+      return;
+    }
+
+    // 2. Agregar a la tabla usuarios con el rol
+    const { error: dbError } = await supabase
+      .from('usuarios')
+      .insert([{
+        user_id: authData.user.id,
+        email: nuevoUsuario.email,
+        nombre: nuevoUsuario.nombre,
+        rol: nuevoUsuario.rol
+      }]);
+
+    if (dbError) {
+      setUserError('Usuario creado pero error al asignar rol: ' + dbError.message);
+    } else {
+      setShowUserModal(false);
+      setNuevoUsuario({ email: '', password: '', nombre: '', rol: 'lectura' });
+      fetchUsuarios();
+    }
+    setSaving(false);
+  };
+
+  const handleUpdateUserRole = async (userId, newRole) => {
+    const { error } = await supabase
+      .from('usuarios')
+      .update({ rol: newRole })
+      .eq('id', userId);
+
+    if (!error) {
+      fetchUsuarios();
+    }
+  };
+
+  const handleDeleteUser = async (usuario) => {
+    if (!confirm(`¿Eliminar usuario ${usuario.email}?`)) return;
+
+    const { error } = await supabase
+      .from('usuarios')
+      .delete()
+      .eq('id', usuario.id);
+
+    if (!error) {
+      fetchUsuarios();
+    }
+  };
+
+  // Generar PDF del evento
+  const generarPDF = (evento) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y = 20;
+
+    // Título
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Confirmación de Evento', pageWidth / 2, y, { align: 'center' });
+    y += 15;
+
+    // Estado
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    const estado = evento.confirmado ? 'CONFIRMADO' : 'A CONFIRMAR';
+    doc.setTextColor(evento.confirmado ? 34 : 180, evento.confirmado ? 139 : 130, evento.confirmado ? 34 : 0);
+    doc.text(estado, pageWidth / 2, y, { align: 'center' });
+    doc.setTextColor(0, 0, 0);
+    y += 20;
+
+    // Línea separadora
+    doc.setDrawColor(200, 200, 200);
+    doc.line(20, y, pageWidth - 20, y);
+    y += 15;
+
+    // Datos del cliente
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Datos del Cliente', 20, y);
+    y += 10;
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Cliente: ${evento.cliente}`, 20, y);
+    y += 7;
+    if (evento.telefono) {
+      doc.text(`Teléfono: ${evento.telefono}`, 20, y);
+      y += 7;
+    }
+    y += 8;
+
+    // Datos del evento
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Detalles del Evento', 20, y);
+    y += 10;
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+
+    const fechaFormateada = new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+    doc.text(`Fecha: ${fechaFormateada}`, 20, y);
+    y += 7;
+
+    doc.text(`Turno: ${evento.turno}`, 20, y);
+    y += 7;
+
+    if (evento.hora_inicio || evento.hora_fin) {
+      const horario = `${evento.hora_inicio || ''} - ${evento.hora_fin || ''}`.trim();
+      if (horario !== '-') {
+        doc.text(`Horario: ${horario}`, 20, y);
+        y += 7;
+      }
+    }
+
+    doc.text(`Tipo de Evento: ${evento.tipo_evento}`, 20, y);
+    y += 7;
+
+    doc.text(`Menú: ${evento.menu}`, 20, y);
+    y += 7;
+
+    doc.text(`Salón: ${evento.salon}`, 20, y);
+    y += 12;
+
+    // Cantidad de personas
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Cantidad de Personas', 20, y);
+    y += 10;
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Adultos: ${evento.adultos}`, 20, y);
+    y += 7;
+    doc.text(`Menores: ${evento.menores}`, 20, y);
+    y += 7;
+    doc.text(`Total: ${(evento.adultos || 0) + (evento.menores || 0)} personas`, 20, y);
+    y += 12;
+
+    // Extras
+    const extras = [];
+    if (evento.extra1_desc) extras.push(evento.extra1_desc);
+    if (evento.extra2_desc) extras.push(evento.extra2_desc);
+    if (evento.extra3_desc) extras.push(evento.extra3_desc);
+
+    if (extras.length > 0) {
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Extras Incluidos', 20, y);
+      y += 10;
+
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      extras.forEach(extra => {
+        doc.text(`• ${extra}`, 25, y);
+        y += 7;
+      });
+      y += 5;
+    }
+
+    // Servicios técnicos
+    if (evento.tecnica || evento.tecnica_superior || evento.dj) {
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Servicios Técnicos', 20, y);
+      y += 10;
+
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      if (evento.tecnica) {
+        doc.text(`• Técnica: Sí`, 25, y);
+        y += 7;
+      }
+      if (evento.tecnica_superior) {
+        doc.text(`• Técnica Superior: Sí`, 25, y);
+        y += 7;
+      }
+      if (evento.dj) {
+        doc.text(`• DJ: ${evento.dj}`, 25, y);
+        y += 7;
+      }
+    }
+
+    // Vendedor
+    y += 10;
+    doc.setFontSize(10);
+    doc.setTextColor(128, 128, 128);
+    doc.text(`Vendedor: ${evento.vendedor}`, 20, y);
+
+    // Fecha de generación
+    y += 7;
+    doc.text(`Documento generado: ${new Date().toLocaleDateString('es-AR')}`, 20, y);
+
+    // Descargar
+    const fileName = `Evento_${evento.cliente.replace(/\s+/g, '_')}_${evento.fecha}.pdf`;
+    doc.save(fileName);
   };
 
   const calcularTotal = () => {
@@ -426,6 +855,43 @@ export default function App() {
       .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
   }, [eventosDelAño]);
 
+  // Cobranzas: eventos con pagos y saldos
+  // IPC se suma al saldo (cargo adicional), pagos y señas restan del saldo
+  const cobranzasData = useMemo(() => {
+    return eventosDelAño.map(evento => {
+      const pagosEvento = pagos.filter(p => p.evento_id === evento.id);
+      // Pagos y señas (lo que se pagó del evento, sin IPC)
+      const pagosYSenas = pagosEvento
+        .filter(p => p.concepto === 'pago' || p.concepto === 'seña')
+        .reduce((sum, p) => sum + Number(p.monto), 0);
+      // Ajustes IPC (pagos extra)
+      const ajustesIPC = pagosEvento
+        .filter(p => p.concepto === 'ajuste_ipc')
+        .reduce((sum, p) => sum + Number(p.monto), 0);
+      // Saldo = lo que falta pagar del evento (sin considerar IPC)
+      const saldo = evento.totalEvento - pagosYSenas;
+      // Total Pagado = todo lo cobrado (pagos + señas + IPC)
+      const totalPagado = pagosYSenas + ajustesIPC;
+
+      return {
+        ...evento,
+        pagos: pagosEvento,
+        pagosYSenas,
+        totalPagado,
+        ajustesIPC,
+        saldo
+      };
+    }).sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+  }, [eventosDelAño, pagos]);
+
+  const statsCobranzas = useMemo(() => {
+    const totalFacturado = cobranzasData.reduce((sum, e) => sum + e.totalEvento, 0);
+    const totalCobrado = cobranzasData.reduce((sum, e) => sum + e.totalPagado, 0);
+    const totalPendiente = cobranzasData.reduce((sum, e) => sum + Math.max(0, e.saldo), 0);
+    const eventosConSaldo = cobranzasData.filter(e => e.saldo > 0).length;
+    return { totalFacturado, totalCobrado, totalPendiente, eventosConSaldo };
+  }, [cobranzasData]);
+
   // Calcular días restantes
   const getDiasRestantes = (fecha) => {
     const hoy = new Date();
@@ -451,6 +917,85 @@ export default function App() {
 
   const { daysInMonth, startingDay } = getDaysInMonth(calendarDate);
 
+  // Auth loading
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-purple-500 animate-spin mx-auto mb-4" />
+          <p className="text-slate-400">Verificando sesión...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Login screen
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 flex items-center justify-center p-4">
+        <div className="glass rounded-2xl p-8 w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mx-auto mb-4 glow">
+              <Calendar className="w-8 h-8" />
+            </div>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+              Gestión de Eventos
+            </h1>
+            <p className="text-slate-400 mt-2">Iniciá sesión para continuar</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            {loginError && (
+              <div className="p-3 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-sm text-center">
+                {loginError}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm text-slate-400 mb-1">Email</label>
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="email"
+                  required
+                  placeholder="tu@email.com"
+                  value={loginForm.email}
+                  onChange={(e) => setLoginForm({...loginForm, email: e.target.value})}
+                  className="w-full pl-12 pr-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm text-slate-400 mb-1">Contraseña</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={loginForm.password}
+                  onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
+                  className="w-full pl-12 pr-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loginLoading}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {loginLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Lock className="w-5 h-5" />}
+              {loginLoading ? 'Ingresando...' : 'Ingresar'}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Data loading
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 flex items-center justify-center">
@@ -485,7 +1030,7 @@ export default function App() {
                     required
                     value={nuevoEvento.fecha}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, fecha: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
                   />
                 </div>
                 <div>
@@ -648,11 +1193,11 @@ export default function App() {
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Precio Adulto $</label>
                   <input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="numeric"
                     placeholder="Precio"
-                    value={nuevoEvento.precio_adulto}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, precio_adulto: e.target.value})}
+                    value={formatNumberInput(nuevoEvento.precio_adulto)}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, precio_adulto: parseNumberInput(e.target.value)})}
                     className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
@@ -670,11 +1215,11 @@ export default function App() {
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Precio Menor $</label>
                   <input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="numeric"
                     placeholder="Precio"
-                    value={nuevoEvento.precio_menor}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, precio_menor: e.target.value})}
+                    value={formatNumberInput(nuevoEvento.precio_menor)}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, precio_menor: parseNumberInput(e.target.value)})}
                     className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
@@ -696,11 +1241,11 @@ export default function App() {
                     </div>
                     <div className="md:col-span-3">
                       <input
-                        type="number"
-                        min="0"
+                        type="text"
+                        inputMode="numeric"
                         placeholder="Valor $"
-                        value={nuevoEvento[`extra${i}_valor`]}
-                        onChange={(e) => setNuevoEvento({...nuevoEvento, [`extra${i}_valor`]: e.target.value})}
+                        value={formatNumberInput(nuevoEvento[`extra${i}_valor`])}
+                        onChange={(e) => setNuevoEvento({...nuevoEvento, [`extra${i}_valor`]: parseNumberInput(e.target.value)})}
                         className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 text-sm"
                       />
                     </div>
@@ -883,22 +1428,39 @@ export default function App() {
                 <p className="text-2xl font-bold text-emerald-400 mono">{formatCurrency(selectedEvento.totalEvento)}</p>
               </div>
 
-              {/* Botones Editar y Eliminar */}
-              <div className="flex gap-3 pt-2">
+              {/* Botón Descargar PDF */}
+              <div className="pt-2">
                 <button
-                  onClick={() => handleEdit(selectedEvento)}
-                  className="flex-1 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-2"
+                  onClick={() => generarPDF(selectedEvento)}
+                  className="w-full py-3 rounded-xl bg-emerald-500/20 text-emerald-400 font-semibold hover:bg-emerald-500/30 transition-all border border-emerald-500/30 flex items-center justify-center gap-2"
                 >
-                  <Edit3 className="w-4 h-4" />
-                  Editar
-                </button>
-                <button
-                  onClick={() => handleDelete(selectedEvento.id)}
-                  className="px-6 py-3 rounded-xl bg-red-500/20 text-red-400 font-semibold hover:bg-red-500/30 transition-all border border-red-500/30 flex items-center justify-center gap-2"
-                >
-                  <Trash2 className="w-4 h-4" />
+                  <FileText className="w-4 h-4" />
+                  Descargar PDF
                 </button>
               </div>
+
+              {/* Botones Editar y Eliminar */}
+              {(canEdit || canDelete) && (
+                <div className="flex gap-3 pt-2">
+                  {canEdit && (
+                    <button
+                      onClick={() => handleEdit(selectedEvento)}
+                      className="flex-1 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                      Editar
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button
+                      onClick={() => handleDelete(selectedEvento.id)}
+                      className="px-6 py-3 rounded-xl bg-red-500/20 text-red-400 font-semibold hover:bg-red-500/30 transition-all border border-red-500/30 flex items-center justify-center gap-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -925,7 +1487,7 @@ export default function App() {
                     required
                     value={eventoEdit.fecha}
                     onChange={(e) => setEventoEdit({...eventoEdit, fecha: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
                   />
                 </div>
                 <div>
@@ -1084,10 +1646,10 @@ export default function App() {
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Precio Adulto $</label>
                   <input
-                    type="number"
-                    min="0"
-                    value={eventoEdit.precio_adulto}
-                    onChange={(e) => setEventoEdit({...eventoEdit, precio_adulto: e.target.value})}
+                    type="text"
+                    inputMode="numeric"
+                    value={formatNumberInput(eventoEdit.precio_adulto)}
+                    onChange={(e) => setEventoEdit({...eventoEdit, precio_adulto: parseNumberInput(e.target.value)})}
                     className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
@@ -1104,10 +1666,10 @@ export default function App() {
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Precio Menor $</label>
                   <input
-                    type="number"
-                    min="0"
-                    value={eventoEdit.precio_menor}
-                    onChange={(e) => setEventoEdit({...eventoEdit, precio_menor: e.target.value})}
+                    type="text"
+                    inputMode="numeric"
+                    value={formatNumberInput(eventoEdit.precio_menor)}
+                    onChange={(e) => setEventoEdit({...eventoEdit, precio_menor: parseNumberInput(e.target.value)})}
                     className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
@@ -1129,11 +1691,11 @@ export default function App() {
                     </div>
                     <div className="md:col-span-3">
                       <input
-                        type="number"
-                        min="0"
+                        type="text"
+                        inputMode="numeric"
                         placeholder="Valor $"
-                        value={eventoEdit[`extra${i}_valor`]}
-                        onChange={(e) => setEventoEdit({...eventoEdit, [`extra${i}_valor`]: e.target.value})}
+                        value={formatNumberInput(eventoEdit[`extra${i}_valor`])}
+                        onChange={(e) => setEventoEdit({...eventoEdit, [`extra${i}_valor`]: parseNumberInput(e.target.value)})}
                         className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 text-sm"
                       />
                     </div>
@@ -1198,6 +1760,108 @@ export default function App() {
         </div>
       )}
 
+      {/* Modal Nuevo/Editar Pago */}
+      {showPagoModal && selectedEventoPago && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="glass rounded-2xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold">{editingPagoId ? 'Editar Pago' : 'Registrar Pago'}</h2>
+              <button onClick={() => { setShowPagoModal(false); setSelectedEventoPago(null); setEditingPagoId(null); setNuevoPago({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '' }); }} className="p-2 hover:bg-white/10 rounded-xl">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mb-4 p-3 rounded-xl bg-white/5 border border-white/10">
+              <p className="text-sm text-slate-400">Cliente</p>
+              <p className="font-semibold">{selectedEventoPago.cliente}</p>
+              <p className="text-sm text-slate-400 mt-2">Fecha evento</p>
+              <p>{formatDate(selectedEventoPago.fecha)}</p>
+            </div>
+
+            <form onSubmit={handleAddPago} className="space-y-4">
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Fecha del pago *</label>
+                <input
+                  type="date"
+                  required
+                  value={nuevoPago.fecha}
+                  onChange={(e) => setNuevoPago({...nuevoPago, fecha: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Concepto</label>
+                <select
+                  value={nuevoPago.concepto}
+                  onChange={(e) => setNuevoPago({...nuevoPago, concepto: e.target.value, monto: '', porcentajeIPC: ''})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                >
+                  <option value="pago">Pago</option>
+                  <option value="seña">Seña</option>
+                  <option value="ajuste_ipc">Ajuste IPC</option>
+                </select>
+              </div>
+              {nuevoPago.concepto === 'ajuste_ipc' && !editingPagoId ? (
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Porcentaje IPC sobre saldo *</label>
+                  <div className="flex gap-3">
+                    <div className="relative flex-1">
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        required
+                        placeholder="Ej: 5"
+                        value={nuevoPago.porcentajeIPC || ''}
+                        onChange={(e) => {
+                          const pct = e.target.value;
+                          const montoCalculado = Math.round((selectedEventoPago?.saldo || 0) * (parseFloat(pct) || 0) / 100);
+                          setNuevoPago({...nuevoPago, porcentajeIPC: pct, monto: String(montoCalculado)});
+                        }}
+                        className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">%</span>
+                    </div>
+                  </div>
+                  <div className="mt-2 p-3 rounded-lg bg-white/5 border border-white/10">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-400">Saldo actual:</span>
+                      <span className="mono">{formatCurrency(selectedEventoPago?.saldo || 0)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm mt-1">
+                      <span className="text-slate-400">IPC calculado:</span>
+                      <span className="mono text-amber-400 font-medium">{formatCurrency(parseFloat(nuevoPago.monto) || 0)}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">{nuevoPago.concepto === 'ajuste_ipc' ? 'Monto IPC *' : 'Monto *'}</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    required
+                    placeholder={nuevoPago.concepto === 'ajuste_ipc' ? 'Monto del IPC' : 'Monto del pago'}
+                    value={formatNumberInput(nuevoPago.monto)}
+                    onChange={(e) => setNuevoPago({...nuevoPago, monto: parseNumberInput(e.target.value)})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={saving}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold hover:from-emerald-700 hover:to-teal-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Receipt className="w-5 h-5" />}
+                {saving ? 'Guardando...' : (editingPagoId ? 'Actualizar Pago' : 'Registrar Pago')}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="glass border-b border-white/10 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-4">
@@ -1227,13 +1891,31 @@ export default function App() {
                   ))}
                 </select>
               </div>
-              <button
-                onClick={() => setShowModal(true)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium hover:from-purple-700 hover:to-indigo-700 transition-all"
-              >
-                <Plus className="w-5 h-5" />
-                <span className="hidden sm:inline">Nuevo Evento</span>
-              </button>
+              {canCreate && (
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium hover:from-purple-700 hover:to-indigo-700 transition-all"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span className="hidden sm:inline">Nuevo Evento</span>
+                </button>
+              )}
+              <div className="flex items-center gap-2">
+                <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
+                  userRole === 'admin' ? 'bg-purple-500/20 text-purple-300' :
+                  userRole === 'vendedor' ? 'bg-blue-500/20 text-blue-300' :
+                  'bg-slate-500/20 text-slate-300'
+                }`}>
+                  {userRole === 'admin' ? 'Admin' : userRole === 'vendedor' ? 'Vendedor' : 'Lectura'}
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 transition-all"
+                  title={user?.email}
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1248,6 +1930,8 @@ export default function App() {
             { id: 'aconfirmar', label: 'A Confirmar', icon: AlertCircle },
             { id: 'calendario', label: 'Calendario', icon: Calendar },
             { id: 'eventos', label: 'Eventos', icon: Briefcase },
+            { id: 'cobranzas', label: 'Cobranzas', icon: Wallet },
+            ...(userRole === 'admin' ? [{ id: 'usuarios', label: 'Usuarios', icon: Users }] : []),
           ].map(tab => (
             <button
               key={tab.id}
@@ -1822,6 +2506,323 @@ export default function App() {
               <div className="px-5 py-3 bg-white/5 border-t border-white/10 text-sm text-slate-400">
                 Mostrando {filteredEventos.length} de {eventosData.length} eventos
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cobranzas */}
+        {activeTab === 'cobranzas' && (
+          <div className="space-y-6">
+            {/* Stats de Cobranzas */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="glass rounded-2xl p-5 glow">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2.5 rounded-xl bg-indigo-500/20">
+                    <DollarSign className="w-5 h-5 text-indigo-400" />
+                  </div>
+                  <span className="text-sm text-slate-400">Total Facturado</span>
+                </div>
+                <p className="text-2xl font-bold text-white mono">{formatCurrency(statsCobranzas.totalFacturado)}</p>
+              </div>
+              <div className="glass rounded-2xl p-5 glow">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2.5 rounded-xl bg-emerald-500/20">
+                    <CheckCircle className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <span className="text-sm text-slate-400">Total Cobrado</span>
+                </div>
+                <p className="text-2xl font-bold text-emerald-400 mono">{formatCurrency(statsCobranzas.totalCobrado)}</p>
+              </div>
+              <div className="glass rounded-2xl p-5 glow">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2.5 rounded-xl bg-amber-500/20">
+                    <AlertCircle className="w-5 h-5 text-amber-400" />
+                  </div>
+                  <span className="text-sm text-slate-400">Pendiente</span>
+                </div>
+                <p className="text-2xl font-bold text-amber-400 mono">{formatCurrency(statsCobranzas.totalPendiente)}</p>
+              </div>
+              <div className="glass rounded-2xl p-5 glow">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2.5 rounded-xl bg-purple-500/20">
+                    <Wallet className="w-5 h-5 text-purple-400" />
+                  </div>
+                  <span className="text-sm text-slate-400">Eventos con saldo</span>
+                </div>
+                <p className="text-2xl font-bold text-white">{statsCobranzas.eventosConSaldo}</p>
+              </div>
+            </div>
+
+            {/* Lista de Cobranzas */}
+            <div className="glass rounded-2xl overflow-hidden glow">
+              <div className="p-4 border-b border-white/10">
+                <h3 className="text-lg font-semibold">Estado de cuenta por evento</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-white/10 bg-white/5">
+                      <th className="text-left px-5 py-4 text-sm font-medium text-slate-300">Fecha</th>
+                      <th className="text-left px-5 py-4 text-sm font-medium text-slate-300">Cliente</th>
+                      <th className="text-right px-5 py-4 text-sm font-medium text-slate-300">Evento</th>
+                      <th className="text-right px-5 py-4 text-sm font-medium text-slate-300">Pagos</th>
+                      <th className="text-right px-5 py-4 text-sm font-medium text-slate-300">IPC</th>
+                      <th className="text-right px-5 py-4 text-sm font-medium text-slate-300">Total Cobrado</th>
+                      <th className="text-right px-5 py-4 text-sm font-medium text-slate-300">Saldo</th>
+                      <th className="text-center px-5 py-4 text-sm font-medium text-slate-300">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cobranzasData.map((evento) => (
+                      <tr key={evento.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                        <td className="px-5 py-4 text-sm">{formatDate(evento.fecha)}</td>
+                        <td className="px-5 py-4">
+                          <p className="font-medium">{evento.cliente}</p>
+                          <p className="text-xs text-slate-400">{evento.tipoEvento}</p>
+                        </td>
+                        <td className="px-5 py-4 text-right mono">{formatCurrency(evento.totalEvento)}</td>
+                        <td className="px-5 py-4 text-right text-emerald-400 mono">{formatCurrency(evento.pagosYSenas)}</td>
+                        <td className="px-5 py-4 text-right">
+                          {evento.ajustesIPC > 0 ? (
+                            <span className="text-amber-400 mono">+{formatCurrency(evento.ajustesIPC)}</span>
+                          ) : (
+                            <span className="text-slate-500">-</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-4 text-right mono font-medium">{formatCurrency(evento.totalPagado)}</td>
+                        <td className="px-5 py-4 text-right">
+                          <span className={`font-semibold mono ${evento.saldo > 0 ? 'text-amber-400' : evento.saldo < 0 ? 'text-blue-400' : 'text-emerald-400'}`}>
+                            {formatCurrency(evento.saldo)}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4">
+                          {canCreate && (
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => { setSelectedEventoPago(evento); setShowPagoModal(true); }}
+                                className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors"
+                                title="Agregar pago"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Detalle de pagos por evento */}
+            <div className="glass rounded-2xl p-6 glow">
+              <h3 className="text-lg font-semibold mb-4">Detalle de pagos</h3>
+              <div className="space-y-4">
+                {cobranzasData.filter(e => e.pagos.length > 0).map(evento => (
+                  <div key={evento.id} className="p-4 rounded-xl bg-white/5 border border-white/10">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <p className="font-semibold">{evento.cliente}</p>
+                        <p className="text-sm text-slate-400">{formatDate(evento.fecha)} - {evento.tipoEvento}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-slate-400">Saldo</p>
+                        <p className={`font-semibold mono ${evento.saldo > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                          {formatCurrency(evento.saldo)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {evento.pagos.map(pago => (
+                        <div key={pago.id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-white/5">
+                          <div className="flex items-center gap-3">
+                            <span className={`px-2 py-0.5 rounded text-xs ${
+                              pago.concepto === 'ajuste_ipc' ? 'bg-amber-500/20 text-amber-300' :
+                              pago.concepto === 'seña' ? 'bg-blue-500/20 text-blue-300' :
+                              'bg-emerald-500/20 text-emerald-300'
+                            }`}>
+                              {pago.concepto === 'ajuste_ipc' ? 'IPC' : pago.concepto === 'seña' ? 'Seña' : 'Pago'}
+                            </span>
+                            <span className="text-sm text-slate-400">{formatDate(pago.fecha)}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className={`font-medium mono ${pago.concepto === 'ajuste_ipc' ? 'text-amber-400' : 'text-emerald-400'}`}>
+                              {pago.concepto === 'ajuste_ipc' ? '+' : ''}{formatCurrency(pago.monto)}
+                            </span>
+                            {canEdit && (
+                              <button
+                                onClick={() => handleEditPago(pago, evento)}
+                                className="p-1 rounded text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button
+                                onClick={() => handleDeletePago(pago.id)}
+                                className="p-1 rounded text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {cobranzasData.filter(e => e.pagos.length > 0).length === 0 && (
+                  <p className="text-center text-slate-400 py-8">No hay pagos registrados</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Usuarios (solo admin) */}
+        {activeTab === 'usuarios' && userRole === 'admin' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">Administrar Usuarios</h2>
+              <button
+                onClick={() => setShowUserModal(true)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium hover:from-purple-700 hover:to-indigo-700 transition-all"
+              >
+                <Plus className="w-5 h-5" />
+                Nuevo Usuario
+              </button>
+            </div>
+
+            <div className="glass rounded-2xl p-6">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-white/10 bg-white/5">
+                      <th className="text-left px-5 py-4 text-sm font-medium text-slate-300">Nombre</th>
+                      <th className="text-left px-5 py-4 text-sm font-medium text-slate-300">Email</th>
+                      <th className="text-center px-5 py-4 text-sm font-medium text-slate-300">Rol</th>
+                      <th className="text-center px-5 py-4 text-sm font-medium text-slate-300">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usuarios.map((usuario) => (
+                      <tr key={usuario.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                        <td className="px-5 py-4 font-medium">{usuario.nombre || '-'}</td>
+                        <td className="px-5 py-4 text-slate-400">{usuario.email}</td>
+                        <td className="px-5 py-4 text-center">
+                          <select
+                            value={usuario.rol}
+                            onChange={(e) => handleUpdateUserRole(usuario.id, e.target.value)}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium border-0 cursor-pointer ${
+                              usuario.rol === 'admin' ? 'bg-purple-500/20 text-purple-300' :
+                              usuario.rol === 'vendedor' ? 'bg-blue-500/20 text-blue-300' :
+                              'bg-slate-500/20 text-slate-300'
+                            }`}
+                          >
+                            <option value="admin" className="bg-slate-900">Admin</option>
+                            <option value="vendedor" className="bg-slate-900">Vendedor</option>
+                            <option value="lectura" className="bg-slate-900">Lectura</option>
+                          </select>
+                        </td>
+                        <td className="px-5 py-4 text-center">
+                          <button
+                            onClick={() => handleDeleteUser(usuario)}
+                            className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+                            title="Eliminar usuario"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {usuarios.length === 0 && (
+                  <p className="text-center text-slate-400 py-8">No hay usuarios registrados</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Nuevo Usuario */}
+        {showUserModal && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+            <div className="glass rounded-2xl p-6 w-full max-w-md">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold">Nuevo Usuario</h2>
+                <button onClick={() => { setShowUserModal(false); setUserError(''); }} className="p-2 hover:bg-white/10 rounded-xl">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateUser} className="space-y-4">
+                {userError && (
+                  <div className="p-3 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-sm">
+                    {userError}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Nombre</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Nombre del usuario"
+                    value={nuevoUsuario.nombre}
+                    onChange={(e) => setNuevoUsuario({...nuevoUsuario, nombre: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Email</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="email@ejemplo.com"
+                    value={nuevoUsuario.email}
+                    onChange={(e) => setNuevoUsuario({...nuevoUsuario, email: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Contraseña</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    placeholder="Mínimo 6 caracteres"
+                    value={nuevoUsuario.password}
+                    onChange={(e) => setNuevoUsuario({...nuevoUsuario, password: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Rol</label>
+                  <select
+                    value={nuevoUsuario.rol}
+                    onChange={(e) => setNuevoUsuario({...nuevoUsuario, rol: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  >
+                    <option value="lectura" className="bg-slate-900">Lectura (solo ver)</option>
+                    <option value="vendedor" className="bg-slate-900">Vendedor (crear y editar)</option>
+                    <option value="admin" className="bg-slate-900">Admin (acceso total)</option>
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Users className="w-5 h-5" />}
+                  {saving ? 'Creando...' : 'Crear Usuario'}
+                </button>
+              </form>
             </div>
           </div>
         )}
