@@ -4651,12 +4651,13 @@ export default function App() {
                     const esRetiro = cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor);
                     const totalPesos = pesos + (dolares * tc);
 
+                    // Si es R. Socios, siempre guardar valor en dólares con cotización
                     const data = {
                       tipo: 'egreso',
                       concepto: cajaEgresoForm.observacion || cajaEgresoForm.concepto,
                       monto_pesos: totalPesos,
-                      monto_dolares: dolares || null,
-                      cotizacion: dolares ? tc : null,
+                      monto_dolares: esRetiro ? (totalPesos / tc) : (dolares || null),
+                      cotizacion: esRetiro ? tc : (dolares ? tc : null),
                       persona: cajaEgresoForm.receptor,
                       fecha: cajaEgresoForm.fecha
                     };
