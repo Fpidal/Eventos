@@ -1649,12 +1649,12 @@ export default function App() {
 
   const getEventosForDate = (day) => {
     const dateStr = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return eventosData.filter(e => e.fecha === dateStr);
+    return eventosData.filter(e => e.fecha === dateStr && !e.anulado);
   };
 
   const eventosDelDiaSeleccionado = useMemo(() => {
     if (!selectedDate) return [];
-    return eventosData.filter(e => e.fecha === selectedDate);
+    return eventosData.filter(e => e.fecha === selectedDate && !e.anulado);
   }, [selectedDate, eventosData]);
 
   // Próximos eventos (confirmados, desde hoy en adelante, del año seleccionado, no anulados)
@@ -2136,23 +2136,6 @@ export default function App() {
                 />
               </div>
 
-              {/* Confirmado */}
-              <div className={`flex items-center gap-3 p-4 rounded-xl border ${nuevoEvento.confirmado ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-white/10 bg-white/5'}`}>
-                <input
-                  type="checkbox"
-                  id="confirmado"
-                  checked={nuevoEvento.confirmado}
-                  onChange={(e) => setNuevoEvento({...nuevoEvento, confirmado: e.target.checked})}
-                  className="w-5 h-5 rounded accent-emerald-500"
-                />
-                <label htmlFor="confirmado" className="flex items-center gap-2 cursor-pointer">
-                  <CheckCircle className={`w-5 h-5 ${nuevoEvento.confirmado ? 'text-emerald-400' : 'text-slate-400'}`} />
-                  <span className={nuevoEvento.confirmado ? 'text-emerald-400 font-medium' : 'text-slate-400'}>
-                    {nuevoEvento.confirmado ? 'Evento Confirmado' : 'Marcar como confirmado'}
-                  </span>
-                </label>
-              </div>
-              
               <button
                 type="submit"
                 disabled={saving}
@@ -2836,7 +2819,7 @@ export default function App() {
 
       {/* Navigation */}
       <nav className="max-w-7xl mx-auto px-6 py-4">
-        <div className="flex flex-wrap gap-2 p-1 glass rounded-2xl">
+        <div className="flex gap-1 p-1 glass rounded-2xl overflow-x-auto">
           {[
             { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
             { id: 'proximos', label: 'Próximos', icon: Clock },
@@ -2889,6 +2872,34 @@ export default function App() {
                 </div>
               ))}
             </div>
+
+            {/* Próximo Evento */}
+            {proximosEventos.length > 0 && (
+              <div
+                className="glass rounded-2xl p-5 glow cursor-pointer hover:border-purple-500/30 border border-transparent transition-all"
+                onClick={() => setSelectedEvento(proximosEventos[0])}
+              >
+                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-purple-400" />
+                  Próximo Evento
+                </h3>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 flex flex-col items-center justify-center">
+                    <span className="text-2xl font-bold">{new Date(proximosEventos[0].fecha + 'T12:00:00').getDate()}</span>
+                    <span className="text-xs uppercase">{new Date(proximosEventos[0].fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-lg font-semibold">{proximosEventos[0].cliente}</p>
+                    <p className="text-slate-400 text-sm">{proximosEventos[0].tipoEvento} - {proximosEventos[0].turno}</p>
+                    <p className="text-slate-500 text-sm">{proximosEventos[0].adultos} adultos • {proximosEventos[0].salon || 'Tero'}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-emerald-400 font-bold mono">{formatCurrency(proximosEventos[0].totalEvento)}</p>
+                    <p className="text-slate-500 text-xs">{proximosEventos[0].vendedor}</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="glass rounded-2xl p-6 glow">
