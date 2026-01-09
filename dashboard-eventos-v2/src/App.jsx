@@ -523,18 +523,18 @@ export default function App() {
     }
   };
 
-  const handleConfirmarEvento = async (evento) => {
+  const handleConfirmarEvento = async (evento, confirmar = true) => {
     const { error } = await supabase
       .from('eventos')
-      .update({ confirmado: true })
+      .update({ confirmado: confirmar })
       .eq('id', evento.id);
 
     if (error) {
       console.error('Error:', error);
-      alert('Error al confirmar el evento');
+      alert('Error al cambiar estado del evento');
     } else {
       fetchEventos();
-      setSelectedEvento({ ...evento, confirmado: true });
+      setSelectedEvento(null);
     }
   };
 
@@ -2193,12 +2193,16 @@ export default function App() {
                   </>
                 )}
               </div>
-              {!selectedEvento.confirmado && canEdit && (
+              {canEdit && (
                 <button
-                  onClick={() => handleConfirmarEvento(selectedEvento)}
-                  className="px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-sm font-medium hover:bg-emerald-500/30 transition-all border border-emerald-500/30"
+                  onClick={() => handleConfirmarEvento(selectedEvento, !selectedEvento.confirmado)}
+                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-all border ${
+                    selectedEvento.confirmado
+                      ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border-amber-500/30'
+                      : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border-emerald-500/30'
+                  }`}
                 >
-                  Confirmar
+                  {selectedEvento.confirmado ? 'Desconfirmar' : 'Confirmar'}
                 </button>
               )}
             </div>
