@@ -2327,7 +2327,7 @@ export default function App() {
       {/* Modal Editar Evento */}
       {editMode && eventoEdit && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="glass rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="glass rounded-2xl p-5 w-full max-w-2xl">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold">Editar Evento</h2>
               <button onClick={() => { setEditMode(false); setEventoEdit(null); }} className="p-2 hover:bg-white/10 rounded-xl">
@@ -2606,23 +2606,6 @@ export default function App() {
                 />
               </div>
 
-              {/* Confirmado */}
-              <div className={`flex items-center gap-3 p-4 rounded-xl border ${eventoEdit.confirmado ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-white/10 bg-white/5'}`}>
-                <input
-                  type="checkbox"
-                  id="confirmado_edit"
-                  checked={eventoEdit.confirmado}
-                  onChange={(e) => setEventoEdit({...eventoEdit, confirmado: e.target.checked})}
-                  className="w-5 h-5 rounded accent-emerald-500"
-                />
-                <label htmlFor="confirmado_edit" className="flex items-center gap-2 cursor-pointer">
-                  <CheckCircle className={`w-5 h-5 ${eventoEdit.confirmado ? 'text-emerald-400' : 'text-slate-400'}`} />
-                  <span className={eventoEdit.confirmado ? 'text-emerald-400 font-medium' : 'text-slate-400'}>
-                    {eventoEdit.confirmado ? 'Evento Confirmado' : 'Marcar como confirmado'}
-                  </span>
-                </label>
-              </div>
-              
               <button
                 type="submit"
                 disabled={saving}
