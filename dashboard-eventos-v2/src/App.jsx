@@ -338,22 +338,15 @@ export default function App() {
     setLoginError('');
     setLoginLoading(true);
 
-    // Clave transitoria para acceso completo
+    // Login con clave única
     if (loginForm.password === 'admin1234') {
-      setUser({ email: loginForm.email || 'invitado@eventos.com', id: 'temp-user' });
+      setUser({ email: loginForm.email || 'usuario@eventos.com', id: 'temp-user' });
       setUserRole('admin');
       setLoginLoading(false);
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: loginForm.email,
-      password: loginForm.password
-    });
-
-    if (error) {
-      setLoginError('Email o contraseña incorrectos');
-    }
+    setLoginError('Contraseña incorrecta');
     setLoginLoading(false);
   };
 
