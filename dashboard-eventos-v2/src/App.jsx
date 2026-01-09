@@ -192,6 +192,8 @@ export default function App() {
   const [cajaTab, setCajaTab] = useState('ingresos');
   const [showCajaIngresoForm, setShowCajaIngresoForm] = useState(false);
   const [showCajaEgresoForm, setShowCajaEgresoForm] = useState(false);
+  const [editingCajaIngreso, setEditingCajaIngreso] = useState(null);
+  const [editingCajaEgreso, setEditingCajaEgreso] = useState(null);
   const [cajaIngresoForm, setCajaIngresoForm] = useState({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
   const [cajaEgresoForm, setCajaEgresoForm] = useState({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
   const CONCEPTOS_INGRESO = ['Evento', 'Vta directa', 'Caja', 'Banco', 'Otros'];
@@ -4411,7 +4413,15 @@ export default function App() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-green-400">Ingresos</h3>
                   <button
-                    onClick={() => setShowCajaIngresoForm(!showCajaIngresoForm)}
+                    onClick={() => {
+                      if (showCajaIngresoForm) {
+                        setShowCajaIngresoForm(false);
+                        setEditingCajaIngreso(null);
+                        setCajaIngresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
+                      } else {
+                        setShowCajaIngresoForm(true);
+                      }
+                    }}
                     className="px-3 py-1.5 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 text-sm flex items-center gap-1"
                   >
                     {showCajaIngresoForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
@@ -4429,7 +4439,8 @@ export default function App() {
                     if (pesos === 0 && dolares === 0) { alert('Ingrese un monto'); return; }
                     if (!cajaIngresoForm.concepto) { alert('Seleccione un concepto'); return; }
                     if (!cajaIngresoForm.receptor) { alert('Seleccione quién recibe'); return; }
-                    await supabase.from('caja_movimientos').insert({
+
+                    const data = {
                       tipo: 'ingreso',
                       concepto: cajaIngresoForm.concepto,
                       monto_pesos: pesos + (dolares * tc),
@@ -4437,11 +4448,22 @@ export default function App() {
                       cotizacion: dolares ? tc : null,
                       persona: cajaIngresoForm.receptor,
                       fecha: cajaIngresoForm.fecha
-                    });
+                    };
+
+                    if (editingCajaIngreso) {
+                      await supabase.from('caja_movimientos').update(data).eq('id', editingCajaIngreso);
+                    } else {
+                      await supabase.from('caja_movimientos').insert(data);
+                    }
+
                     setCajaIngresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
                     setShowCajaIngresoForm(false);
+                    setEditingCajaIngreso(null);
                     fetchCajaMovimientos();
                   }} className="mb-4 p-4 bg-green-500/10 rounded-xl border border-green-500/30 space-y-3">
+                    {editingCajaIngreso && (
+                      <div className="text-xs text-yellow-400 mb-2">Editando ingreso...</div>
+                    )}
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Fecha *</label>
@@ -4509,7 +4531,7 @@ export default function App() {
                     </div>
                     <div className="flex justify-end">
                       <button type="submit" className="px-4 py-2 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600">
-                        Guardar Ingreso
+                        {editingCajaIngreso ? 'Actualizar' : 'Guardar'} Ingreso
                       </button>
                     </div>
                   </form>
@@ -4524,7 +4546,7 @@ export default function App() {
                         <th className="text-left py-2 px-3">Cobrador</th>
                         <th className="text-right py-2 px-3">Pesos</th>
                         <th className="text-right py-2 px-3">USD</th>
-                        <th className="w-10"></th>
+                        <th className="w-20"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -4535,7 +4557,21 @@ export default function App() {
                           <td className="py-2 px-3 text-slate-400">{item.persona}</td>
                           <td className="py-2 px-3 text-right text-green-400">${(item.monto_pesos || 0).toLocaleString()}</td>
                           <td className="py-2 px-3 text-right text-blue-400">{item.monto_dolares ? item.monto_dolares.toLocaleString() : '-'}</td>
-                          <td className="py-2 px-3">
+                          <td className="py-2 px-3 flex gap-1">
+                            <button onClick={() => {
+                              setEditingCajaIngreso(item.id);
+                              setCajaIngresoForm({
+                                fecha: item.fecha,
+                                concepto: item.concepto,
+                                receptor: item.persona,
+                                monto_pesos: item.monto_dolares ? '' : (item.monto_pesos || '').toString(),
+                                monto_dolares: (item.monto_dolares || '').toString(),
+                                cotizacion: (item.cotizacion || '').toString()
+                              });
+                              setShowCajaIngresoForm(true);
+                            }} className="p-1 text-blue-400 hover:text-blue-300">
+                              <Edit3 className="w-4 h-4" />
+                            </button>
                             <button onClick={async () => { if (confirm('¿Eliminar?')) { await supabase.from('caja_movimientos').delete().eq('id', item.id); fetchCajaMovimientos(); }}} className="p-1 text-red-400 hover:text-red-300">
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -4561,7 +4597,15 @@ export default function App() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-red-400">Egresos / Retiros</h3>
                   <button
-                    onClick={() => setShowCajaEgresoForm(!showCajaEgresoForm)}
+                    onClick={() => {
+                      if (showCajaEgresoForm) {
+                        setShowCajaEgresoForm(false);
+                        setEditingCajaEgreso(null);
+                        setCajaEgresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
+                      } else {
+                        setShowCajaEgresoForm(true);
+                      }
+                    }}
                     className="px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 text-sm flex items-center gap-1"
                   >
                     {showCajaEgresoForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
@@ -4584,8 +4628,7 @@ export default function App() {
                     const esRetiro = cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor);
                     const totalPesos = pesos + (dolares * tc);
 
-                    // Siempre registrar como egreso
-                    await supabase.from('caja_movimientos').insert({
+                    const data = {
                       tipo: 'egreso',
                       concepto: cajaEgresoForm.observacion || cajaEgresoForm.concepto,
                       monto_pesos: totalPesos,
@@ -4593,24 +4636,37 @@ export default function App() {
                       cotizacion: dolares ? tc : null,
                       persona: cajaEgresoForm.receptor,
                       fecha: cajaEgresoForm.fecha
-                    });
+                    };
 
-                    // Si es retiro de socio, también registrar en retiros
-                    if (esRetiro) {
-                      await supabase.from('caja_movimientos').insert({
-                        tipo: 'retiro',
-                        concepto: cajaEgresoForm.observacion || cajaEgresoForm.concepto,
-                        monto_pesos: totalPesos,
-                        monto_dolares: totalPesos / tc,
-                        cotizacion: tc,
-                        persona: cajaEgresoForm.receptor,
-                        fecha: cajaEgresoForm.fecha
-                      });
+                    if (editingCajaEgreso) {
+                      // Solo actualizar el egreso existente
+                      await supabase.from('caja_movimientos').update(data).eq('id', editingCajaEgreso);
+                    } else {
+                      // Crear nuevo egreso
+                      await supabase.from('caja_movimientos').insert(data);
+
+                      // Si es retiro de socio, también registrar en retiros
+                      if (esRetiro) {
+                        await supabase.from('caja_movimientos').insert({
+                          tipo: 'retiro',
+                          concepto: cajaEgresoForm.observacion || cajaEgresoForm.concepto,
+                          monto_pesos: totalPesos,
+                          monto_dolares: totalPesos / tc,
+                          cotizacion: tc,
+                          persona: cajaEgresoForm.receptor,
+                          fecha: cajaEgresoForm.fecha
+                        });
+                      }
                     }
+
                     setCajaEgresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
                     setShowCajaEgresoForm(false);
+                    setEditingCajaEgreso(null);
                     fetchCajaMovimientos();
                   }} className="mb-4 p-4 bg-red-500/10 rounded-xl border border-red-500/30 space-y-3">
+                    {editingCajaEgreso && (
+                      <div className="text-xs text-yellow-400 mb-2">Editando egreso...</div>
+                    )}
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Fecha *</label>
@@ -4696,8 +4752,8 @@ export default function App() {
                       />
                     </div>
                     <div className="flex justify-end">
-                      <button type="submit" className={`px-4 py-2 rounded-lg text-white text-sm font-medium ${cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-red-500 hover:bg-red-600'}`}>
-                        {cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) ? 'Guardar Retiro' : 'Guardar Egreso'}
+                      <button type="submit" className={`px-4 py-2 rounded-lg text-white text-sm font-medium ${cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) && !editingCajaEgreso ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-red-500 hover:bg-red-600'}`}>
+                        {editingCajaEgreso ? 'Actualizar Egreso' : (cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) ? 'Guardar Retiro' : 'Guardar Egreso')}
                       </button>
                     </div>
                   </form>
@@ -4709,9 +4765,10 @@ export default function App() {
                       <tr className="border-b border-white/10 text-slate-400 text-xs">
                         <th className="text-left py-2 px-3">Fecha</th>
                         <th className="text-left py-2 px-3">Concepto</th>
+                        <th className="text-left py-2 px-3">Receptor</th>
                         <th className="text-right py-2 px-3">Pesos</th>
                         <th className="text-right py-2 px-3">USD</th>
-                        <th className="w-10"></th>
+                        <th className="w-20"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -4719,9 +4776,25 @@ export default function App() {
                         <tr key={item.id} className="border-b border-white/5 hover:bg-white/5">
                           <td className="py-2 px-3 text-slate-400">{item.fecha}</td>
                           <td className="py-2 px-3 font-medium">{item.concepto}</td>
+                          <td className="py-2 px-3 text-slate-400">{item.persona}</td>
                           <td className="py-2 px-3 text-right text-red-400">${(item.monto_pesos || 0).toLocaleString()}</td>
                           <td className="py-2 px-3 text-right text-blue-400">{item.monto_dolares ? item.monto_dolares.toLocaleString() : '-'}</td>
-                          <td className="py-2 px-3">
+                          <td className="py-2 px-3 flex gap-1">
+                            <button onClick={() => {
+                              setEditingCajaEgreso(item.id);
+                              setCajaEgresoForm({
+                                fecha: item.fecha,
+                                concepto: CONCEPTOS_EGRESO.includes(item.concepto) ? item.concepto : 'Otros',
+                                receptor: item.persona,
+                                monto_pesos: item.monto_dolares ? '' : (item.monto_pesos || '').toString(),
+                                monto_dolares: (item.monto_dolares || '').toString(),
+                                cotizacion: (item.cotizacion || '').toString(),
+                                observacion: CONCEPTOS_EGRESO.includes(item.concepto) ? '' : item.concepto
+                              });
+                              setShowCajaEgresoForm(true);
+                            }} className="p-1 text-blue-400 hover:text-blue-300">
+                              <Edit3 className="w-4 h-4" />
+                            </button>
                             <button onClick={async () => { if (confirm('¿Eliminar?')) { await supabase.from('caja_movimientos').delete().eq('id', item.id); fetchCajaMovimientos(); }}} className="p-1 text-red-400 hover:text-red-300">
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -4729,7 +4802,7 @@ export default function App() {
                         </tr>
                       ))}
                       {cajaMovimientos.filter(m => m.tipo === 'egreso').length === 0 && (
-                        <tr><td colSpan="5" className="py-8 text-center text-slate-500">Sin egresos registrados</td></tr>
+                        <tr><td colSpan="6" className="py-8 text-center text-slate-500">Sin egresos registrados</td></tr>
                       )}
                     </tbody>
                   </table>
