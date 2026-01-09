@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed } from 'lucide-react';
+import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed, ClipboardList } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar } from 'recharts';
 import { supabase } from './supabase';
 import { jsPDF } from 'jspdf';
@@ -201,6 +201,7 @@ export default function App() {
   // Filtros de cobranzas
   const [filterCobranzasMes, setFilterCobranzasMes] = useState('todos');
   const [filterCobranzasEstado, setFilterCobranzasEstado] = useState('todos');
+  const [vistaCobranzas, setVistaCobranzas] = useState('estado'); // 'estado' o 'detalle'
   const [selectedDate, setSelectedDate] = useState(null);
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [selectedEvento, setSelectedEvento] = useState(null);
@@ -214,8 +215,11 @@ export default function App() {
   const [pagos, setPagos] = useState([]);
   const [showPagoModal, setShowPagoModal] = useState(false);
   const [selectedEventoPago, setSelectedEventoPago] = useState(null);
-  const [nuevoPago, setNuevoPago] = useState({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '' });
+  const [nuevoPago, setNuevoPago] = useState({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '' });
   const [editingPagoId, setEditingPagoId] = useState(null);
+  const [auditoriaPagos, setAuditoriaPagos] = useState([]);
+  const [informeActivo, setInformeActivo] = useState('eliminados');
+  const [motivoModificacion, setMotivoModificacion] = useState('');
 
   // Estados para gestión de usuarios
   const [usuarios, setUsuarios] = useState([]);
@@ -355,6 +359,7 @@ export default function App() {
       fetchEventos();
       fetchPagos();
       fetchMenus();
+      fetchAuditoriaPagos();
       if (userRole === 'admin') {
         fetchUsuarios();
       }
@@ -394,27 +399,61 @@ export default function App() {
     if (!selectedEventoPago) return;
     setSaving(true);
 
+    const montoOriginal = parseFloat(nuevoPago.monto) || 0;
+    const esUSD = nuevoPago.moneda === 'USD';
+    const cotizacion = esUSD ? (parseFloat(nuevoPago.cotizacionDolar) || 0) : null;
+    const montoEnPesos = esUSD ? montoOriginal * cotizacion : montoOriginal;
+
+    // Datos base del pago
+    const pagoData = {
+      fecha: nuevoPago.fecha,
+      monto: montoEnPesos,
+      concepto: nuevoPago.concepto
+    };
+
+    // Solo agregar campos de moneda si es USD (para compatibilidad)
+    if (esUSD) {
+      pagoData.monto_original = montoOriginal;
+      pagoData.moneda = 'USD';
+      pagoData.cotizacion_dolar = cotizacion;
+    }
+
     let error;
     if (editingPagoId) {
+      // Guardar datos para auditoría
+      const cliente = selectedEventoPago?.cliente;
+      const usuario = user?.email;
+
       // Actualizar pago existente
       const result = await supabase
         .from('pagos')
-        .update({
-          fecha: nuevoPago.fecha,
-          monto: parseFloat(nuevoPago.monto) || 0,
-          concepto: nuevoPago.concepto
-        })
+        .update(pagoData)
         .eq('id', editingPagoId);
       error = result.error;
+
+      // Guardar auditoría
+      if (!error && motivoModificacion) {
+        const motivo = motivoModificacion;
+        supabase.from('auditoria_pagos').insert({
+          cliente: cliente || 'Sin cliente',
+          tipo_accion: 'MODIFICADO',
+          monto_nuevo: Number(montoEnPesos) || 0,
+          concepto_nuevo: nuevoPago.concepto || '',
+          motivo: motivo,
+          usuario: usuario || 'Sistema'
+        }).then(({ error: auditError }) => {
+          console.log('Auditoría modificación:', auditError ? auditError.message : 'OK');
+          if (!auditError) fetchAuditoriaPagos();
+        });
+        setMotivoModificacion('');
+      }
     } else {
       // Insertar nuevo pago
       const result = await supabase
         .from('pagos')
         .insert([{
           evento_id: selectedEventoPago.id,
-          fecha: nuevoPago.fecha,
-          monto: parseFloat(nuevoPago.monto) || 0,
-          concepto: nuevoPago.concepto
+          ...pagoData
         }]);
       error = result.error;
     }
@@ -424,7 +463,7 @@ export default function App() {
       alert(editingPagoId ? 'Error al actualizar el pago' : 'Error al registrar el pago');
     } else {
       setShowPagoModal(false);
-      setNuevoPago({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '' });
+      setNuevoPago({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '' });
       setSelectedEventoPago(null);
       setEditingPagoId(null);
       fetchPagos();
@@ -437,14 +476,18 @@ export default function App() {
     setSelectedEventoPago(evento);
     setNuevoPago({
       fecha: pago.fecha,
-      monto: String(pago.monto),
-      concepto: pago.concepto
+      monto: String(pago.monto_original || pago.monto),
+      concepto: pago.concepto,
+      moneda: pago.moneda || 'ARS',
+      cotizacionDolar: pago.cotizacion_dolar ? String(pago.cotizacion_dolar) : '',
+      porcentajeIPC: ''
     });
     setShowPagoModal(true);
   };
 
-  const handleDeletePago = async (pagoId) => {
-    if (!confirm('¿Eliminar este pago?')) return;
+  const handleDeletePago = async (pagoId, evento, pago) => {
+    const motivo = prompt('Motivo de la anulación:');
+    if (!motivo) return;
 
     const { error } = await supabase
       .from('pagos')
@@ -453,8 +496,39 @@ export default function App() {
 
     if (error) {
       console.error('Error:', error);
+      alert('Error al eliminar el pago');
     } else {
       fetchPagos();
+      // Guardar auditoría
+      const auditData = {
+        cliente: evento?.cliente || 'Sin cliente',
+        tipo_accion: 'ANULADO',
+        monto_original: Number(pago?.monto) || 0,
+        concepto: pago?.concepto || '',
+        motivo: motivo,
+        usuario: user?.email || 'Sistema'
+      };
+      console.log('Guardando auditoría:', auditData);
+      supabase.from('auditoria_pagos').insert(auditData)
+        .then(({ data, error }) => {
+          console.log('Resultado auditoría:', error ? error.message : 'OK');
+          if (!error) fetchAuditoriaPagos();
+        });
+    }
+  };
+
+  const fetchAuditoriaPagos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('auditoria_pagos')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        setAuditoriaPagos(data);
+      }
+    } catch (e) {
+      // Tabla no existe todavía
     }
   };
 
@@ -810,53 +884,60 @@ export default function App() {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const menuDetalle = evento.menu_detalle;
+    const margin = 10;
+
+    // Función para dibujar marco en cada página
+    const dibujarMarco = () => {
+      doc.setDrawColor(41, 128, 185);
+      doc.setLineWidth(0.5);
+      doc.rect(margin, margin, pageWidth - margin * 2, pageHeight - margin * 2);
+    };
+
+    // Dibujar marco en la primera página
+    dibujarMarco();
 
     const checkNewPage = (currentY, neededSpace = 30) => {
       if (currentY + neededSpace > pageHeight - 20) {
         doc.addPage();
-        return 20;
+        dibujarMarco();
+        return 25;
       }
       return currentY;
     };
 
-    // Logo
+    // Logo - centrado y proporcionado
     try {
       const logoImg = new Image();
       logoImg.src = '/logo-tero.jpg';
-      doc.addImage(logoImg, 'JPEG', 15, 10, 35, 25);
+      doc.addImage(logoImg, 'JPEG', pageWidth / 2 - 20, 15, 40, 28);
     } catch (e) {
       console.log('Logo no disponible');
     }
 
-    // Encabezado
-    doc.setFontSize(22);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(51, 51, 51);
-    doc.text(`Salón ${evento.salon}`, pageWidth / 2, 25, { align: 'center' });
-
+    // Encabezado (sin salón, va en detalles)
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 100, 100);
-    doc.text('Av. Agustín García 9501, Benavídez', pageWidth / 2, 35, { align: 'center' });
-    doc.text('Tel: 11-3112-8757 | Email: francisco.pidal@gmail.com', pageWidth / 2, 42, { align: 'center' });
+    doc.text('Av. Agustín García 9501, Benavídez', pageWidth / 2, 48, { align: 'center' });
+    doc.text('Tel: 11-3112-8757 | Email: francisco.pidal@gmail.com', pageWidth / 2, 55, { align: 'center' });
 
     doc.setDrawColor(200, 200, 200);
-    doc.line(20, 50, pageWidth - 20, 50);
+    doc.line(20, 62, pageWidth - 20, 62);
 
     // Título
-    doc.setFontSize(18);
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(41, 128, 185);
-    doc.text('COTIZACIÓN DE EVENTO', pageWidth / 2, 65, { align: 'center' });
+    doc.text('COTIZACIÓN DE EVENTO', pageWidth / 2, 72, { align: 'center' });
 
     // Fechas
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 100, 100);
     const fechaCotizacion = new Date().toLocaleDateString('es-AR');
     const fechaValidez = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('es-AR');
-    doc.text(`Fecha: ${fechaCotizacion}`, 20, 75);
-    doc.text(`Válida hasta: ${fechaValidez}`, pageWidth - 20, 75, { align: 'right' });
+    doc.text(`Fecha: ${fechaCotizacion}`, 20, 80);
+    doc.text(`Válida hasta: ${fechaValidez}`, pageWidth - 20, 80, { align: 'right' });
 
     // Datos del cliente
     let y = 90;
@@ -885,91 +966,89 @@ export default function App() {
 
     doc.setTextColor(51, 51, 51);
     doc.setFont('helvetica', 'normal');
-    y += 15;
+    doc.setFontSize(10);
+    y += 12;
     doc.text(`Fecha: ${new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`, 25, y);
-    y += 7;
+    y += 6;
     doc.text(`Tipo de evento: ${evento.tipo_evento}`, 25, y);
-    doc.text(`Turno: ${evento.turno}`, pageWidth / 2, y);
-    y += 7;
-    if (evento.hora_inicio && evento.hora_fin) {
-      doc.text(`Horario: ${evento.hora_inicio} a ${evento.hora_fin} hs`, 25, y);
-      y += 7;
-    }
-    doc.text(`Salón: ${evento.salon}`, 25, y);
+    doc.text(`Salón: ${evento.salon}`, pageWidth / 2, y);
+    y += 6;
+    doc.text(`Turno: ${evento.turno}${evento.hora_inicio && evento.hora_fin ? ` (${evento.hora_inicio} a ${evento.hora_fin} hs)` : ''}`, 25, y);
     doc.text(`Invitados: ${evento.adultos || 0} adultos${evento.menores ? `, ${evento.menores} menores` : ''}`, pageWidth / 2, y);
 
     // MENÚ DETALLADO
     if (menuDetalle && menuDetalle.categorias) {
-      y += 20;
-      y = checkNewPage(y, 20);
+      y += 12;
+      y = checkNewPage(y, 15);
 
-      doc.setFillColor(139, 92, 246);
+      doc.setFillColor(100, 180, 230);
       doc.rect(20, y - 5, pageWidth - 40, 10, 'F');
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(255, 255, 255);
       doc.text(`MENÚ: ${menuDetalle.nombre}`, 25, y + 2);
 
-      y += 15;
+      y += 12;
 
       menuDetalle.categorias.forEach(categoria => {
         if (categoria.items && categoria.items.length > 0) {
-          y = checkNewPage(y, 15 + categoria.items.length * 6);
-
-          doc.setFontSize(11);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(139, 92, 246);
-          doc.text(categoria.nombre, 25, y);
-          y += 6;
+          y = checkNewPage(y, 12 + categoria.items.length * 4);
 
           doc.setFontSize(10);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(70, 150, 200);
+          doc.text(categoria.nombre, 25, y);
+          y += 5;
+
+          doc.setFontSize(9);
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(80, 80, 80);
 
           categoria.items.forEach(item => {
-            y = checkNewPage(y, 6);
+            y = checkNewPage(y, 4);
             doc.text(`• ${item}`, 30, y);
-            y += 5;
+            y += 4;
           });
-          y += 5;
+          y += 3;
         }
       });
 
       // Extras del menú
       if (menuDetalle.extras && menuDetalle.extras.length > 0) {
-        y = checkNewPage(y, 20);
-        doc.setFontSize(11);
+        y = checkNewPage(y, 15);
+        doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(16, 185, 129);
         doc.text('Extras Opcionales del Menú:', 25, y);
-        y += 6;
+        y += 5;
 
-        doc.setFontSize(10);
+        doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(80, 80, 80);
 
         menuDetalle.extras.forEach(extra => {
-          y = checkNewPage(y, 6);
+          y = checkNewPage(y, 4);
           doc.text(`• ${extra}`, 30, y);
-          y += 5;
+          y += 4;
         });
       }
     }
 
     // Detalle de precios
-    y += 15;
-    y = checkNewPage(y, 80);
+    y += 10;
+    y = checkNewPage(y, 60);
 
     doc.setFillColor(41, 128, 185);
     doc.rect(20, y - 5, pageWidth - 40, 10, 'F');
-    doc.setFontSize(12);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(255, 255, 255);
     doc.text('DETALLE DE PRECIOS', 25, y + 2);
 
     doc.setTextColor(51, 51, 51);
-    y += 15;
+    y += 10;
 
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.text('Concepto', 25, y);
     doc.text('Cant.', 100, y);
@@ -981,7 +1060,8 @@ export default function App() {
     doc.line(25, y, pageWidth - 25, y);
 
     doc.setFont('helvetica', 'normal');
-    y += 10;
+    doc.setFontSize(9);
+    y += 6;
 
     const adultos = evento.adultos || 0;
     const precioAdulto = evento.precio_adulto || 0;
@@ -989,7 +1069,7 @@ export default function App() {
     doc.text(adultos.toString(), 100, y);
     doc.text(`$${precioAdulto.toLocaleString('es-AR')}`, 125, y);
     doc.text(`$${(adultos * precioAdulto).toLocaleString('es-AR')}`, 165, y);
-    y += 8;
+    y += 5;
 
     if (evento.menores > 0) {
       const menores = evento.menores || 0;
@@ -998,7 +1078,7 @@ export default function App() {
       doc.text(menores.toString(), 100, y);
       doc.text(`$${precioMenor.toLocaleString('es-AR')}`, 125, y);
       doc.text(`$${(menores * precioMenor).toLocaleString('es-AR')}`, 165, y);
-      y += 8;
+      y += 5;
     }
 
     [1, 2, 3].forEach(i => {
@@ -1011,12 +1091,12 @@ export default function App() {
         doc.text(tipo === 'por_persona' ? adultos.toString() : '1', 100, y);
         doc.text(`$${valor.toLocaleString('es-AR')}`, 125, y);
         doc.text(`$${subtotal.toLocaleString('es-AR')}`, 165, y);
-        y += 8;
+        y += 5;
       }
     });
 
     doc.line(25, y, pageWidth - 25, y);
-    y += 10;
+    y += 6;
 
     // Calcular subtotal, IVA y total
     const subtotal = evento.totalEvento || evento.total_evento || 0;
@@ -1024,49 +1104,132 @@ export default function App() {
     const totalConIva = subtotal + iva;
 
     // Subtotal
-    doc.setFontSize(14);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(41, 128, 185);
     doc.text('SUBTOTAL:', 125, y);
     doc.text(`$${subtotal.toLocaleString('es-AR')}`, 165, y);
-    y += 8;
+    y += 5;
 
     // IVA 21%
-    doc.setFontSize(11);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(80, 80, 80);
     doc.text('IVA 21%:', 125, y);
     doc.text(`$${Math.round(iva).toLocaleString('es-AR')}`, 165, y);
-    y += 10;
+    y += 6;
 
     // Total con IVA
-    doc.setFontSize(14);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(41, 128, 185);
     doc.text('TOTAL:', 125, y);
     doc.text(`$${Math.round(totalConIva).toLocaleString('es-AR')}`, 165, y);
 
+    // Servicios adicionales (Técnica, DJ, etc.)
+    const tieneServicios = evento.tecnica || evento.tecnica_superior || evento.dj;
+    if (tieneServicios) {
+      y += 10;
+      y = checkNewPage(y, 25);
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(70, 150, 200);
+      doc.text('SERVICIOS ADICIONALES:', 25, y);
+      y += 5;
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(80, 80, 80);
+
+      if (evento.tecnica) {
+        doc.text('• Técnica de sonido e iluminación', 30, y);
+        y += 4;
+      }
+      if (evento.tecnica_superior) {
+        doc.text('• Técnica superior (equipamiento premium)', 30, y);
+        y += 4;
+      }
+      if (evento.dj) {
+        doc.text(`• DJ: ${evento.dj}`, 30, y);
+        y += 4;
+      }
+    }
+
+    // Extras del evento
+    const tieneExtrasEvento = evento.extra1_desc || evento.extra2_desc || evento.extra3_desc;
+    if (tieneExtrasEvento) {
+      y += 6;
+      y = checkNewPage(y, 20);
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(70, 150, 200);
+      doc.text('EXTRAS INCLUIDOS:', 25, y);
+      y += 5;
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(80, 80, 80);
+
+      if (evento.extra1_desc) {
+        doc.text(`• ${evento.extra1_desc}`, 30, y);
+        y += 4;
+      }
+      if (evento.extra2_desc) {
+        doc.text(`• ${evento.extra2_desc}`, 30, y);
+        y += 4;
+      }
+      if (evento.extra3_desc) {
+        doc.text(`• ${evento.extra3_desc}`, 30, y);
+        y += 4;
+      }
+    }
+
+    // Observaciones
+    if (evento.otros) {
+      y += 6;
+      y = checkNewPage(y, 20);
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(70, 150, 200);
+      doc.text('OBSERVACIONES:', 25, y);
+      y += 5;
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(80, 80, 80);
+
+      const obsLines = doc.splitTextToSize(evento.otros, pageWidth - 60);
+      obsLines.forEach(line => {
+        y = checkNewPage(y, 5);
+        doc.text(line, 30, y);
+        y += 4;
+      });
+    }
+
     // Condiciones de pago
-    y += 20;
-    y = checkNewPage(y, 50);
+    y += 8;
+    y = checkNewPage(y, 35);
 
     doc.setFillColor(245, 245, 245);
-    doc.rect(20, y - 5, pageWidth - 40, 40, 'F');
+    doc.rect(20, y - 5, pageWidth - 40, 32, 'F');
 
-    doc.setFontSize(12);
+    doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(51, 51, 51);
-    doc.text('CONDICIONES', 25, y + 3);
+    doc.text('CONDICIONES', 25, y + 2);
 
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    y += 12;
+    y += 10;
     doc.text('• Seña del 50% para confirmar el evento', 25, y);
-    y += 6;
+    y += 5;
     doc.text('• El saldo se ajustará por IPC al momento del pago', 25, y);
-    y += 6;
+    y += 5;
     doc.text('• Cancelación: hasta 7 días antes del evento', 25, y);
-    y += 6;
+    y += 5;
     doc.text('• Cotización válida por 15 días', 25, y);
 
     // Pie de página
@@ -1075,7 +1238,7 @@ export default function App() {
       doc.setPage(i);
       doc.setFontSize(9);
       doc.setTextColor(150, 150, 150);
-      doc.text('Gracias por confiar en nosotros', pageWidth / 2, pageHeight - 10, { align: 'center' });
+      doc.text('Gracias por confiar en nosotros', pageWidth / 2, pageHeight - 15, { align: 'center' });
     }
 
     const fileName = `Cotizacion_${evento.cliente.replace(/\s+/g, '_')}_${evento.fecha}.pdf`;
@@ -1464,6 +1627,15 @@ export default function App() {
     return eventosDelAño
       .filter(e => new Date(e.fecha + 'T12:00:00') >= hoy && !e.confirmado)
       .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+  }, [eventosDelAño]);
+
+  // Eventos realizados (confirmados, anteriores a hoy, del año seleccionado)
+  const eventosRealizados = useMemo(() => {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    return eventosDelAño
+      .filter(e => new Date(e.fecha + 'T12:00:00') < hoy && e.confirmado === true)
+      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha)); // Más recientes primero
   }, [eventosDelAño]);
 
   // Cobranzas: eventos con pagos y saldos
@@ -1967,136 +2139,122 @@ export default function App() {
       {/* Modal Detalle Evento */}
       {selectedEvento && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="glass rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
+          <div className="glass rounded-2xl p-5 w-full max-w-md">
+            <div className="flex items-center justify-between mb-3">
               <h2 className="text-xl font-bold">{selectedEvento.cliente}</h2>
               <button onClick={() => setSelectedEvento(null)} className="p-2 hover:bg-white/10 rounded-xl">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
+            {/* Botones PDF y Cotización arriba */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => generarCotizacion(selectedEvento)}
+                className="px-3 py-2 rounded-lg bg-blue-500/20 text-blue-400 text-sm font-medium hover:bg-blue-500/30 transition-all border border-blue-500/30 flex items-center gap-1"
+              >
+                <FileText className="w-3 h-3" />
+                Cotización
+              </button>
+              <button
+                onClick={() => generarPDF(selectedEvento)}
+                className="px-3 py-2 rounded-lg bg-emerald-500/20 text-emerald-400 text-sm font-medium hover:bg-emerald-500/30 transition-all border border-emerald-500/30 flex items-center gap-1"
+              >
+                <FileText className="w-3 h-3" />
+                PDF
+              </button>
+            </div>
+
             {/* Estado de confirmación */}
-            <div className={`mb-4 p-3 rounded-xl flex items-center gap-2 ${selectedEvento.confirmado ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-amber-500/10 border border-amber-500/30'}`}>
+            <div className={`mb-3 p-2 rounded-xl flex items-center gap-2 ${selectedEvento.confirmado ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-amber-500/10 border border-amber-500/30'}`}>
               {selectedEvento.confirmado ? (
                 <>
-                  <CheckCircle className="w-5 h-5 text-emerald-400" />
-                  <span className="text-emerald-400 font-medium">Evento Confirmado</span>
+                  <CheckCircle className="w-4 h-4 text-emerald-400" />
+                  <span className="text-emerald-400 text-sm font-medium">Confirmado</span>
                 </>
               ) : (
                 <>
-                  <AlertCircle className="w-5 h-5 text-amber-400" />
-                  <span className="text-amber-400 font-medium">Pendiente de Confirmación</span>
+                  <AlertCircle className="w-4 h-4 text-amber-400" />
+                  <span className="text-amber-400 text-sm font-medium">Pendiente</span>
                 </>
               )}
             </div>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/5 rounded-xl p-3">
+
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-white/5 rounded-xl p-2">
                   <p className="text-xs text-slate-400">Fecha</p>
-                  <p className="font-medium">{formatDate(selectedEvento.fecha)}</p>
+                  <p className="text-sm font-medium">{formatDate(selectedEvento.fecha)}</p>
                 </div>
-                <div className="bg-white/5 rounded-xl p-3">
+                <div className="bg-white/5 rounded-xl p-2">
                   <p className="text-xs text-slate-400">Turno</p>
-                  <p className="font-medium">{selectedEvento.turno}</p>
+                  <p className="text-sm font-medium">{selectedEvento.turno}</p>
+                </div>
+                <div className="bg-white/5 rounded-xl p-2">
+                  <p className="text-xs text-slate-400">Salón</p>
+                  <p className="text-sm font-medium">{selectedEvento.salon || 'Tero'}</p>
                 </div>
               </div>
-
-              {(selectedEvento.hora_inicio || selectedEvento.hora_fin) && (
-                <div className="bg-white/5 rounded-xl p-3 flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-slate-400" />
-                  <span>
-                    {selectedEvento.hora_inicio || '--:--'} a {selectedEvento.hora_fin || '--:--'}
-                  </span>
-                </div>
-              )}
 
               {selectedEvento.telefono && (
-                <div className="bg-white/5 rounded-xl p-3 flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-slate-400" />
-                  <span>{selectedEvento.telefono}</span>
+                <div className="bg-white/5 rounded-xl p-2 flex items-center gap-2">
+                  <Phone className="w-3 h-3 text-slate-400" />
+                  <span className="text-sm">{selectedEvento.telefono}</span>
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/5 rounded-xl p-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-white/5 rounded-xl p-2">
                   <p className="text-xs text-slate-400">Tipo</p>
-                  <p className="font-medium">{selectedEvento.tipoEvento}</p>
+                  <p className="text-sm font-medium">{selectedEvento.tipoEvento}</p>
                 </div>
-                <div className="bg-white/5 rounded-xl p-3">
+                <div className="bg-white/5 rounded-xl p-2">
                   <p className="text-xs text-slate-400">Menú</p>
-                  <p className="font-medium">{selectedEvento.menu}</p>
+                  <p className="text-sm font-medium">{selectedEvento.menu}</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/5 rounded-xl p-3">
-                  <p className="text-xs text-slate-400">Salón</p>
-                  <p className="font-medium">{selectedEvento.salon || 'Tero'}</p>
+              {(selectedEvento.tecnica || selectedEvento.tecnica_superior || selectedEvento.dj) && (
+                <div className="flex gap-2 flex-wrap">
+                  {selectedEvento.tecnica && (
+                    <span className="px-2 py-1 rounded-full text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                      <Mic className="w-3 h-3" /> Técnica
+                    </span>
+                  )}
+                  {selectedEvento.tecnica_superior && (
+                    <span className="px-2 py-1 rounded-full text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                      <Mic className="w-3 h-3" /> Téc. Superior
+                    </span>
+                  )}
+                  {selectedEvento.dj && (
+                    <span className="px-2 py-1 rounded-full text-xs bg-pink-500/20 text-pink-300 border border-pink-500/30 flex items-center gap-1">
+                      <Music className="w-3 h-3" /> DJ
+                    </span>
+                  )}
                 </div>
-                <div className="bg-white/5 rounded-xl p-3">
-                  <p className="text-xs text-slate-400">Vendedor</p>
-                  <p className="font-medium">{selectedEvento.vendedor}</p>
-                </div>
-              </div>
+              )}
 
-              <div className="flex gap-2 flex-wrap">
-                {selectedEvento.tecnica && (
-                  <span className="px-3 py-1 rounded-full text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
-                    <Mic className="w-3 h-3" /> Técnica
-                  </span>
-                )}
-                {selectedEvento.tecnica_superior && (
-                  <span className="px-3 py-1 rounded-full text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                    <Mic className="w-3 h-3" /> Técnica Superior
-                  </span>
-                )}
-                {selectedEvento.dj && (
-                  <span className="px-3 py-1 rounded-full text-xs bg-pink-500/20 text-pink-300 border border-pink-500/30 flex items-center gap-1">
-                    <Music className="w-3 h-3" /> DJ: {selectedEvento.dj}
-                  </span>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/5 rounded-xl p-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-white/5 rounded-xl p-2">
                   <p className="text-xs text-slate-400">Adultos</p>
-                  <p className="font-medium">{selectedEvento.adultos} × {formatCurrency(selectedEvento.precio_adulto || 0)}</p>
+                  <p className="text-sm font-medium">{selectedEvento.adultos} × {formatCurrency(selectedEvento.precio_adulto || 0)}</p>
                 </div>
-                <div className="bg-white/5 rounded-xl p-3">
+                <div className="bg-white/5 rounded-xl p-2">
                   <p className="text-xs text-slate-400">Menores</p>
-                  <p className="font-medium">{selectedEvento.menores || 0} × {formatCurrency(selectedEvento.precio_menor || 0)}</p>
+                  <p className="text-sm font-medium">{selectedEvento.menores || 0} × {formatCurrency(selectedEvento.precio_menor || 0)}</p>
                 </div>
               </div>
 
               {selectedEvento.otros && (
-                <div className="bg-white/5 rounded-xl p-3">
+                <div className="bg-white/5 rounded-xl p-2">
                   <p className="text-xs text-slate-400">Notas</p>
-                  <p className="text-sm">{selectedEvento.otros}</p>
+                  <p className="text-xs">{selectedEvento.otros}</p>
                 </div>
               )}
 
-              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-                <p className="text-sm text-slate-400">Total Evento</p>
-                <p className="text-2xl font-bold text-emerald-400 mono">{formatCurrency(selectedEvento.totalEvento)}</p>
-              </div>
-
-              {/* Botones PDF y Cotización */}
-              <div className="pt-2 flex gap-3">
-                <button
-                  onClick={() => generarPDF(selectedEvento)}
-                  className="flex-1 py-3 rounded-xl bg-emerald-500/20 text-emerald-400 font-semibold hover:bg-emerald-500/30 transition-all border border-emerald-500/30 flex items-center justify-center gap-2"
-                >
-                  <FileText className="w-4 h-4" />
-                  PDF Evento
-                </button>
-                <button
-                  onClick={() => generarCotizacion(selectedEvento)}
-                  className="flex-1 py-3 rounded-xl bg-blue-500/20 text-blue-400 font-semibold hover:bg-blue-500/30 transition-all border border-blue-500/30 flex items-center justify-center gap-2"
-                >
-                  <FileText className="w-4 h-4" />
-                  Cotización
-                </button>
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                <p className="text-xs text-slate-400">Total Evento</p>
+                <p className="text-xl font-bold text-emerald-400 mono">{formatCurrency(selectedEvento.totalEvento)}</p>
               </div>
 
               {/* Botones Editar y Eliminar */}
@@ -2444,7 +2602,7 @@ export default function App() {
           <div className="glass rounded-2xl p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold">{editingPagoId ? 'Editar Pago' : 'Registrar Pago'}</h2>
-              <button onClick={() => { setShowPagoModal(false); setSelectedEventoPago(null); setEditingPagoId(null); setNuevoPago({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '' }); }} className="p-2 hover:bg-white/10 rounded-xl">
+              <button onClick={() => { setShowPagoModal(false); setSelectedEventoPago(null); setEditingPagoId(null); setNuevoPago({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '' }); }} className="p-2 hover:bg-white/10 rounded-xl">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -2467,18 +2625,58 @@ export default function App() {
                   className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
                 />
               </div>
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Concepto</label>
-                <select
-                  value={nuevoPago.concepto}
-                  onChange={(e) => setNuevoPago({...nuevoPago, concepto: e.target.value, monto: '', porcentajeIPC: ''})}
-                  className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
-                >
-                  <option value="pago">Pago</option>
-                  <option value="seña">Seña</option>
-                  <option value="ajuste_ipc">Ajuste IPC</option>
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Concepto</label>
+                  <select
+                    value={nuevoPago.concepto}
+                    onChange={(e) => setNuevoPago({...nuevoPago, concepto: e.target.value, monto: '', porcentajeIPC: ''})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  >
+                    <option value="pago">Pago</option>
+                    <option value="seña">Seña</option>
+                    <option value="ajuste_ipc">Ajuste IPC</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Moneda</label>
+                  <select
+                    value={nuevoPago.moneda}
+                    onChange={(e) => setNuevoPago({...nuevoPago, moneda: e.target.value, cotizacionDolar: ''})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  >
+                    <option value="ARS">Pesos (ARS)</option>
+                    <option value="USD">Dólares (USD)</option>
+                  </select>
+                </div>
               </div>
+              {nuevoPago.moneda === 'USD' && (
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Cotización del dólar *</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      required
+                      placeholder="Ej: 1200"
+                      value={formatNumberInput(nuevoPago.cotizacionDolar)}
+                      onChange={(e) => setNuevoPago({...nuevoPago, cotizacionDolar: parseNumberInput(e.target.value)})}
+                      className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    />
+                  </div>
+                  {nuevoPago.monto && nuevoPago.cotizacionDolar && (
+                    <div className="mt-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-400">Equivalente en pesos:</span>
+                        <span className="mono text-emerald-400 font-medium">
+                          {formatCurrency((parseFloat(nuevoPago.monto) || 0) * (parseFloat(nuevoPago.cotizacionDolar) || 0))}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               {nuevoPago.concepto === 'ajuste_ipc' && !editingPagoId ? (
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Porcentaje IPC sobre saldo *</label>
@@ -2522,6 +2720,20 @@ export default function App() {
                     placeholder={nuevoPago.concepto === 'ajuste_ipc' ? 'Monto del IPC' : 'Monto del pago'}
                     value={formatNumberInput(nuevoPago.monto)}
                     onChange={(e) => setNuevoPago({...nuevoPago, monto: parseNumberInput(e.target.value)})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+              )}
+
+              {editingPagoId && (
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Motivo de la modificación *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ej: Corrección de monto"
+                    value={motivoModificacion}
+                    onChange={(e) => setMotivoModificacion(e.target.value)}
                     className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
@@ -2605,11 +2817,13 @@ export default function App() {
           {[
             { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
             { id: 'proximos', label: 'Próximos', icon: Clock },
+            { id: 'realizados', label: 'Realizados', icon: CheckCircle },
             { id: 'aconfirmar', label: 'A Confirmar', icon: AlertCircle },
             { id: 'calendario', label: 'Calendario', icon: Calendar },
             { id: 'eventos', label: 'Eventos', icon: Briefcase },
             { id: 'cobranzas', label: 'Cobranzas', icon: Wallet },
             { id: 'menus', label: 'Menús', icon: UtensilsCrossed },
+            { id: 'informes', label: 'Informes', icon: ClipboardList },
             ...(userRole === 'admin' ? [{ id: 'usuarios', label: 'Usuarios', icon: Users }] : []),
           ].map(tab => (
             <button
@@ -2830,7 +3044,7 @@ export default function App() {
             ) : (
               <div className="grid gap-4">
                 {proximosEventos.map((e, i) => (
-                  <div 
+                  <div
                     key={e.id || i}
                     onClick={() => setSelectedEvento(e)}
                     className="glass rounded-2xl p-5 glow cursor-pointer hover:border-purple-500/30 border border-transparent transition-all"
@@ -2841,7 +3055,7 @@ export default function App() {
                         <span className="text-2xl font-bold">{new Date(e.fecha + 'T12:00:00').getDate()}</span>
                         <span className="text-xs uppercase">{new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
                       </div>
-                      
+
                       {/* Info principal */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2 mb-2">
@@ -2854,7 +3068,7 @@ export default function App() {
                             {getDiasRestantes(e.fecha)}
                           </span>
                         </div>
-                        
+
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-400">
                           <span className="flex items-center gap-1">
                             📋 {e.tipoEvento}
@@ -2907,14 +3121,115 @@ export default function App() {
                           )}
                         </div>
                       </div>
-                      
+
                       {/* Total */}
                       <div className="flex-shrink-0 text-right">
                         <p className="text-xs text-slate-400">Total</p>
                         <p className="text-xl font-bold text-emerald-400 mono">{formatCurrency(e.totalEvento)}</p>
                       </div>
                     </div>
-                    
+
+                    {e.otros && (
+                      <div className="mt-3 pt-3 border-t border-white/10">
+                        <p className="text-sm text-slate-400">📝 {e.otros}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Eventos Realizados */}
+        {activeTab === 'realizados' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">Eventos Realizados</h2>
+                <p className="text-slate-400">{eventosRealizados.length} eventos completados</p>
+              </div>
+            </div>
+
+            {eventosRealizados.length === 0 ? (
+              <div className="glass rounded-2xl p-12 text-center glow">
+                <CheckCircle className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+                <p className="text-slate-400 text-lg">No hay eventos realizados</p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {eventosRealizados.map((e, i) => (
+                  <div
+                    key={e.id || i}
+                    onClick={() => setSelectedEvento(e)}
+                    className="glass rounded-2xl p-5 glow cursor-pointer hover:border-emerald-500/30 border border-transparent transition-all opacity-90"
+                  >
+                    <div className="flex flex-col md:flex-row md:items-center gap-4">
+                      {/* Fecha destacada */}
+                      <div className="flex-shrink-0 w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-600 flex flex-col items-center justify-center">
+                        <span className="text-2xl font-bold">{new Date(e.fecha + 'T12:00:00').getDate()}</span>
+                        <span className="text-xs uppercase">{new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
+                      </div>
+
+                      {/* Info principal */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h3 className="text-lg font-semibold truncate">{e.cliente}</h3>
+                          <span className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            Realizado
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-400">
+                          <span className="flex items-center gap-1">
+                            📋 {e.tipoEvento}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            🍽️ {e.menu}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            👥 {e.adultos + (e.menores || 0)} personas
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3" /> {e.salon || 'Tero'}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm mt-2">
+                          <span className={`flex items-center gap-1 ${e.turno === 'Noche' ? 'text-indigo-400' : 'text-amber-400'}`}>
+                            {e.turno === 'Noche' ? <Moon className="w-3 h-3" /> : <Sun className="w-3 h-3" />}
+                            {e.turno}
+                          </span>
+                          <span className="text-slate-400">👤 {e.vendedor}</span>
+                        </div>
+
+                        {/* Extras */}
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {e.tecnica && (
+                            <span className="px-2 py-0.5 rounded-full text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                              Técnica
+                            </span>
+                          )}
+                          {e.tecnica_superior && (
+                            <span className="px-2 py-0.5 rounded-full text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                              Técnica Superior
+                            </span>
+                          )}
+                          {e.dj && (
+                            <span className="px-2 py-0.5 rounded-full text-xs bg-pink-500/20 text-pink-300 border border-pink-500/30">
+                              DJ: {e.dj}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Total */}
+                      <div className="flex-shrink-0 text-right">
+                        <p className="text-xs text-slate-400">Total</p>
+                        <p className="text-xl font-bold text-emerald-400 mono">{formatCurrency(e.totalEvento)}</p>
+                      </div>
+                    </div>
+
                     {e.otros && (
                       <div className="mt-3 pt-3 border-t border-white/10">
                         <p className="text-sm text-slate-400">📝 {e.otros}</p>
@@ -2946,7 +3261,7 @@ export default function App() {
             ) : (
               <div className="grid gap-4">
                 {eventosAConfirmar.map((e, i) => (
-                  <div 
+                  <div
                     key={e.id || i}
                     onClick={() => setSelectedEvento(e)}
                     className="glass rounded-2xl p-5 glow cursor-pointer hover:border-amber-500/30 border border-amber-500/20 transition-all"
@@ -2957,7 +3272,7 @@ export default function App() {
                         <span className="text-2xl font-bold">{new Date(e.fecha + 'T12:00:00').getDate()}</span>
                         <span className="text-xs uppercase">{new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
                       </div>
-                      
+
                       {/* Info principal */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2 mb-2">
@@ -2966,7 +3281,7 @@ export default function App() {
                             Pendiente
                           </span>
                         </div>
-                        
+
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-400">
                           <span className="flex items-center gap-1">
                             📋 {e.tipoEvento}
@@ -3314,8 +3629,35 @@ export default function App() {
               </div>
             </div>
 
-            {/* Filtros de Cobranzas */}
-            <div className="glass rounded-2xl p-4 flex flex-wrap gap-4 items-center">
+            {/* Selector de vista */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setVistaCobranzas('estado')}
+                className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                  vistaCobranzas === 'estado'
+                    ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
+                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                }`}
+              >
+                Estado de Cuenta
+              </button>
+              <button
+                onClick={() => setVistaCobranzas('detalle')}
+                className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                  vistaCobranzas === 'detalle'
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                }`}
+              >
+                Detalle de Pagos
+              </button>
+            </div>
+
+            {/* Vista: Estado de Cuenta */}
+            {vistaCobranzas === 'estado' && (
+              <>
+                {/* Filtros de Cobranzas */}
+                <div className="glass rounded-2xl p-4 flex flex-wrap gap-4 items-center">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-slate-400">Mes:</span>
                 <select
@@ -3393,7 +3735,12 @@ export default function App() {
                           {canCreate && (
                             <div className="flex items-center justify-center gap-2">
                               <button
-                                onClick={() => { setSelectedEventoPago(evento); setShowPagoModal(true); }}
+                                onClick={() => {
+                                  setSelectedEventoPago(evento);
+                                  setNuevoPago({ fecha: new Date().toISOString().split('T')[0], monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '' });
+                                  setEditingPagoId(null);
+                                  setShowPagoModal(true);
+                                }}
                                 className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors"
                                 title="Agregar pago"
                               >
@@ -3408,10 +3755,13 @@ export default function App() {
                 </table>
               </div>
             </div>
+              </>
+            )}
 
-            {/* Detalle de pagos por evento */}
-            <div className="glass rounded-2xl p-6 glow">
-              <h3 className="text-lg font-semibold mb-4">Detalle de pagos</h3>
+            {/* Vista: Detalle de pagos */}
+            {vistaCobranzas === 'detalle' && (
+              <div className="glass rounded-2xl p-6 glow">
+                <h3 className="text-lg font-semibold mb-4">Detalle de pagos</h3>
               <div className="space-y-4">
                 {cobranzasData.filter(e => e.pagos.length > 0).map(evento => (
                   <div key={evento.id} className="p-4 rounded-xl bg-white/5 border border-white/10">
@@ -3442,7 +3792,13 @@ export default function App() {
                           </div>
                           <div className="flex items-center gap-3">
                             <span className={`font-medium mono ${pago.concepto === 'ajuste_ipc' ? 'text-amber-400' : 'text-emerald-400'}`}>
-                              {pago.concepto === 'ajuste_ipc' ? '+' : ''}{formatCurrency(pago.monto)}
+                              {pago.concepto === 'ajuste_ipc' ? '+' : ''}
+                              {pago.moneda === 'USD' ? (
+                                <>
+                                  <span className="text-green-400">US$ {(pago.monto_original || pago.monto).toLocaleString('es-AR')}</span>
+                                  <span className="text-slate-400 text-xs ml-1">({formatCurrency(pago.monto)})</span>
+                                </>
+                              ) : formatCurrency(pago.monto)}
                             </span>
                             {canEdit && (
                               <button
@@ -3454,7 +3810,7 @@ export default function App() {
                             )}
                             {canDelete && (
                               <button
-                                onClick={() => handleDeletePago(pago.id)}
+                                onClick={() => handleDeletePago(pago.id, evento, pago)}
                                 className="p-1 rounded text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -3470,7 +3826,8 @@ export default function App() {
                   <p className="text-center text-slate-400 py-8">No hay pagos registrados</p>
                 )}
               </div>
-            </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -3554,6 +3911,112 @@ export default function App() {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Informes */}
+        {activeTab === 'informes' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-bold">Informes</h2>
+
+            {/* Selector de informe */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setInformeActivo('eliminados')}
+                className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                  informeActivo === 'eliminados'
+                    ? 'bg-red-500/20 text-red-400 border border-red-500/50'
+                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                }`}
+              >
+                Pagos Eliminados
+                <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-red-500/30">
+                  {auditoriaPagos.filter(r => r.tipo_accion === 'ANULADO').length}
+                </span>
+              </button>
+              <button
+                onClick={() => setInformeActivo('modificados')}
+                className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                  informeActivo === 'modificados'
+                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50'
+                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                }`}
+              >
+                Pagos Modificados
+                <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-amber-500/30">
+                  {auditoriaPagos.filter(r => r.tipo_accion === 'MODIFICADO').length}
+                </span>
+              </button>
+            </div>
+
+            {/* Pagos Eliminados */}
+            {informeActivo === 'eliminados' && (
+              <div className="glass rounded-2xl p-5">
+                <h3 className="text-lg font-semibold mb-4 text-red-400">Pagos Eliminados</h3>
+                {auditoriaPagos.filter(r => r.tipo_accion === 'ANULADO').length === 0 ? (
+                  <p className="text-center text-slate-500 py-4">No hay pagos eliminados</p>
+                ) : (
+                  <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                    {auditoriaPagos.filter(r => r.tipo_accion === 'ANULADO').map((registro) => (
+                      <div key={registro.id} className="p-4 rounded-xl bg-red-500/10 border border-red-500/30">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-white font-medium">{registro.cliente}</span>
+                          <span className="text-xs text-slate-400">
+                            {new Date(registro.created_at).toLocaleString('es-AR')}
+                          </span>
+                        </div>
+                        <div className="text-sm text-slate-300 space-y-1">
+                          <p>Monto: <span className="text-red-400 font-medium">{formatCurrency(registro.monto_original)}</span></p>
+                          <p>Concepto: {registro.concepto === 'seña' ? 'Seña' : registro.concepto === 'ajuste_ipc' ? 'Ajuste IPC' : 'Pago'}</p>
+                          <p>Fecha del pago: {formatDate(registro.fecha_pago)}</p>
+                          <p className="text-slate-500 mt-2">
+                            <span className="font-medium">Motivo:</span> {registro.motivo}
+                          </p>
+                          <p className="text-slate-500">
+                            <span className="font-medium">Usuario:</span> {registro.usuario}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Pagos Modificados */}
+            {informeActivo === 'modificados' && (
+              <div className="glass rounded-2xl p-5">
+                <h3 className="text-lg font-semibold mb-4 text-amber-400">Pagos Modificados</h3>
+                {auditoriaPagos.filter(r => r.tipo_accion === 'MODIFICADO').length === 0 ? (
+                  <p className="text-center text-slate-500 py-4">No hay pagos modificados</p>
+                ) : (
+                  <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                    {auditoriaPagos.filter(r => r.tipo_accion === 'MODIFICADO').map((registro) => (
+                      <div key={registro.id} className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-white font-medium">{registro.cliente}</span>
+                          <span className="text-xs text-slate-400">
+                            {new Date(registro.created_at).toLocaleString('es-AR')}
+                          </span>
+                        </div>
+                        <div className="text-sm text-slate-300 space-y-1">
+                          <p>Monto nuevo: <span className="text-amber-400 font-medium">{formatCurrency(registro.monto_nuevo)}</span></p>
+                          {registro.concepto_nuevo && (
+                            <p>Concepto: {registro.concepto_nuevo}</p>
+                          )}
+                          <p className="text-slate-500 mt-2">
+                            <span className="font-medium">Motivo:</span> {registro.motivo}
+                          </p>
+                          <p className="text-slate-500">
+                            <span className="font-medium">Usuario:</span> {registro.usuario}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
