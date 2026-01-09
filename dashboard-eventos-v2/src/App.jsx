@@ -523,6 +523,21 @@ export default function App() {
     }
   };
 
+  const handleConfirmarEvento = async (evento) => {
+    const { error } = await supabase
+      .from('eventos')
+      .update({ confirmado: true })
+      .eq('id', evento.id);
+
+    if (error) {
+      console.error('Error:', error);
+      alert('Error al confirmar el evento');
+    } else {
+      fetchEventos();
+      setSelectedEvento({ ...evento, confirmado: true });
+    }
+  };
+
   const handleAnularEvento = async (evento) => {
     const motivo = prompt('Motivo de la anulación del evento:');
     if (!motivo) {
@@ -2181,17 +2196,27 @@ export default function App() {
             </div>
 
             {/* Estado de confirmación */}
-            <div className={`mb-3 p-2 rounded-xl flex items-center gap-2 ${selectedEvento.confirmado ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-amber-500/10 border border-amber-500/30'}`}>
-              {selectedEvento.confirmado ? (
-                <>
-                  <CheckCircle className="w-4 h-4 text-emerald-400" />
-                  <span className="text-emerald-400 text-sm font-medium">Confirmado</span>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="w-4 h-4 text-amber-400" />
-                  <span className="text-amber-400 text-sm font-medium">Pendiente</span>
-                </>
+            <div className={`mb-3 p-2 rounded-xl flex items-center justify-between ${selectedEvento.confirmado ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-amber-500/10 border border-amber-500/30'}`}>
+              <div className="flex items-center gap-2">
+                {selectedEvento.confirmado ? (
+                  <>
+                    <CheckCircle className="w-4 h-4 text-emerald-400" />
+                    <span className="text-emerald-400 text-sm font-medium">Confirmado</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="w-4 h-4 text-amber-400" />
+                    <span className="text-amber-400 text-sm font-medium">Pendiente</span>
+                  </>
+                )}
+              </div>
+              {!selectedEvento.confirmado && canEdit && (
+                <button
+                  onClick={() => handleConfirmarEvento(selectedEvento)}
+                  className="px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-sm font-medium hover:bg-emerald-500/30 transition-all border border-emerald-500/30"
+                >
+                  Confirmar
+                </button>
               )}
             </div>
 
@@ -2828,7 +2853,7 @@ export default function App() {
 
       {/* Navigation */}
       <nav className="max-w-7xl mx-auto px-6 py-4">
-        <div className="flex gap-2 p-1 glass rounded-2xl w-fit overflow-x-auto">
+        <div className="flex flex-wrap gap-2 p-1 glass rounded-2xl">
           {[
             { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
             { id: 'proximos', label: 'Próximos', icon: Clock },
