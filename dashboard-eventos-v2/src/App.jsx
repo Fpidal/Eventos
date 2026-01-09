@@ -194,7 +194,7 @@ export default function App() {
   const [showCajaEgresoForm, setShowCajaEgresoForm] = useState(false);
   const [editingCajaIngreso, setEditingCajaIngreso] = useState(null);
   const [editingCajaEgreso, setEditingCajaEgreso] = useState(null);
-  const [cajaIngresoForm, setCajaIngresoForm] = useState({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
+  const [cajaIngresoForm, setCajaIngresoForm] = useState({ fecha: new Date().toISOString().split('T')[0], origen: '', descripcion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
   const [cajaEgresoForm, setCajaEgresoForm] = useState({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
   const CONCEPTOS_INGRESO = ['Evento', 'Vta directa', 'Caja', 'Banco', 'Otros'];
   const CONCEPTOS_EGRESO = ['R. Socios', 'Pagos extras', 'Aporte', 'Otros'];
@@ -4437,12 +4437,12 @@ export default function App() {
                     const dolares = parseFloat(cajaIngresoForm.monto_dolares) || 0;
                     const tc = parseFloat(cajaIngresoForm.cotizacion) || tipoCambio;
                     if (pesos === 0 && dolares === 0) { alert('Ingrese un monto'); return; }
-                    if (!cajaIngresoForm.concepto) { alert('Seleccione un concepto'); return; }
+                    if (!cajaIngresoForm.origen) { alert('Seleccione origen'); return; }
                     if (!cajaIngresoForm.receptor) { alert('Seleccione quién recibe'); return; }
 
                     const data = {
                       tipo: 'ingreso',
-                      concepto: cajaIngresoForm.concepto,
+                      concepto: cajaIngresoForm.descripcion ? `${cajaIngresoForm.origen} | ${cajaIngresoForm.descripcion}` : cajaIngresoForm.origen,
                       monto_pesos: pesos + (dolares * tc),
                       monto_dolares: dolares || null,
                       cotizacion: dolares ? tc : null,
@@ -4456,7 +4456,7 @@ export default function App() {
                       await supabase.from('caja_movimientos').insert(data);
                     }
 
-                    setCajaIngresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
+                    setCajaIngresoForm({ fecha: new Date().toISOString().split('T')[0], origen: '', descripcion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
                     setShowCajaIngresoForm(false);
                     setEditingCajaIngreso(null);
                     fetchCajaMovimientos();
@@ -4464,7 +4464,7 @@ export default function App() {
                     {editingCajaIngreso && (
                       <div className="text-xs text-yellow-400 mb-2">Editando ingreso...</div>
                     )}
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-4 gap-3">
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Fecha *</label>
                         <input
@@ -4475,15 +4475,25 @@ export default function App() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1">Concepto *</label>
+                        <label className="block text-xs text-slate-400 mb-1">Origen *</label>
                         <select
-                          value={cajaIngresoForm.concepto}
-                          onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, concepto: e.target.value})}
+                          value={cajaIngresoForm.origen}
+                          onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, origen: e.target.value})}
                           className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
                         >
                           <option value="">Seleccionar...</option>
                           {CONCEPTOS_INGRESO.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Descripción</label>
+                        <input
+                          type="text"
+                          value={cajaIngresoForm.descripcion}
+                          onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, descripcion: e.target.value})}
+                          className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                          placeholder="Cliente o detalle"
+                        />
                       </div>
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Quién recibe *</label>
@@ -4542,44 +4552,57 @@ export default function App() {
                     <thead>
                       <tr className="border-b border-white/10 text-slate-400 text-xs">
                         <th className="text-left py-2 px-3">Fecha</th>
-                        <th className="text-left py-2 px-3">Cliente/Concepto</th>
-                        <th className="text-left py-2 px-3">Cobrador</th>
+                        <th className="text-left py-2 px-3">Origen</th>
+                        <th className="text-left py-2 px-3">Descripción</th>
+                        <th className="text-left py-2 px-3">Recibido por</th>
                         <th className="text-right py-2 px-3">Pesos</th>
                         <th className="text-right py-2 px-3">USD</th>
                         <th className="w-20"></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {cajaMovimientos.filter(m => m.tipo === 'ingreso').map(item => (
-                        <tr key={item.id} className="border-b border-white/5 hover:bg-white/5">
-                          <td className="py-2 px-3 text-slate-400">{item.fecha}</td>
-                          <td className="py-2 px-3 font-medium">{item.concepto}</td>
-                          <td className="py-2 px-3 text-slate-400">{item.persona}</td>
-                          <td className="py-2 px-3 text-right text-green-400">${(item.monto_pesos || 0).toLocaleString()}</td>
-                          <td className="py-2 px-3 text-right text-blue-400">{item.monto_dolares ? item.monto_dolares.toLocaleString() : '-'}</td>
-                          <td className="py-2 px-3 flex gap-1">
-                            <button onClick={() => {
-                              setEditingCajaIngreso(item.id);
-                              setCajaIngresoForm({
-                                fecha: item.fecha,
-                                concepto: item.concepto,
-                                receptor: item.persona,
-                                monto_pesos: item.monto_dolares ? '' : (item.monto_pesos || '').toString(),
-                                monto_dolares: (item.monto_dolares || '').toString(),
-                                cotizacion: (item.cotizacion || '').toString()
-                              });
-                              setShowCajaIngresoForm(true);
-                            }} className="p-1 text-blue-400 hover:text-blue-300">
-                              <Edit3 className="w-4 h-4" />
-                            </button>
-                            <button onClick={async () => { if (confirm('¿Eliminar?')) { await supabase.from('caja_movimientos').delete().eq('id', item.id); fetchCajaMovimientos(); }}} className="p-1 text-red-400 hover:text-red-300">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {cajaMovimientos.filter(m => m.tipo === 'ingreso').map(item => {
+                        const partes = (item.concepto || '').split(' | ');
+                        const origen = partes[0] || '';
+                        const descripcion = partes[1] || '';
+                        return (
+                          <tr key={item.id} className="border-b border-white/5 hover:bg-white/5">
+                            <td className="py-2 px-3 text-slate-400">{item.fecha}</td>
+                            <td className="py-2 px-3">
+                              <span className={`px-2 py-0.5 rounded text-xs ${origen === 'Evento' ? 'bg-purple-500/20 text-purple-400' : origen === 'Vta directa' ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-500/20 text-slate-400'}`}>
+                                {origen}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 font-medium">{descripcion || '-'}</td>
+                            <td className="py-2 px-3 text-slate-400">{item.persona}</td>
+                            <td className="py-2 px-3 text-right text-green-400">${(item.monto_pesos || 0).toLocaleString()}</td>
+                            <td className="py-2 px-3 text-right text-blue-400">{item.monto_dolares ? item.monto_dolares.toLocaleString() : '-'}</td>
+                            <td className="py-2 px-3 flex gap-1">
+                              <button onClick={() => {
+                                const partes = (item.concepto || '').split(' | ');
+                                setEditingCajaIngreso(item.id);
+                                setCajaIngresoForm({
+                                  fecha: item.fecha,
+                                  origen: partes[0] || '',
+                                  descripcion: partes[1] || '',
+                                  receptor: item.persona,
+                                  monto_pesos: item.monto_dolares ? '' : (item.monto_pesos || '').toString(),
+                                  monto_dolares: (item.monto_dolares || '').toString(),
+                                  cotizacion: (item.cotizacion || '').toString()
+                                });
+                                setShowCajaIngresoForm(true);
+                              }} className="p-1 text-blue-400 hover:text-blue-300">
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              <button onClick={async () => { if (confirm('¿Eliminar?')) { await supabase.from('caja_movimientos').delete().eq('id', item.id); fetchCajaMovimientos(); }}} className="p-1 text-red-400 hover:text-red-300">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                       {cajaMovimientos.filter(m => m.tipo === 'ingreso').length === 0 && (
-                        <tr><td colSpan="6" className="py-8 text-center text-slate-500">Sin ingresos registrados</td></tr>
+                        <tr><td colSpan="7" className="py-8 text-center text-slate-500">Sin ingresos registrados</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -4765,7 +4788,7 @@ export default function App() {
                       <tr className="border-b border-white/10 text-slate-400 text-xs">
                         <th className="text-left py-2 px-3">Fecha</th>
                         <th className="text-left py-2 px-3">Concepto</th>
-                        <th className="text-left py-2 px-3">Receptor</th>
+                        <th className="text-left py-2 px-3">Recibido por</th>
                         <th className="text-right py-2 px-3">Pesos</th>
                         <th className="text-right py-2 px-3">USD</th>
                         <th className="w-20"></th>
@@ -4776,7 +4799,7 @@ export default function App() {
                         <tr key={item.id} className="border-b border-white/5 hover:bg-white/5">
                           <td className="py-2 px-3 text-slate-400">{item.fecha}</td>
                           <td className="py-2 px-3 font-medium">{item.concepto}</td>
-                          <td className="py-2 px-3 text-slate-400">{item.persona}</td>
+                          <td className="py-2 px-3 text-slate-400">{item.persona || '-'}</td>
                           <td className="py-2 px-3 text-right text-red-400">${(item.monto_pesos || 0).toLocaleString()}</td>
                           <td className="py-2 px-3 text-right text-blue-400">{item.monto_dolares ? item.monto_dolares.toLocaleString() : '-'}</td>
                           <td className="py-2 px-3 flex gap-1">
