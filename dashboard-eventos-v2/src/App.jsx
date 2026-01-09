@@ -1777,9 +1777,8 @@ export default function App() {
               <Calendar className="w-8 h-8" />
             </div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
-              Gestión de Eventos
+              Eventos Tero
             </h1>
-            <p className="text-slate-400 mt-2">Iniciá sesión para continuar</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -1788,21 +1787,6 @@ export default function App() {
                 {loginError}
               </div>
             )}
-
-            <div>
-              <label className="block text-sm text-slate-400 mb-1">Email</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input
-                  type="email"
-                  required
-                  placeholder="tu@email.com"
-                  value={loginForm.email}
-                  onChange={(e) => setLoginForm({...loginForm, email: e.target.value})}
-                  className="w-full pl-12 pr-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
-                />
-              </div>
-            </div>
 
             <div>
               <label className="block text-sm text-slate-400 mb-1">Contraseña</label>
