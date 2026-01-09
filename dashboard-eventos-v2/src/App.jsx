@@ -4579,25 +4579,31 @@ export default function App() {
                             <td className="py-2 px-3 text-right text-green-400">${(item.monto_pesos || 0).toLocaleString()}</td>
                             <td className="py-2 px-3 text-right text-blue-400">{item.monto_dolares ? item.monto_dolares.toLocaleString() : '-'}</td>
                             <td className="py-2 px-3 flex gap-1">
-                              <button onClick={() => {
-                                const partes = (item.concepto || '').split(' | ');
-                                setEditingCajaIngreso(item.id);
-                                setCajaIngresoForm({
-                                  fecha: item.fecha,
-                                  origen: partes[0] || '',
-                                  descripcion: partes[1] || '',
-                                  receptor: item.persona,
-                                  monto_pesos: item.monto_dolares ? '' : (item.monto_pesos || '').toString(),
-                                  monto_dolares: (item.monto_dolares || '').toString(),
-                                  cotizacion: (item.cotizacion || '').toString()
-                                });
-                                setShowCajaIngresoForm(true);
-                              }} className="p-1 text-blue-400 hover:text-blue-300">
-                                <Edit3 className="w-4 h-4" />
-                              </button>
-                              <button onClick={async () => { if (confirm('¿Eliminar?')) { await supabase.from('caja_movimientos').delete().eq('id', item.id); fetchCajaMovimientos(); }}} className="p-1 text-red-400 hover:text-red-300">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              {origen === 'Evento' ? (
+                                <span className="text-xs text-slate-500 italic" title="Gestionar desde Eventos">Desde eventos</span>
+                              ) : (
+                                <>
+                                  <button onClick={() => {
+                                    const partes = (item.concepto || '').split(' | ');
+                                    setEditingCajaIngreso(item.id);
+                                    setCajaIngresoForm({
+                                      fecha: item.fecha,
+                                      origen: partes[0] || '',
+                                      descripcion: partes[1] || '',
+                                      receptor: item.persona,
+                                      monto_pesos: item.monto_dolares ? '' : (item.monto_pesos || '').toString(),
+                                      monto_dolares: (item.monto_dolares || '').toString(),
+                                      cotizacion: (item.cotizacion || '').toString()
+                                    });
+                                    setShowCajaIngresoForm(true);
+                                  }} className="p-1 text-blue-400 hover:text-blue-300">
+                                    <Edit3 className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={async () => { if (confirm('¿Eliminar?')) { await supabase.from('caja_movimientos').delete().eq('id', item.id); fetchCajaMovimientos(); }}} className="p-1 text-red-400 hover:text-red-300">
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
                             </td>
                           </tr>
                         );
