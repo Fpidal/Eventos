@@ -4438,6 +4438,7 @@ export default function App() {
                     const tc = parseFloat(cajaIngresoForm.cotizacion) || tipoCambio;
                     if (pesos === 0 && dolares === 0) { alert('Ingrese un monto'); return; }
                     if (!cajaIngresoForm.origen) { alert('Seleccione origen'); return; }
+                    if (cajaIngresoForm.origen === 'Evento' && !cajaIngresoForm.descripcion) { alert('Ingrese el nombre del evento'); return; }
                     if (!cajaIngresoForm.receptor) { alert('Seleccione quién recibe'); return; }
 
                     const data = {
@@ -4486,13 +4487,13 @@ export default function App() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1">Descripción</label>
+                        <label className="block text-xs text-slate-400 mb-1">Descripción {cajaIngresoForm.origen === 'Evento' ? '*' : ''}</label>
                         <input
                           type="text"
                           value={cajaIngresoForm.descripcion}
                           onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, descripcion: e.target.value})}
                           className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
-                          placeholder="Cliente o detalle"
+                          placeholder={cajaIngresoForm.origen === 'Evento' ? 'Ej: Josefina, Boda García...' : 'Cliente o detalle'}
                         />
                       </div>
                       <div>
