@@ -4584,15 +4584,29 @@ export default function App() {
                     const esRetiro = cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor);
                     const totalPesos = pesos + (dolares * tc);
 
+                    // Siempre registrar como egreso
                     await supabase.from('caja_movimientos').insert({
-                      tipo: esRetiro ? 'retiro' : 'egreso',
+                      tipo: 'egreso',
                       concepto: cajaEgresoForm.observacion || cajaEgresoForm.concepto,
                       monto_pesos: totalPesos,
-                      monto_dolares: esRetiro ? (totalPesos / tc) : (dolares || null),
-                      cotizacion: (esRetiro || dolares) ? tc : null,
+                      monto_dolares: dolares || null,
+                      cotizacion: dolares ? tc : null,
                       persona: cajaEgresoForm.receptor,
                       fecha: cajaEgresoForm.fecha
                     });
+
+                    // Si es retiro de socio, también registrar en retiros
+                    if (esRetiro) {
+                      await supabase.from('caja_movimientos').insert({
+                        tipo: 'retiro',
+                        concepto: cajaEgresoForm.observacion || cajaEgresoForm.concepto,
+                        monto_pesos: totalPesos,
+                        monto_dolares: totalPesos / tc,
+                        cotizacion: tc,
+                        persona: cajaEgresoForm.receptor,
+                        fecha: cajaEgresoForm.fecha
+                      });
+                    }
                     setCajaEgresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
                     setShowCajaEgresoForm(false);
                     fetchCajaMovimientos();
@@ -4629,7 +4643,7 @@ export default function App() {
                           {RECEPTORES_EGRESO.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                         {cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) && (
-                          <p className="text-xs text-yellow-400 mt-1">→ Irá a Retiros</p>
+                          <p className="text-xs text-yellow-400 mt-1">→ Egresos + Retiros</p>
                         )}
                       </div>
                     </div>
