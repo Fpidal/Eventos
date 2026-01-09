@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed, ClipboardList, XCircle } from 'lucide-react';
+import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed, ClipboardList, XCircle, Banknote } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar } from 'recharts';
 import { supabase } from './supabase';
 import { jsPDF } from 'jspdf';
@@ -184,6 +184,7 @@ export default function App() {
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+  const [cajaDesbloqueada, setCajaDesbloqueada] = useState(false);
 
   // Permisos según rol
   const canCreate = userRole === 'admin' || userRole === 'vendedor';
@@ -2875,10 +2876,23 @@ export default function App() {
             { id: 'menus', label: 'Menús', icon: UtensilsCrossed },
             { id: 'informes', label: 'Informes', icon: ClipboardList },
             ...(userRole === 'admin' ? [{ id: 'usuarios', label: 'Usuarios', icon: Users }] : []),
+            { id: 'caja', label: 'Caja', icon: Banknote },
           ].map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                if (tab.id === 'caja' && !cajaDesbloqueada) {
+                  const clave = prompt('Ingrese la clave para acceder a Caja:');
+                  if (clave === '1970') {
+                    setCajaDesbloqueada(true);
+                    setActiveTab('caja');
+                  } else if (clave !== null) {
+                    alert('Clave incorrecta');
+                  }
+                } else {
+                  setActiveTab(tab.id);
+                }
+              }}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all text-xs font-medium whitespace-nowrap ${
                 activeTab === tab.id ? 'tab-active text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
@@ -4214,6 +4228,16 @@ export default function App() {
                   <p className="text-center text-slate-400 py-8">No hay usuarios registrados</p>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* CAJA */}
+        {activeTab === 'caja' && cajaDesbloqueada && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-bold">Caja</h2>
+            <div className="glass rounded-2xl p-6">
+              <p className="text-slate-400">Sección de Caja - En construcción</p>
             </div>
           </div>
         )}
