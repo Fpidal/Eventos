@@ -4574,7 +4574,7 @@ export default function App() {
                                 {origen}
                               </span>
                             </td>
-                            <td className="py-2 px-3 font-medium">{descripcion || '-'}</td>
+                            <td className={`py-2 px-3 font-medium ${origen === 'Evento' ? 'text-purple-400' : ''}`}>{descripcion || '-'}</td>
                             <td className="py-2 px-3 text-slate-400">{item.persona}</td>
                             <td className="py-2 px-3 text-right text-green-400">${(item.monto_pesos || 0).toLocaleString()}</td>
                             <td className="py-2 px-3 text-right text-blue-400">{item.monto_dolares ? item.monto_dolares.toLocaleString() : '-'}</td>
