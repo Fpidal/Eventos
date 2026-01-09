@@ -193,7 +193,7 @@ export default function App() {
   const [showCajaIngresoForm, setShowCajaIngresoForm] = useState(false);
   const [showCajaEgresoForm, setShowCajaEgresoForm] = useState(false);
   const [cajaIngresoForm, setCajaIngresoForm] = useState({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
-  const [cajaEgresoForm, setCajaEgresoForm] = useState({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', observacion: '' });
+  const [cajaEgresoForm, setCajaEgresoForm] = useState({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
   const CONCEPTOS_INGRESO = ['Evento', 'Vta directa', 'Caja', 'Banco', 'Otros'];
   const CONCEPTOS_EGRESO = ['R. Socios', 'Pagos extras', 'Aporte', 'Otros'];
   const RECEPTORES_EGRESO = ['Rodrigo', 'Francisco', 'Piru', 'Caja', 'Otros'];
@@ -4574,23 +4574,26 @@ export default function App() {
                   <form onSubmit={async (e) => {
                     e.preventDefault();
                     const pesos = parseFloat(cajaEgresoForm.monto_pesos) || 0;
-                    if (pesos === 0) { alert('Ingrese un monto'); return; }
+                    const dolares = parseFloat(cajaEgresoForm.monto_dolares) || 0;
+                    const tc = parseFloat(cajaEgresoForm.cotizacion) || tipoCambio;
+                    if (pesos === 0 && dolares === 0) { alert('Ingrese un monto'); return; }
                     if (!cajaEgresoForm.concepto) { alert('Seleccione un concepto'); return; }
                     if (!cajaEgresoForm.receptor) { alert('Seleccione quién recibe'); return; }
 
                     // Si es retiro de socio (concepto R. Socios y receptor es socio)
                     const esRetiro = cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor);
+                    const totalPesos = pesos + (dolares * tc);
 
                     await supabase.from('caja_movimientos').insert({
                       tipo: esRetiro ? 'retiro' : 'egreso',
                       concepto: cajaEgresoForm.observacion || cajaEgresoForm.concepto,
-                      monto_pesos: pesos,
-                      monto_dolares: esRetiro ? (pesos / tipoCambio) : null,
-                      cotizacion: esRetiro ? tipoCambio : null,
+                      monto_pesos: totalPesos,
+                      monto_dolares: esRetiro ? (totalPesos / tc) : (dolares || null),
+                      cotizacion: (esRetiro || dolares) ? tc : null,
                       persona: cajaEgresoForm.receptor,
                       fecha: cajaEgresoForm.fecha
                     });
-                    setCajaEgresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', observacion: '' });
+                    setCajaEgresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
                     setShowCajaEgresoForm(false);
                     fetchCajaMovimientos();
                   }} className="mb-4 p-4 bg-red-500/10 rounded-xl border border-red-500/30 space-y-3">
@@ -4630,9 +4633,9 @@ export default function App() {
                         )}
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-3 gap-3">
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1">Monto Pesos *</label>
+                        <label className="block text-xs text-slate-400 mb-1">Monto Pesos</label>
                         <input
                           type="number"
                           value={cajaEgresoForm.monto_pesos}
@@ -4640,20 +4643,43 @@ export default function App() {
                           className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
                           placeholder="0"
                         />
-                        {cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) && cajaEgresoForm.monto_pesos && (
-                          <p className="text-xs text-blue-400 mt-1">≈ USD {(parseFloat(cajaEgresoForm.monto_pesos) / tipoCambio).toFixed(2)}</p>
-                        )}
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1">Observación</label>
+                        <label className="block text-xs text-slate-400 mb-1">Monto USD</label>
                         <input
-                          type="text"
-                          value={cajaEgresoForm.observacion}
-                          onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, observacion: e.target.value})}
+                          type="number"
+                          value={cajaEgresoForm.monto_dolares}
+                          onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, monto_dolares: e.target.value})}
                           className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
-                          placeholder="Detalle opcional"
+                          placeholder="0"
                         />
                       </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Tipo Cambio {cajaEgresoForm.monto_dolares ? '*' : ''}</label>
+                        <input
+                          type="number"
+                          value={cajaEgresoForm.cotizacion}
+                          onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, cotizacion: e.target.value})}
+                          className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                          placeholder={tipoCambio.toString()}
+                        />
+                      </div>
+                    </div>
+                    {cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) && (cajaEgresoForm.monto_pesos || cajaEgresoForm.monto_dolares) && (
+                      <div className="text-xs text-blue-400 bg-blue-500/10 rounded-lg p-2">
+                        Total: ${((parseFloat(cajaEgresoForm.monto_pesos) || 0) + ((parseFloat(cajaEgresoForm.monto_dolares) || 0) * (parseFloat(cajaEgresoForm.cotizacion) || tipoCambio))).toLocaleString()}
+                        {' '}≈ USD {(((parseFloat(cajaEgresoForm.monto_pesos) || 0) + ((parseFloat(cajaEgresoForm.monto_dolares) || 0) * (parseFloat(cajaEgresoForm.cotizacion) || tipoCambio))) / (parseFloat(cajaEgresoForm.cotizacion) || tipoCambio)).toFixed(2)}
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">Observación</label>
+                      <input
+                        type="text"
+                        value={cajaEgresoForm.observacion}
+                        onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, observacion: e.target.value})}
+                        className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                        placeholder="Detalle opcional"
+                      />
                     </div>
                     <div className="flex justify-end">
                       <button type="submit" className={`px-4 py-2 rounded-lg text-white text-sm font-medium ${cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-red-500 hover:bg-red-600'}`}>
