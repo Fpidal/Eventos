@@ -2881,7 +2881,7 @@ export default function App() {
             <button
               key={tab.id}
               onClick={() => {
-                if (tab.id === 'caja' && !cajaDesbloqueada) {
+                if (tab.id === 'caja') {
                   const clave = prompt('Ingrese la clave para acceder a Caja:');
                   if (clave === '1970') {
                     setCajaDesbloqueada(true);
@@ -2890,6 +2890,7 @@ export default function App() {
                     alert('Clave incorrecta');
                   }
                 } else {
+                  setCajaDesbloqueada(false);
                   setActiveTab(tab.id);
                 }
               }}
