@@ -300,36 +300,9 @@ export default function App() {
     }
   };
 
-  // Auth: verificar sesión al cargar
+  // Auth: mostrar login directamente
   useEffect(() => {
-    // Timeout de seguridad
-    const timeoutId = setTimeout(() => {
-      setAuthLoading(false);
-    }, 3000);
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      clearTimeout(timeoutId);
-      setUser(session?.user || null);
-      if (session?.user) {
-        fetchUserRole(session.user.id);
-      }
-      setAuthLoading(false);
-    }).catch(() => {
-      clearTimeout(timeoutId);
-      setAuthLoading(false);
-    });
-
-    // Escuchar cambios de auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
-      if (session?.user) {
-        fetchUserRole(session.user.id);
-      } else {
-        setUserRole(null);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    setAuthLoading(false);
   }, []);
 
   // Login
