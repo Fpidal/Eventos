@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed, ClipboardList, XCircle, Banknote } from 'lucide-react';
+import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed, ClipboardList, XCircle, Banknote, ArrowLeftRight } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar } from 'recharts';
 import { supabase } from './supabase';
 import { jsPDF } from 'jspdf';
@@ -196,10 +196,13 @@ export default function App() {
   const [editingCajaEgreso, setEditingCajaEgreso] = useState(null);
   const [cajaIngresoForm, setCajaIngresoForm] = useState({ fecha: new Date().toISOString().split('T')[0], origen: '', descripcion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
   const [cajaEgresoForm, setCajaEgresoForm] = useState({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
+  const [showTransferenciaForm, setShowTransferenciaForm] = useState(false);
+  const [transferenciaForm, setTransferenciaForm] = useState({ fecha: new Date().toISOString().split('T')[0], origen: '', destino: '', monto_pesos: '', observacion: '' });
   const CONCEPTOS_INGRESO = ['Evento', 'Vta directa', 'Caja', 'Banco', 'Otros'];
   const CONCEPTOS_EGRESO = ['R. Socios', 'Pagos extras', 'Aporte', 'Otros'];
   const RECEPTORES_EGRESO = ['Rodrigo', 'Francisco', 'Piru', 'Caja', 'Otros'];
   const SOCIOS = ['Rodrigo', 'Piru', 'Francisco'];
+  const CAJAS = ['Rodrigo', 'Francisco', 'Piru', 'Banco'];
 
   // Permisos según rol
   const canCreate = userRole === 'admin' || userRole === 'vendedor';
@@ -2963,18 +2966,18 @@ export default function App() {
             <button
               key={tab.id}
               onClick={() => {
-                if (tab.id === 'caja') {
-                  // Verificar si la caja está desbloqueada y no pasaron 5 minutos
+                if (tab.id === 'caja' || tab.id === 'cobranzas') {
+                  // Verificar si está desbloqueado y no pasaron 5 minutos (misma clave para Caja y Cobranzas)
                   const ahora = Date.now();
                   const cincoMinutos = 5 * 60 * 1000;
                   if (cajaDesbloqueada && cajaDesbloqueoTime && (ahora - cajaDesbloqueoTime) < cincoMinutos) {
-                    setActiveTab('caja');
+                    setActiveTab(tab.id);
                   } else {
-                    const clave = prompt('Ingrese la clave para acceder a Caja:');
+                    const clave = prompt(`Ingrese la clave para acceder a ${tab.id === 'caja' ? 'Caja' : 'Cobranzas'}:`);
                     if (clave === '1970') {
                       setCajaDesbloqueada(true);
                       setCajaDesbloqueoTime(Date.now());
-                      setActiveTab('caja');
+                      setActiveTab(tab.id);
                     } else if (clave !== null) {
                       alert('Clave incorrecta');
                     }
@@ -4351,30 +4354,65 @@ export default function App() {
                   <p className="text-lg font-bold text-red-400">${cajaMovimientos.filter(m => m.tipo === 'egreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toLocaleString()}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400">Retiros</p>
+                  <p className="text-xs text-slate-400">Retiros Socios</p>
                   <p className="text-lg font-bold text-yellow-400">${cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toLocaleString()}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400">Saldo $</p>
+                  <p className="text-xs text-slate-400">Saldo Caja $</p>
                   {(() => {
                     const ingresos = cajaMovimientos.filter(m => m.tipo === 'ingreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
                     const egresos = cajaMovimientos.filter(m => m.tipo === 'egreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
-                    const retiros = cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
-                    const saldo = ingresos - egresos - retiros;
+                    // Retiros NO restan de caja, son distribución de ganancias
+                    const saldo = ingresos - egresos;
                     return <p className={`text-lg font-bold ${saldo >= 0 ? 'text-green-400' : 'text-red-400'}`}>${saldo.toLocaleString()}</p>;
                   })()}
                 </div>
                 <div>
                   <p className="text-xs text-slate-400">Saldo USD</p>
                   <p className="text-lg font-bold text-blue-400">
-                    {(cajaMovimientos.filter(m => m.tipo === 'ingreso').reduce((sum, i) => sum + (i.monto_dolares || 0), 0) - cajaMovimientos.filter(m => m.tipo === 'egreso').reduce((sum, i) => sum + (i.monto_dolares || 0), 0) - cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_dolares || 0), 0)).toLocaleString()}
+                    {(cajaMovimientos.filter(m => m.tipo === 'ingreso').reduce((sum, i) => sum + (i.monto_dolares || 0), 0) - cajaMovimientos.filter(m => m.tipo === 'egreso').reduce((sum, i) => sum + (i.monto_dolares || 0), 0)).toLocaleString()}
                   </p>
                 </div>
               </div>
             </div>
 
+            {/* Dinero por Persona */}
+            {(() => {
+              const ingresos = cajaMovimientos.filter(m => m.tipo === 'ingreso');
+              const egresos = cajaMovimientos.filter(m => m.tipo === 'egreso');
+              const retiros = cajaMovimientos.filter(m => m.tipo === 'retiro');
+              const personasSet = new Set();
+              ingresos.forEach(m => m.persona && personasSet.add(m.persona));
+              egresos.forEach(m => m.persona && personasSet.add(m.persona));
+              const personas = Array.from(personasSet).filter(p => p && p !== 'Caja');
+
+              if (personas.length === 0) return null;
+
+              return (
+                <div className="glass rounded-xl p-3">
+                  <p className="text-xs text-slate-400 mb-2">Dinero por persona (ingresos - egresos - retiros)</p>
+                  <div className="flex flex-wrap gap-4">
+                    {personas.map(persona => {
+                      const ingresosPersona = ingresos.filter(m => m.persona === persona).reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
+                      const egresosPersona = egresos.filter(m => m.persona === persona).reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
+                      const retirosPersona = retiros.filter(m => m.persona === persona).reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
+                      const saldo = ingresosPersona - egresosPersona - retirosPersona;
+                      return (
+                        <div key={persona} className="bg-white/5 rounded-lg px-3 py-2 min-w-[120px]">
+                          <p className="text-xs text-slate-400">{persona}</p>
+                          <p className={`text-sm font-bold ${saldo >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            ${saldo.toLocaleString()}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Tabs */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
               <button
                 onClick={() => setCajaTab('ingresos')}
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
@@ -4405,7 +4443,145 @@ export default function App() {
               >
                 Retiros
               </button>
+              <div className="flex-1" />
+              <button
+                onClick={() => setShowTransferenciaForm(!showTransferenciaForm)}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${
+                  showTransferenciaForm
+                    ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
+                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                }`}
+              >
+                <ArrowLeftRight className="w-4 h-4" />
+                Transferencia
+              </button>
             </div>
+
+            {/* Formulario de Transferencia */}
+            {showTransferenciaForm && (
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (!transferenciaForm.origen || !transferenciaForm.destino || !transferenciaForm.monto_pesos) {
+                  alert('Complete origen, destino y monto');
+                  return;
+                }
+                if (transferenciaForm.origen === transferenciaForm.destino) {
+                  alert('Origen y destino deben ser diferentes');
+                  return;
+                }
+                const monto = parseFloat(transferenciaForm.monto_pesos) || 0;
+                if (monto <= 0) {
+                  alert('El monto debe ser mayor a 0');
+                  return;
+                }
+
+                // Crear egreso del origen
+                await supabase.from('caja_movimientos').insert({
+                  tipo: 'egreso',
+                  concepto: `Transferencia a ${transferenciaForm.destino}${transferenciaForm.observacion ? ' - ' + transferenciaForm.observacion : ''}`,
+                  monto_pesos: monto,
+                  persona: transferenciaForm.origen,
+                  fecha: transferenciaForm.fecha
+                });
+
+                // Crear ingreso al destino
+                await supabase.from('caja_movimientos').insert({
+                  tipo: 'ingreso',
+                  concepto: `Transferencia | De ${transferenciaForm.origen}${transferenciaForm.observacion ? ' - ' + transferenciaForm.observacion : ''}`,
+                  monto_pesos: monto,
+                  persona: transferenciaForm.destino,
+                  fecha: transferenciaForm.fecha
+                });
+
+                setTransferenciaForm({ fecha: new Date().toISOString().split('T')[0], origen: '', destino: '', monto_pesos: '', observacion: '' });
+                setShowTransferenciaForm(false);
+                fetchCajaMovimientos();
+              }} className="glass rounded-xl p-4 border border-purple-500/30 space-y-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <ArrowLeftRight className="w-5 h-5 text-purple-400" />
+                  <span className="font-medium text-purple-400">Nueva Transferencia Interna</span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <div>
+                    <label className="text-xs text-slate-400">Fecha</label>
+                    <input
+                      type="date"
+                      value={transferenciaForm.fecha}
+                      onChange={(e) => setTransferenciaForm({...transferenciaForm, fecha: e.target.value})}
+                      className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400">Origen (sale de)</label>
+                    <select
+                      value={transferenciaForm.origen}
+                      onChange={(e) => setTransferenciaForm({...transferenciaForm, origen: e.target.value})}
+                      className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                      required
+                    >
+                      <option value="">Seleccionar...</option>
+                      {CAJAS.filter(c => c !== transferenciaForm.destino).map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400">Destino (va a)</label>
+                    <select
+                      value={transferenciaForm.destino}
+                      onChange={(e) => setTransferenciaForm({...transferenciaForm, destino: e.target.value})}
+                      className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                      required
+                    >
+                      <option value="">Seleccionar...</option>
+                      {CAJAS.filter(c => c !== transferenciaForm.origen).map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400">Monto $</label>
+                    <input
+                      type="number"
+                      value={transferenciaForm.monto_pesos}
+                      onChange={(e) => setTransferenciaForm({...transferenciaForm, monto_pesos: e.target.value})}
+                      placeholder="0"
+                      className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400">Observación</label>
+                    <input
+                      type="text"
+                      value={transferenciaForm.observacion}
+                      onChange={(e) => setTransferenciaForm({...transferenciaForm, observacion: e.target.value})}
+                      placeholder="Opcional..."
+                      className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowTransferenciaForm(false);
+                      setTransferenciaForm({ fecha: new Date().toISOString().split('T')[0], origen: '', destino: '', monto_pesos: '', observacion: '' });
+                    }}
+                    className="px-4 py-2 rounded-lg bg-white/5 text-slate-400 hover:bg-white/10 text-sm"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm flex items-center gap-2"
+                  >
+                    <ArrowLeftRight className="w-4 h-4" />
+                    Transferir
+                  </button>
+                </div>
+              </form>
+            )}
 
             {/* Contenido de Ingresos */}
             {cajaTab === 'ingresos' && (
@@ -4563,23 +4739,25 @@ export default function App() {
                     </thead>
                     <tbody>
                       {cajaMovimientos.filter(m => m.tipo === 'ingreso').map(item => {
+                        // Si tiene evento_id, viene de la sección de Eventos (cobranza)
+                        const esDeEvento = !!item.evento_id;
                         const partes = (item.concepto || '').split(' | ');
-                        const origen = partes[0] || '';
-                        const descripcion = partes[1] || '';
+                        const origen = esDeEvento ? 'Evento' : (partes[0] || '');
+                        const descripcion = esDeEvento ? item.concepto : (partes[1] || '');
                         return (
                           <tr key={item.id} className="border-b border-white/5 hover:bg-white/5">
                             <td className="py-2 px-3 text-slate-400">{item.fecha}</td>
                             <td className="py-2 px-3">
-                              <span className={`px-2 py-0.5 rounded text-xs ${origen === 'Evento' ? 'bg-purple-500/20 text-purple-400' : origen === 'Vta directa' ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-500/20 text-slate-400'}`}>
+                              <span className={`px-2 py-0.5 rounded text-xs ${esDeEvento ? 'bg-purple-500/20 text-purple-400' : origen === 'Vta directa' ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-500/20 text-slate-400'}`}>
                                 {origen}
                               </span>
                             </td>
-                            <td className={`py-2 px-3 font-medium ${origen === 'Evento' ? 'text-purple-400' : ''}`}>{descripcion || '-'}</td>
+                            <td className={`py-2 px-3 font-medium ${esDeEvento ? 'text-purple-400' : ''}`}>{descripcion || '-'}</td>
                             <td className="py-2 px-3 text-slate-400">{item.persona}</td>
                             <td className="py-2 px-3 text-right text-green-400">${(item.monto_pesos || 0).toLocaleString()}</td>
                             <td className="py-2 px-3 text-right text-blue-400">{item.monto_dolares ? item.monto_dolares.toLocaleString() : '-'}</td>
                             <td className="py-2 px-3 flex gap-1">
-                              {origen === 'Evento' ? (
+                              {esDeEvento ? (
                                 <span className="text-xs text-slate-500 italic" title="Gestionar desde Eventos">Desde eventos</span>
                               ) : (
                                 <>
