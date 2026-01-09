@@ -2701,7 +2701,38 @@ export default function App() {
               <p className="font-semibold">{selectedEventoPago.cliente}</p>
               <p className="text-sm text-slate-400 mt-2">Fecha evento</p>
               <p>{formatDate(selectedEventoPago.fecha)}</p>
+              <div className="mt-3 pt-3 border-t border-white/10 grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-xs text-slate-400">Total evento</p>
+                  <p className="text-lg font-bold text-white">{formatCurrency(selectedEventoPago.precio || 0)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400">Saldo pendiente</p>
+                  <p className={`text-lg font-bold ${(selectedEventoPago.saldo || 0) > 0 ? 'text-amber-400' : 'text-green-400'}`}>
+                    {formatCurrency(selectedEventoPago.saldo || 0)}
+                  </p>
+                </div>
+              </div>
             </div>
+
+            {!editingPagoId && (selectedEventoPago.saldo || 0) > 0 && (
+              <div className="mb-4 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNuevoPago({...nuevoPago, monto: String(selectedEventoPago.saldo || 0)})}
+                  className="flex-1 py-2 px-3 rounded-xl bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors text-sm font-medium"
+                >
+                  Pagar Total ({formatCurrency(selectedEventoPago.saldo || 0)})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNuevoPago({...nuevoPago, monto: ''})}
+                  className="flex-1 py-2 px-3 rounded-xl bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-colors text-sm font-medium"
+                >
+                  Pago Parcial
+                </button>
+              </div>
+            )}
 
             <form onSubmit={handleAddPago} className="space-y-4">
               <div>
