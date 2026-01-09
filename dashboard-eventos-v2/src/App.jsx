@@ -190,6 +190,12 @@ export default function App() {
   const [cajaMovimientos, setCajaMovimientos] = useState([]);
   const [tipoCambio, setTipoCambio] = useState(1200);
   const [cajaTab, setCajaTab] = useState('ingresos');
+  const [showCajaIngresoForm, setShowCajaIngresoForm] = useState(false);
+  const [showCajaEgresoForm, setShowCajaEgresoForm] = useState(false);
+  const [cajaIngresoForm, setCajaIngresoForm] = useState({ concepto: '', monto_pesos: '', monto_dolares: '', persona: '' });
+  const [cajaEgresoForm, setCajaEgresoForm] = useState({ concepto: '', monto_pesos: '', observacion: '' });
+  const CONCEPTOS_EGRESO = ['R. Rodrigo', 'R. Piru', 'R. Francisco', 'A Caja', 'Otros pagos'];
+  const SOCIOS = ['Rodrigo', 'Piru', 'Francisco'];
 
   // Permisos según rol
   const canCreate = userRole === 'admin' || userRole === 'vendedor';
@@ -4403,28 +4409,89 @@ export default function App() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-green-400">Ingresos</h3>
                   <button
-                    onClick={async () => {
-                      const clienteManual = prompt('Cliente (o descripción):');
-                      if (!clienteManual) return;
-                      const persona = prompt(`Cobrado por (${COBRADORES.join(', ')}):`);
-                      if (!persona || !COBRADORES.includes(persona)) { alert('Persona inválida'); return; }
-                      const montoPesos = prompt('Monto en pesos (0 si no aplica):');
-                      const montoDolares = prompt('Monto en dólares (0 si no aplica):');
-                      const pesos = parseFloat(montoPesos) || 0;
-                      const dolares = parseFloat(montoDolares) || 0;
-                      if (pesos === 0 && dolares === 0) return;
-                      await supabase.from('caja_movimientos').insert({
-                        tipo: 'ingreso', concepto: clienteManual, monto_pesos: pesos + (dolares * tipoCambio),
-                        monto_dolares: dolares || null, cotizacion: dolares ? tipoCambio : null, persona: persona,
-                        fecha: new Date().toISOString().split('T')[0]
-                      });
-                      fetchCajaMovimientos();
-                    }}
+                    onClick={() => setShowCajaIngresoForm(!showCajaIngresoForm)}
                     className="px-3 py-1.5 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 text-sm flex items-center gap-1"
                   >
-                    <Plus className="w-4 h-4" /> Agregar
+                    {showCajaIngresoForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    {showCajaIngresoForm ? 'Cancelar' : 'Agregar'}
                   </button>
                 </div>
+
+                {/* Formulario de Ingreso */}
+                {showCajaIngresoForm && (
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    const pesos = parseFloat(cajaIngresoForm.monto_pesos) || 0;
+                    const dolares = parseFloat(cajaIngresoForm.monto_dolares) || 0;
+                    if (pesos === 0 && dolares === 0) { alert('Ingrese un monto'); return; }
+                    if (!cajaIngresoForm.concepto) { alert('Ingrese un concepto'); return; }
+                    if (!cajaIngresoForm.persona) { alert('Seleccione cobrador'); return; }
+                    await supabase.from('caja_movimientos').insert({
+                      tipo: 'ingreso',
+                      concepto: cajaIngresoForm.concepto,
+                      monto_pesos: pesos + (dolares * tipoCambio),
+                      monto_dolares: dolares || null,
+                      cotizacion: dolares ? tipoCambio : null,
+                      persona: cajaIngresoForm.persona,
+                      fecha: new Date().toISOString().split('T')[0]
+                    });
+                    setCajaIngresoForm({ concepto: '', monto_pesos: '', monto_dolares: '', persona: '' });
+                    setShowCajaIngresoForm(false);
+                    fetchCajaMovimientos();
+                  }} className="mb-4 p-4 bg-green-500/10 rounded-xl border border-green-500/30 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Concepto/Cliente *</label>
+                        <input
+                          type="text"
+                          value={cajaIngresoForm.concepto}
+                          onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, concepto: e.target.value})}
+                          className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                          placeholder="Descripción del ingreso"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Cobrado por *</label>
+                        <select
+                          value={cajaIngresoForm.persona}
+                          onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, persona: e.target.value})}
+                          className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                        >
+                          <option value="">Seleccionar...</option>
+                          {COBRADORES.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Monto Pesos</label>
+                        <input
+                          type="number"
+                          value={cajaIngresoForm.monto_pesos}
+                          onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, monto_pesos: e.target.value})}
+                          className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Monto USD</label>
+                        <input
+                          type="number"
+                          value={cajaIngresoForm.monto_dolares}
+                          onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, monto_dolares: e.target.value})}
+                          className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end">
+                      <button type="submit" className="px-4 py-2 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600">
+                        Guardar Ingreso
+                      </button>
+                    </div>
+                  </form>
+                )}
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -4469,28 +4536,88 @@ export default function App() {
             {cajaTab === 'egresos' && (
               <div className="glass rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-red-400">Egresos</h3>
+                  <h3 className="text-lg font-semibold text-red-400">Egresos / Retiros</h3>
                   <button
-                    onClick={async () => {
-                      const concepto = prompt('Concepto del egreso:');
-                      if (!concepto) return;
-                      const montoPesos = prompt('Monto en pesos (0 si no aplica):');
-                      const montoDolares = prompt('Monto en dólares (0 si no aplica):');
-                      const pesos = parseFloat(montoPesos) || 0;
-                      const dolares = parseFloat(montoDolares) || 0;
-                      if (pesos === 0 && dolares === 0) return;
-                      await supabase.from('caja_movimientos').insert({
-                        tipo: 'egreso', concepto: concepto, monto_pesos: pesos + (dolares * tipoCambio),
-                        monto_dolares: dolares || null, cotizacion: dolares ? tipoCambio : null, persona: null,
-                        fecha: new Date().toISOString().split('T')[0]
-                      });
-                      fetchCajaMovimientos();
-                    }}
+                    onClick={() => setShowCajaEgresoForm(!showCajaEgresoForm)}
                     className="px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 text-sm flex items-center gap-1"
                   >
-                    <Plus className="w-4 h-4" /> Agregar
+                    {showCajaEgresoForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    {showCajaEgresoForm ? 'Cancelar' : 'Agregar'}
                   </button>
                 </div>
+
+                {/* Formulario de Egreso */}
+                {showCajaEgresoForm && (
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    const pesos = parseFloat(cajaEgresoForm.monto_pesos) || 0;
+                    if (pesos === 0) { alert('Ingrese un monto'); return; }
+                    if (!cajaEgresoForm.concepto) { alert('Seleccione un concepto'); return; }
+
+                    // Si es retiro de socio (R. Rodrigo, R. Piru, R. Francisco)
+                    const esRetiro = cajaEgresoForm.concepto.startsWith('R. ');
+                    const socio = esRetiro ? cajaEgresoForm.concepto.replace('R. ', '') : null;
+
+                    await supabase.from('caja_movimientos').insert({
+                      tipo: esRetiro ? 'retiro' : 'egreso',
+                      concepto: cajaEgresoForm.observacion || cajaEgresoForm.concepto,
+                      monto_pesos: pesos,
+                      monto_dolares: esRetiro ? (pesos / tipoCambio) : null,
+                      cotizacion: esRetiro ? tipoCambio : null,
+                      persona: socio,
+                      fecha: new Date().toISOString().split('T')[0]
+                    });
+                    setCajaEgresoForm({ concepto: '', monto_pesos: '', observacion: '' });
+                    setShowCajaEgresoForm(false);
+                    fetchCajaMovimientos();
+                  }} className="mb-4 p-4 bg-red-500/10 rounded-xl border border-red-500/30 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Concepto *</label>
+                        <select
+                          value={cajaEgresoForm.concepto}
+                          onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, concepto: e.target.value})}
+                          className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                        >
+                          <option value="">Seleccionar...</option>
+                          {CONCEPTOS_EGRESO.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        {cajaEgresoForm.concepto.startsWith('R. ') && (
+                          <p className="text-xs text-yellow-400 mt-1">→ Irá a la pestaña Retiros</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Monto Pesos *</label>
+                        <input
+                          type="number"
+                          value={cajaEgresoForm.monto_pesos}
+                          onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, monto_pesos: e.target.value})}
+                          className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                          placeholder="0"
+                        />
+                        {cajaEgresoForm.concepto.startsWith('R. ') && cajaEgresoForm.monto_pesos && (
+                          <p className="text-xs text-blue-400 mt-1">≈ USD {(parseFloat(cajaEgresoForm.monto_pesos) / tipoCambio).toFixed(2)}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">Observación</label>
+                      <input
+                        type="text"
+                        value={cajaEgresoForm.observacion}
+                        onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, observacion: e.target.value})}
+                        className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                        placeholder="Detalle opcional"
+                      />
+                    </div>
+                    <div className="flex justify-end">
+                      <button type="submit" className={`px-4 py-2 rounded-lg text-white text-sm font-medium ${cajaEgresoForm.concepto.startsWith('R. ') ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-red-500 hover:bg-red-600'}`}>
+                        {cajaEgresoForm.concepto.startsWith('R. ') ? 'Guardar Retiro' : 'Guardar Egreso'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -4532,40 +4659,50 @@ export default function App() {
             {/* Contenido de Retiros */}
             {cajaTab === 'retiros' && (
               <div className="glass rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-yellow-400">Retiros</h3>
-                  <button
-                    onClick={async () => {
-                      const persona = prompt(`Persona que retira (${COBRADORES.join(', ')}):`);
-                      if (!persona || !COBRADORES.includes(persona)) { alert('Persona inválida'); return; }
-                      const concepto = prompt('Concepto del retiro:');
-                      if (!concepto) return;
-                      const montoPesos = prompt('Monto en pesos (0 si no aplica):');
-                      const montoDolares = prompt('Monto en dólares (0 si no aplica):');
-                      const pesos = parseFloat(montoPesos) || 0;
-                      const dolares = parseFloat(montoDolares) || 0;
-                      if (pesos === 0 && dolares === 0) return;
-                      await supabase.from('caja_movimientos').insert({
-                        tipo: 'retiro', concepto: concepto, monto_pesos: pesos + (dolares * tipoCambio),
-                        monto_dolares: dolares || null, cotizacion: dolares ? tipoCambio : null, persona: persona,
-                        fecha: new Date().toISOString().split('T')[0]
-                      });
-                      fetchCajaMovimientos();
-                    }}
-                    className="px-3 py-1.5 rounded-lg bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 text-sm flex items-center gap-1"
-                  >
-                    <Plus className="w-4 h-4" /> Agregar
-                  </button>
+                <h3 className="text-lg font-semibold text-yellow-400 mb-4">Retiros por Socio</h3>
+
+                {/* Resumen por Socio */}
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  {SOCIOS.map(socio => {
+                    const retirosSocio = cajaMovimientos.filter(m => m.tipo === 'retiro' && m.persona === socio);
+                    const totalPesos = retirosSocio.reduce((sum, r) => sum + (r.monto_pesos || 0), 0);
+                    const totalUSD = retirosSocio.reduce((sum, r) => sum + (r.monto_dolares || 0), 0);
+                    const promedioTC = retirosSocio.length > 0
+                      ? retirosSocio.reduce((sum, r) => sum + ((r.cotizacion || 0) * (r.monto_pesos || 0)), 0) / totalPesos
+                      : 0;
+                    return (
+                      <div key={socio} className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
+                        <h4 className="text-sm font-semibold text-yellow-400 mb-3">{socio}</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-slate-400">Pesos:</span>
+                            <span className="text-white font-medium">${totalPesos.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-slate-400">USD:</span>
+                            <span className="text-blue-400 font-medium">{totalUSD.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-sm border-t border-white/10 pt-2">
+                            <span className="text-slate-400">TC Prom:</span>
+                            <span className="text-slate-300">{promedioTC > 0 ? promedioTC.toFixed(0) : '-'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
+
+                {/* Tabla de detalle */}
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-white/10 text-slate-400 text-xs">
                         <th className="text-left py-2 px-3">Fecha</th>
-                        <th className="text-left py-2 px-3">Concepto</th>
-                        <th className="text-left py-2 px-3">Persona</th>
+                        <th className="text-left py-2 px-3">Socio</th>
+                        <th className="text-left py-2 px-3">Observación</th>
                         <th className="text-right py-2 px-3">Pesos</th>
                         <th className="text-right py-2 px-3">USD</th>
+                        <th className="text-right py-2 px-3">TC</th>
                         <th className="w-10"></th>
                       </tr>
                     </thead>
@@ -4573,10 +4710,11 @@ export default function App() {
                       {cajaMovimientos.filter(m => m.tipo === 'retiro').map(item => (
                         <tr key={item.id} className="border-b border-white/5 hover:bg-white/5">
                           <td className="py-2 px-3 text-slate-400">{item.fecha}</td>
-                          <td className="py-2 px-3 font-medium">{item.concepto}</td>
-                          <td className="py-2 px-3 text-slate-400">{item.persona}</td>
-                          <td className="py-2 px-3 text-right text-yellow-400">${(item.monto_pesos || 0).toLocaleString()}</td>
-                          <td className="py-2 px-3 text-right text-blue-400">{item.monto_dolares ? item.monto_dolares.toLocaleString() : '-'}</td>
+                          <td className="py-2 px-3 font-medium text-yellow-400">{item.persona}</td>
+                          <td className="py-2 px-3 text-slate-400">{item.concepto}</td>
+                          <td className="py-2 px-3 text-right text-white">${(item.monto_pesos || 0).toLocaleString()}</td>
+                          <td className="py-2 px-3 text-right text-blue-400">{item.monto_dolares ? item.monto_dolares.toFixed(2) : '-'}</td>
+                          <td className="py-2 px-3 text-right text-slate-400">{item.cotizacion || '-'}</td>
                           <td className="py-2 px-3">
                             <button onClick={async () => { if (confirm('¿Eliminar?')) { await supabase.from('caja_movimientos').delete().eq('id', item.id); fetchCajaMovimientos(); }}} className="p-1 text-red-400 hover:text-red-300">
                               <Trash2 className="w-4 h-4" />
@@ -4585,14 +4723,14 @@ export default function App() {
                         </tr>
                       ))}
                       {cajaMovimientos.filter(m => m.tipo === 'retiro').length === 0 && (
-                        <tr><td colSpan="6" className="py-8 text-center text-slate-500">Sin retiros registrados</td></tr>
+                        <tr><td colSpan="7" className="py-8 text-center text-slate-500">Sin retiros registrados</td></tr>
                       )}
                     </tbody>
                   </table>
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/10 flex justify-end gap-6 text-sm">
                   <span className="text-slate-400">Total $: <span className="text-yellow-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toLocaleString()}</span></span>
-                  <span className="text-slate-400">Total USD: <span className="text-blue-400 font-bold">{cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toLocaleString()}</span></span>
+                  <span className="text-slate-400">Total USD: <span className="text-blue-400 font-bold">{cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toFixed(2)}</span></span>
                 </div>
               </div>
             )}
