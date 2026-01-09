@@ -1715,12 +1715,12 @@ export default function App() {
       .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
   }, [eventosDelAño]);
 
-  // Eventos realizados (confirmados, anteriores a hoy, del año seleccionado, no anulados)
+  // Eventos realizados (anteriores a hoy, del año seleccionado, no anulados)
   const eventosRealizados = useMemo(() => {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
     return eventosDelAño
-      .filter(e => new Date(e.fecha + 'T12:00:00') < hoy && e.confirmado === true && !e.anulado)
+      .filter(e => new Date(e.fecha + 'T12:00:00') < hoy && !e.anulado)
       .sort((a, b) => new Date(b.fecha) - new Date(a.fecha)); // Más recientes primero
   }, [eventosDelAño]);
 
