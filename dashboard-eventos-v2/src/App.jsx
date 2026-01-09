@@ -2688,27 +2688,31 @@ export default function App() {
       {/* Modal Nuevo/Editar Pago */}
       {showPagoModal && selectedEventoPago && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="glass rounded-2xl p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">{editingPagoId ? 'Editar Pago' : 'Registrar Pago'}</h2>
-              <button onClick={() => { setShowPagoModal(false); setSelectedEventoPago(null); setEditingPagoId(null); setNuevoPago({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '' }); }} className="p-2 hover:bg-white/10 rounded-xl">
-                <X className="w-5 h-5" />
+          <div className="glass rounded-2xl p-4 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold">{editingPagoId ? 'Editar Pago' : 'Registrar Pago'}</h2>
+              <button onClick={() => { setShowPagoModal(false); setSelectedEventoPago(null); setEditingPagoId(null); setNuevoPago({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '' }); }} className="p-1.5 hover:bg-white/10 rounded-lg">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="mb-4 p-3 rounded-xl bg-white/5 border border-white/10">
-              <p className="text-sm text-slate-400">Cliente</p>
-              <p className="font-semibold">{selectedEventoPago.cliente}</p>
-              <p className="text-sm text-slate-400 mt-2">Fecha evento</p>
-              <p>{formatDate(selectedEventoPago.fecha)}</p>
-              <div className="mt-3 pt-3 border-t border-white/10 grid grid-cols-2 gap-2">
-                <div>
-                  <p className="text-xs text-slate-400">Total evento</p>
-                  <p className="text-lg font-bold text-white">{formatCurrency(selectedEventoPago.precio || 0)}</p>
+            <div className="mb-3 p-2 rounded-lg bg-white/5 border border-white/10 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Cliente:</span>
+                <span className="font-semibold">{selectedEventoPago.cliente}</span>
+              </div>
+              <div className="flex justify-between items-center mt-1">
+                <span className="text-slate-400">Evento:</span>
+                <span>{formatDate(selectedEventoPago.fecha)}</span>
+              </div>
+              <div className="mt-2 pt-2 border-t border-white/10 grid grid-cols-2 gap-2">
+                <div className="text-center">
+                  <p className="text-xs text-slate-400">Total</p>
+                  <p className="font-bold text-white">{formatCurrency(selectedEventoPago.precio || 0)}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-400">Saldo pendiente</p>
-                  <p className={`text-lg font-bold ${(selectedEventoPago.saldo || 0) > 0 ? 'text-amber-400' : 'text-green-400'}`}>
+                <div className="text-center">
+                  <p className="text-xs text-slate-400">Saldo</p>
+                  <p className={`font-bold ${(selectedEventoPago.saldo || 0) > 0 ? 'text-amber-400' : 'text-green-400'}`}>
                     {formatCurrency(selectedEventoPago.saldo || 0)}
                   </p>
                 </div>
@@ -2716,42 +2720,58 @@ export default function App() {
             </div>
 
             {!editingPagoId && (selectedEventoPago.saldo || 0) > 0 && (
-              <div className="mb-4 flex gap-2">
+              <div className="mb-3 flex gap-2">
                 <button
                   type="button"
                   onClick={() => setNuevoPago({...nuevoPago, monto: String(selectedEventoPago.saldo || 0)})}
-                  className="flex-1 py-2 px-3 rounded-xl bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors text-sm font-medium"
+                  className="flex-1 py-1.5 px-2 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors text-xs font-medium"
                 >
                   Pagar Total ({formatCurrency(selectedEventoPago.saldo || 0)})
                 </button>
                 <button
                   type="button"
                   onClick={() => setNuevoPago({...nuevoPago, monto: ''})}
-                  className="flex-1 py-2 px-3 rounded-xl bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-colors text-sm font-medium"
+                  className="flex-1 py-1.5 px-2 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-colors text-xs font-medium"
                 >
                   Pago Parcial
                 </button>
               </div>
             )}
 
-            <form onSubmit={handleAddPago} className="space-y-4">
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Fecha del pago *</label>
-                <input
-                  type="date"
-                  required
-                  value={nuevoPago.fecha}
-                  onChange={(e) => setNuevoPago({...nuevoPago, fecha: e.target.value})}
-                  className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleAddPago} className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Concepto</label>
+                  <label className="block text-xs text-slate-400 mb-1">Fecha *</label>
+                  <input
+                    type="date"
+                    required
+                    value={nuevoPago.fecha}
+                    onChange={(e) => setNuevoPago({...nuevoPago, fecha: e.target.value})}
+                    className="w-full px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Cobrado por *</label>
+                  <select
+                    required
+                    value={nuevoPago.cobrador}
+                    onChange={(e) => setNuevoPago({...nuevoPago, cobrador: e.target.value})}
+                    className="w-full px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                  >
+                    <option value="" className="bg-slate-900">Seleccionar...</option>
+                    {COBRADORES.map(c => (
+                      <option key={c} value={c} className="bg-slate-900">{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Concepto</label>
                   <select
                     value={nuevoPago.concepto}
                     onChange={(e) => setNuevoPago({...nuevoPago, concepto: e.target.value, monto: '', porcentajeIPC: ''})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
                   >
                     <option value="pago">Pago</option>
                     <option value="seña">Seña</option>
@@ -2759,11 +2779,11 @@ export default function App() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Moneda</label>
+                  <label className="block text-xs text-slate-400 mb-1">Moneda</label>
                   <select
                     value={nuevoPago.moneda}
                     onChange={(e) => setNuevoPago({...nuevoPago, moneda: e.target.value, cotizacionDolar: ''})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
                   >
                     <option value="ARS">Pesos (ARS)</option>
                     <option value="USD">Dólares (USD)</option>
@@ -2772,104 +2792,71 @@ export default function App() {
               </div>
               {nuevoPago.moneda === 'USD' && (
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Cotización del dólar *</label>
+                  <label className="block text-xs text-slate-400 mb-1">Cotización dólar *</label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
                     <input
                       type="text"
                       inputMode="numeric"
                       required
-                      placeholder="Ej: 1200"
+                      placeholder="1200"
                       value={formatNumberInput(nuevoPago.cotizacionDolar)}
                       onChange={(e) => setNuevoPago({...nuevoPago, cotizacionDolar: parseNumberInput(e.target.value)})}
-                      className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                      className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                     />
                   </div>
                   {nuevoPago.monto && nuevoPago.cotizacionDolar && (
-                    <div className="mt-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-400">Equivalente en pesos:</span>
-                        <span className="mono text-emerald-400 font-medium">
-                          {formatCurrency((parseFloat(nuevoPago.monto) || 0) * (parseFloat(nuevoPago.cotizacionDolar) || 0))}
-                        </span>
-                      </div>
-                    </div>
+                    <p className="mt-1 text-xs text-emerald-400">= {formatCurrency((parseFloat(nuevoPago.monto) || 0) * (parseFloat(nuevoPago.cotizacionDolar) || 0))}</p>
                   )}
                 </div>
               )}
               {nuevoPago.concepto === 'ajuste_ipc' && !editingPagoId ? (
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Porcentaje IPC sobre saldo *</label>
-                  <div className="flex gap-3">
-                    <div className="relative flex-1">
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        required
-                        placeholder="Ej: 5"
-                        value={nuevoPago.porcentajeIPC || ''}
-                        onChange={(e) => {
-                          const pct = e.target.value;
-                          const montoCalculado = Math.round((selectedEventoPago?.saldo || 0) * (parseFloat(pct) || 0) / 100);
-                          setNuevoPago({...nuevoPago, porcentajeIPC: pct, monto: String(montoCalculado)});
-                        }}
-                        className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
-                      />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">%</span>
-                    </div>
+                  <label className="block text-xs text-slate-400 mb-1">% IPC sobre saldo *</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      required
+                      placeholder="5"
+                      value={nuevoPago.porcentajeIPC || ''}
+                      onChange={(e) => {
+                        const pct = e.target.value;
+                        const montoCalculado = Math.round((selectedEventoPago?.saldo || 0) * (parseFloat(pct) || 0) / 100);
+                        setNuevoPago({...nuevoPago, porcentajeIPC: pct, monto: String(montoCalculado)});
+                      }}
+                      className="w-full px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
                   </div>
-                  <div className="mt-2 p-3 rounded-lg bg-white/5 border border-white/10">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Saldo actual:</span>
-                      <span className="mono">{formatCurrency(selectedEventoPago?.saldo || 0)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm mt-1">
-                      <span className="text-slate-400">IPC calculado:</span>
-                      <span className="mono text-amber-400 font-medium">{formatCurrency(parseFloat(nuevoPago.monto) || 0)}</span>
-                    </div>
-                  </div>
+                  <p className="mt-1 text-xs text-amber-400">IPC: {formatCurrency(parseFloat(nuevoPago.monto) || 0)}</p>
                 </div>
               ) : (
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">{nuevoPago.concepto === 'ajuste_ipc' ? 'Monto IPC *' : 'Monto *'}</label>
+                  <label className="block text-xs text-slate-400 mb-1">{nuevoPago.concepto === 'ajuste_ipc' ? 'Monto IPC *' : 'Monto *'}</label>
                   <input
                     type="text"
                     inputMode="numeric"
                     required
-                    placeholder={nuevoPago.concepto === 'ajuste_ipc' ? 'Monto del IPC' : 'Monto del pago'}
+                    placeholder="Monto"
                     value={formatNumberInput(nuevoPago.monto)}
                     onChange={(e) => setNuevoPago({...nuevoPago, monto: parseNumberInput(e.target.value)})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Cobrado por *</label>
-                <select
-                  required
-                  value={nuevoPago.cobrador}
-                  onChange={(e) => setNuevoPago({...nuevoPago, cobrador: e.target.value})}
-                  className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
-                >
-                  <option value="" className="bg-slate-900">Seleccionar...</option>
-                  {COBRADORES.map(c => (
-                    <option key={c} value={c} className="bg-slate-900">{c}</option>
-                  ))}
-                </select>
-              </div>
-
               {editingPagoId && (
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Motivo de la modificación *</label>
+                  <label className="block text-xs text-slate-400 mb-1">Motivo modificación *</label>
                   <input
                     type="text"
                     required
                     placeholder="Ej: Corrección de monto"
                     value={motivoModificacion}
                     onChange={(e) => setMotivoModificacion(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
               )}
@@ -2877,10 +2864,10 @@ export default function App() {
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold hover:from-emerald-700 hover:to-teal-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-semibold hover:from-emerald-700 hover:to-teal-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-3"
               >
-                {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Receipt className="w-5 h-5" />}
-                {saving ? 'Guardando...' : (editingPagoId ? 'Actualizar Pago' : 'Registrar Pago')}
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Receipt className="w-4 h-4" />}
+                {saving ? 'Guardando...' : (editingPagoId ? 'Actualizar' : 'Registrar Pago')}
               </button>
             </form>
           </div>
