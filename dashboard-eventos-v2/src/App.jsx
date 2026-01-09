@@ -37,6 +37,7 @@ const MENUS = ['Tapas', 'Asado', '3 pasos', 'Premium', 'Brunch'];
 const TIPOS_MENU = ['Menu Tapeo', 'Menu Asado', 'Menu 3 Pasos', 'Menu Premium', 'Menu Brunch', 'Otro'];
 const TURNOS = ['Noche', 'M. Dia'];
 const SALONES = ['Tero', 'Cristal', 'Salentein'];
+const COBRADORES = ['Francisco', 'Rodrigo', 'Piru', 'Banco', 'Caja'];
 
 // Categorías por tipo de menú
 const CATEGORIAS_POR_MENU = {
@@ -185,9 +186,8 @@ export default function App() {
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [cajaDesbloqueada, setCajaDesbloqueada] = useState(false);
-  const [cajaIngresos, setCajaIngresos] = useState([]);
-  const [cajaEgresos, setCajaEgresos] = useState([]);
-  const [cajaRetiros, setCajaRetiros] = useState([]);
+  const [cajaMovimientos, setCajaMovimientos] = useState([]);
+  const [tipoCambio, setTipoCambio] = useState(1200);
 
   // Permisos según rol
   const canCreate = userRole === 'admin' || userRole === 'vendedor';
@@ -219,7 +219,7 @@ export default function App() {
   const [pagos, setPagos] = useState([]);
   const [showPagoModal, setShowPagoModal] = useState(false);
   const [selectedEventoPago, setSelectedEventoPago] = useState(null);
-  const [nuevoPago, setNuevoPago] = useState({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '' });
+  const [nuevoPago, setNuevoPago] = useState({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '' });
   const [editingPagoId, setEditingPagoId] = useState(null);
   const [auditoriaPagos, setAuditoriaPagos] = useState([]);
   const [auditoriaEventos, setAuditoriaEventos] = useState([]);
@@ -340,6 +340,7 @@ export default function App() {
       fetchMenus();
       fetchAuditoriaPagos();
       fetchAuditoriaEventos();
+      fetchCajaMovimientos();
       if (userRole === 'admin') {
         fetchUsuarios();
       }
@@ -388,7 +389,8 @@ export default function App() {
     const pagoData = {
       fecha: nuevoPago.fecha,
       monto: montoEnPesos,
-      concepto: nuevoPago.concepto
+      concepto: nuevoPago.concepto,
+      cobrador: nuevoPago.cobrador
     };
 
     // Solo agregar campos de moneda si es USD (para compatibilidad)
@@ -436,6 +438,22 @@ export default function App() {
           ...pagoData
         }]);
       error = result.error;
+
+      // Guardar en caja_movimientos
+      if (!error) {
+        supabase.from('caja_movimientos').insert({
+          tipo: 'ingreso',
+          concepto: selectedEventoPago.cliente,
+          monto_pesos: montoEnPesos,
+          monto_dolares: esUSD ? montoOriginal : null,
+          cotizacion: esUSD ? cotizacion : null,
+          persona: nuevoPago.cobrador,
+          fecha: nuevoPago.fecha,
+          evento_id: selectedEventoPago.id
+        }).then(({ error: cajaError }) => {
+          if (!cajaError) fetchCajaMovimientos();
+        });
+      }
     }
 
     if (error) {
@@ -443,7 +461,7 @@ export default function App() {
       alert(editingPagoId ? 'Error al actualizar el pago' : 'Error al registrar el pago');
     } else {
       setShowPagoModal(false);
-      setNuevoPago({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '' });
+      setNuevoPago({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '' });
       setSelectedEventoPago(null);
       setEditingPagoId(null);
       fetchPagos();
@@ -460,7 +478,8 @@ export default function App() {
       concepto: pago.concepto,
       moneda: pago.moneda || 'ARS',
       cotizacionDolar: pago.cotizacion_dolar ? String(pago.cotizacion_dolar) : '',
-      porcentajeIPC: ''
+      porcentajeIPC: '',
+      cobrador: pago.cobrador || ''
     });
     setShowPagoModal(true);
   };
@@ -521,6 +540,21 @@ export default function App() {
 
       if (!error && data) {
         setAuditoriaEventos(data);
+      }
+    } catch (e) {
+      // Tabla no existe todavía
+    }
+  };
+
+  const fetchCajaMovimientos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('caja_movimientos')
+        .select('*')
+        .order('fecha', { ascending: false });
+
+      if (!error && data) {
+        setCajaMovimientos(data);
       }
     } catch (e) {
       // Tabla no existe todavía
@@ -2779,6 +2813,21 @@ export default function App() {
                 </div>
               )}
 
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Cobrado por *</label>
+                <select
+                  required
+                  value={nuevoPago.cobrador}
+                  onChange={(e) => setNuevoPago({...nuevoPago, cobrador: e.target.value})}
+                  className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                >
+                  <option value="" className="bg-slate-900">Seleccionar...</option>
+                  {COBRADORES.map(c => (
+                    <option key={c} value={c} className="bg-slate-900">{c}</option>
+                  ))}
+                </select>
+              </div>
+
               {editingPagoId && (
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Motivo de la modificación *</label>
@@ -4239,144 +4288,234 @@ export default function App() {
         {/* CAJA */}
         {activeTab === 'caja' && cajaDesbloqueada && (
           <div className="space-y-6">
-            <h2 className="text-xl font-bold">Caja</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">Caja</h2>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-400">Tipo de cambio:</span>
+                  <input
+                    type="number"
+                    value={tipoCambio}
+                    onChange={(e) => setTipoCambio(parseFloat(e.target.value) || 0)}
+                    className="w-24 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                  />
+                </div>
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Ingresos */}
+              {/* INGRESOS */}
               <div className="glass rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-green-400">Ingresos</h3>
                   <button
-                    onClick={() => {
-                      const concepto = prompt('Concepto del ingreso:');
-                      if (!concepto) return;
-                      const monto = prompt('Monto:');
-                      if (!monto || isNaN(parseFloat(monto))) return;
-                      const nuevoIngreso = { id: Date.now(), concepto, monto: parseFloat(monto), fecha: new Date().toISOString().split('T')[0] };
-                      setCajaIngresos([...cajaIngresos, nuevoIngreso]);
+                    onClick={async () => {
+                      const clienteManual = prompt('Cliente (o descripción):');
+                      if (!clienteManual) return;
+                      const persona = prompt(`Cobrado por (${COBRADORES.join(', ')}):`);
+                      if (!persona || !COBRADORES.includes(persona)) {
+                        alert('Persona inválida');
+                        return;
+                      }
+                      const montoPesos = prompt('Monto en pesos (0 si no aplica):');
+                      const montoDolares = prompt('Monto en dólares (0 si no aplica):');
+                      const pesos = parseFloat(montoPesos) || 0;
+                      const dolares = parseFloat(montoDolares) || 0;
+                      if (pesos === 0 && dolares === 0) return;
+
+                      await supabase.from('caja_movimientos').insert({
+                        tipo: 'ingreso',
+                        concepto: clienteManual,
+                        monto_pesos: pesos + (dolares * tipoCambio),
+                        monto_dolares: dolares || null,
+                        cotizacion: dolares ? tipoCambio : null,
+                        persona: persona,
+                        fecha: new Date().toISOString().split('T')[0]
+                      });
+                      fetchCajaMovimientos();
                     }}
                     className="p-2 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {cajaIngresos.length === 0 ? (
+                <div className="space-y-2 max-h-80 overflow-y-auto">
+                  {cajaMovimientos.filter(m => m.tipo === 'ingreso').length === 0 ? (
                     <p className="text-slate-500 text-sm">Sin ingresos</p>
                   ) : (
-                    cajaIngresos.map(item => (
-                      <div key={item.id} className="flex items-center justify-between bg-white/5 rounded-lg p-3">
-                        <div>
+                    cajaMovimientos.filter(m => m.tipo === 'ingreso').map(item => (
+                      <div key={item.id} className="bg-white/5 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-1">
                           <p className="text-sm font-medium">{item.concepto}</p>
-                          <p className="text-xs text-slate-400">{item.fecha}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-green-400 font-semibold">${item.monto.toLocaleString()}</span>
                           <button
-                            onClick={() => setCajaIngresos(cajaIngresos.filter(i => i.id !== item.id))}
+                            onClick={async () => {
+                              if (confirm('¿Eliminar este ingreso?')) {
+                                await supabase.from('caja_movimientos').delete().eq('id', item.id);
+                                fetchCajaMovimientos();
+                              }
+                            }}
                             className="p-1 text-red-400 hover:text-red-300"
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>
                         </div>
+                        <div className="flex items-center justify-between text-xs text-slate-400">
+                          <span>{item.fecha} - {item.persona}</span>
+                        </div>
+                        <div className="flex gap-4 mt-2 text-sm">
+                          <span className="text-green-400">${(item.monto_pesos || 0).toLocaleString()}</span>
+                          {item.monto_dolares && (
+                            <span className="text-blue-400">USD {item.monto_dolares.toLocaleString()}</span>
+                          )}
+                        </div>
                       </div>
                     ))
                   )}
                 </div>
-                <div className="mt-4 pt-4 border-t border-white/10">
-                  <p className="text-sm text-slate-400">Total: <span className="text-green-400 font-bold">${cajaIngresos.reduce((sum, i) => sum + i.monto, 0).toLocaleString()}</span></p>
+                <div className="mt-4 pt-4 border-t border-white/10 space-y-1">
+                  <p className="text-sm text-slate-400">Total $: <span className="text-green-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'ingreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toLocaleString()}</span></p>
+                  <p className="text-sm text-slate-400">Total USD: <span className="text-blue-400 font-bold">{cajaMovimientos.filter(m => m.tipo === 'ingreso').reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toLocaleString()}</span></p>
                 </div>
               </div>
 
-              {/* Egresos */}
+              {/* EGRESOS */}
               <div className="glass rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-red-400">Egresos</h3>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       const concepto = prompt('Concepto del egreso:');
                       if (!concepto) return;
-                      const monto = prompt('Monto:');
-                      if (!monto || isNaN(parseFloat(monto))) return;
-                      const nuevoEgreso = { id: Date.now(), concepto, monto: parseFloat(monto), fecha: new Date().toISOString().split('T')[0] };
-                      setCajaEgresos([...cajaEgresos, nuevoEgreso]);
+                      const montoPesos = prompt('Monto en pesos (0 si no aplica):');
+                      const montoDolares = prompt('Monto en dólares (0 si no aplica):');
+                      const pesos = parseFloat(montoPesos) || 0;
+                      const dolares = parseFloat(montoDolares) || 0;
+                      if (pesos === 0 && dolares === 0) return;
+
+                      await supabase.from('caja_movimientos').insert({
+                        tipo: 'egreso',
+                        concepto: concepto,
+                        monto_pesos: pesos + (dolares * tipoCambio),
+                        monto_dolares: dolares || null,
+                        cotizacion: dolares ? tipoCambio : null,
+                        persona: null,
+                        fecha: new Date().toISOString().split('T')[0]
+                      });
+                      fetchCajaMovimientos();
                     }}
                     className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {cajaEgresos.length === 0 ? (
+                <div className="space-y-2 max-h-80 overflow-y-auto">
+                  {cajaMovimientos.filter(m => m.tipo === 'egreso').length === 0 ? (
                     <p className="text-slate-500 text-sm">Sin egresos</p>
                   ) : (
-                    cajaEgresos.map(item => (
-                      <div key={item.id} className="flex items-center justify-between bg-white/5 rounded-lg p-3">
-                        <div>
+                    cajaMovimientos.filter(m => m.tipo === 'egreso').map(item => (
+                      <div key={item.id} className="bg-white/5 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-1">
                           <p className="text-sm font-medium">{item.concepto}</p>
-                          <p className="text-xs text-slate-400">{item.fecha}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-red-400 font-semibold">${item.monto.toLocaleString()}</span>
                           <button
-                            onClick={() => setCajaEgresos(cajaEgresos.filter(i => i.id !== item.id))}
+                            onClick={async () => {
+                              if (confirm('¿Eliminar este egreso?')) {
+                                await supabase.from('caja_movimientos').delete().eq('id', item.id);
+                                fetchCajaMovimientos();
+                              }
+                            }}
                             className="p-1 text-red-400 hover:text-red-300"
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>
                         </div>
+                        <div className="text-xs text-slate-400">{item.fecha}</div>
+                        <div className="flex gap-4 mt-2 text-sm">
+                          <span className="text-red-400">${(item.monto_pesos || 0).toLocaleString()}</span>
+                          {item.monto_dolares && (
+                            <span className="text-blue-400">USD {item.monto_dolares.toLocaleString()}</span>
+                          )}
+                        </div>
                       </div>
                     ))
                   )}
                 </div>
-                <div className="mt-4 pt-4 border-t border-white/10">
-                  <p className="text-sm text-slate-400">Total: <span className="text-red-400 font-bold">${cajaEgresos.reduce((sum, i) => sum + i.monto, 0).toLocaleString()}</span></p>
+                <div className="mt-4 pt-4 border-t border-white/10 space-y-1">
+                  <p className="text-sm text-slate-400">Total $: <span className="text-red-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'egreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toLocaleString()}</span></p>
+                  <p className="text-sm text-slate-400">Total USD: <span className="text-blue-400 font-bold">{cajaMovimientos.filter(m => m.tipo === 'egreso').reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toLocaleString()}</span></p>
                 </div>
               </div>
 
-              {/* Retiros */}
+              {/* RETIROS */}
               <div className="glass rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-yellow-400">Retiros</h3>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
+                      const persona = prompt(`Persona que retira (${COBRADORES.join(', ')}):`);
+                      if (!persona || !COBRADORES.includes(persona)) {
+                        alert('Persona inválida');
+                        return;
+                      }
                       const concepto = prompt('Concepto del retiro:');
                       if (!concepto) return;
-                      const monto = prompt('Monto:');
-                      if (!monto || isNaN(parseFloat(monto))) return;
-                      const nuevoRetiro = { id: Date.now(), concepto, monto: parseFloat(monto), fecha: new Date().toISOString().split('T')[0] };
-                      setCajaRetiros([...cajaRetiros, nuevoRetiro]);
+                      const montoPesos = prompt('Monto en pesos (0 si no aplica):');
+                      const montoDolares = prompt('Monto en dólares (0 si no aplica):');
+                      const pesos = parseFloat(montoPesos) || 0;
+                      const dolares = parseFloat(montoDolares) || 0;
+                      if (pesos === 0 && dolares === 0) return;
+
+                      await supabase.from('caja_movimientos').insert({
+                        tipo: 'retiro',
+                        concepto: concepto,
+                        monto_pesos: pesos + (dolares * tipoCambio),
+                        monto_dolares: dolares || null,
+                        cotizacion: dolares ? tipoCambio : null,
+                        persona: persona,
+                        fecha: new Date().toISOString().split('T')[0]
+                      });
+                      fetchCajaMovimientos();
                     }}
                     className="p-2 rounded-lg bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 transition-colors"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {cajaRetiros.length === 0 ? (
+                <div className="space-y-2 max-h-80 overflow-y-auto">
+                  {cajaMovimientos.filter(m => m.tipo === 'retiro').length === 0 ? (
                     <p className="text-slate-500 text-sm">Sin retiros</p>
                   ) : (
-                    cajaRetiros.map(item => (
-                      <div key={item.id} className="flex items-center justify-between bg-white/5 rounded-lg p-3">
-                        <div>
+                    cajaMovimientos.filter(m => m.tipo === 'retiro').map(item => (
+                      <div key={item.id} className="bg-white/5 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-1">
                           <p className="text-sm font-medium">{item.concepto}</p>
-                          <p className="text-xs text-slate-400">{item.fecha}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-yellow-400 font-semibold">${item.monto.toLocaleString()}</span>
                           <button
-                            onClick={() => setCajaRetiros(cajaRetiros.filter(i => i.id !== item.id))}
+                            onClick={async () => {
+                              if (confirm('¿Eliminar este retiro?')) {
+                                await supabase.from('caja_movimientos').delete().eq('id', item.id);
+                                fetchCajaMovimientos();
+                              }
+                            }}
                             className="p-1 text-red-400 hover:text-red-300"
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>
                         </div>
+                        <div className="flex items-center justify-between text-xs text-slate-400">
+                          <span>{item.fecha} - {item.persona}</span>
+                        </div>
+                        <div className="flex gap-4 mt-2 text-sm">
+                          <span className="text-yellow-400">${(item.monto_pesos || 0).toLocaleString()}</span>
+                          {item.monto_dolares && (
+                            <span className="text-blue-400">USD {item.monto_dolares.toLocaleString()}</span>
+                          )}
+                        </div>
                       </div>
                     ))
                   )}
                 </div>
-                <div className="mt-4 pt-4 border-t border-white/10">
-                  <p className="text-sm text-slate-400">Total: <span className="text-yellow-400 font-bold">${cajaRetiros.reduce((sum, i) => sum + i.monto, 0).toLocaleString()}</span></p>
+                <div className="mt-4 pt-4 border-t border-white/10 space-y-1">
+                  <p className="text-sm text-slate-400">Total $: <span className="text-yellow-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toLocaleString()}</span></p>
+                  <p className="text-sm text-slate-400">Total USD: <span className="text-blue-400 font-bold">{cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toLocaleString()}</span></p>
                 </div>
               </div>
             </div>
@@ -4384,24 +4523,45 @@ export default function App() {
             {/* Resumen */}
             <div className="glass rounded-2xl p-6">
               <h3 className="text-lg font-semibold mb-4">Resumen de Caja</h3>
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center">
                   <p className="text-sm text-slate-400">Ingresos</p>
-                  <p className="text-xl font-bold text-green-400">${cajaIngresos.reduce((sum, i) => sum + i.monto, 0).toLocaleString()}</p>
+                  <p className="text-xl font-bold text-green-400">${cajaMovimientos.filter(m => m.tipo === 'ingreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toLocaleString()}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-sm text-slate-400">Egresos</p>
-                  <p className="text-xl font-bold text-red-400">${cajaEgresos.reduce((sum, i) => sum + i.monto, 0).toLocaleString()}</p>
+                  <p className="text-xl font-bold text-red-400">${cajaMovimientos.filter(m => m.tipo === 'egreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toLocaleString()}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-sm text-slate-400">Retiros</p>
-                  <p className="text-xl font-bold text-yellow-400">${cajaRetiros.reduce((sum, i) => sum + i.monto, 0).toLocaleString()}</p>
+                  <p className="text-xl font-bold text-yellow-400">${cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toLocaleString()}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-sm text-slate-400">Saldo</p>
-                  <p className={`text-xl font-bold ${(cajaIngresos.reduce((sum, i) => sum + i.monto, 0) - cajaEgresos.reduce((sum, i) => sum + i.monto, 0) - cajaRetiros.reduce((sum, i) => sum + i.monto, 0)) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    ${(cajaIngresos.reduce((sum, i) => sum + i.monto, 0) - cajaEgresos.reduce((sum, i) => sum + i.monto, 0) - cajaRetiros.reduce((sum, i) => sum + i.monto, 0)).toLocaleString()}
-                  </p>
+                  {(() => {
+                    const ingresos = cajaMovimientos.filter(m => m.tipo === 'ingreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
+                    const egresos = cajaMovimientos.filter(m => m.tipo === 'egreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
+                    const retiros = cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
+                    const saldo = ingresos - egresos - retiros;
+                    return <p className={`text-xl font-bold ${saldo >= 0 ? 'text-green-400' : 'text-red-400'}`}>${saldo.toLocaleString()}</p>;
+                  })()}
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-white/10">
+                <h4 className="text-sm font-semibold text-slate-300 mb-2">Dólares en caja</h4>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="text-slate-400">Ingresaron: </span>
+                    <span className="text-blue-400 font-semibold">USD {cajaMovimientos.filter(m => m.tipo === 'ingreso').reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Salieron: </span>
+                    <span className="text-blue-400 font-semibold">USD {(cajaMovimientos.filter(m => m.tipo === 'egreso').reduce((sum, i) => sum + (i.monto_dolares || 0), 0) + cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_dolares || 0), 0)).toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Saldo USD: </span>
+                    <span className="text-blue-400 font-bold">USD {(cajaMovimientos.filter(m => m.tipo === 'ingreso').reduce((sum, i) => sum + (i.monto_dolares || 0), 0) - cajaMovimientos.filter(m => m.tipo === 'egreso').reduce((sum, i) => sum + (i.monto_dolares || 0), 0) - cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_dolares || 0), 0)).toLocaleString()}</span>
+                  </div>
                 </div>
               </div>
             </div>
