@@ -589,6 +589,35 @@ export default function App() {
     }
   };
 
+  const handleRegenerarEvento = async (registro) => {
+    // Buscar el evento anulado por cliente y fecha
+    const eventoAnulado = eventos.find(e =>
+      e.cliente === registro.cliente &&
+      e.fecha === registro.fecha_evento &&
+      e.anulado === true
+    );
+
+    if (!eventoAnulado) {
+      alert('No se encontró el evento para regenerar');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('eventos')
+      .update({ anulado: false, confirmado: false })
+      .eq('id', eventoAnulado.id);
+
+    if (error) {
+      alert('Error al regenerar el evento');
+    } else {
+      // Eliminar de auditoría
+      await supabase.from('auditoria_eventos').delete().eq('id', registro.id);
+      fetchEventos();
+      fetchAuditoriaEventos();
+      alert('Evento regenerado. Ahora está en "A Confirmar"');
+    }
+  };
+
   // Funciones para gestión de usuarios
   const fetchUsuarios = async () => {
     const { data, error } = await supabase
@@ -4108,6 +4137,12 @@ export default function App() {
                             <span className="font-medium">Usuario:</span> {registro.usuario}
                           </p>
                         </div>
+                        <button
+                          onClick={() => handleRegenerarEvento(registro)}
+                          className="mt-3 px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 text-sm font-medium hover:bg-emerald-500/30 transition-all border border-emerald-500/30"
+                        >
+                          Regenerar Evento
+                        </button>
                       </div>
                     ))}
                   </div>
