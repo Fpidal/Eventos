@@ -185,6 +185,9 @@ export default function App() {
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [cajaDesbloqueada, setCajaDesbloqueada] = useState(false);
+  const [cajaIngresos, setCajaIngresos] = useState([]);
+  const [cajaEgresos, setCajaEgresos] = useState([]);
+  const [cajaRetiros, setCajaRetiros] = useState([]);
 
   // Permisos según rol
   const canCreate = userRole === 'admin' || userRole === 'vendedor';
@@ -4237,8 +4240,170 @@ export default function App() {
         {activeTab === 'caja' && cajaDesbloqueada && (
           <div className="space-y-6">
             <h2 className="text-xl font-bold">Caja</h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Ingresos */}
+              <div className="glass rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-green-400">Ingresos</h3>
+                  <button
+                    onClick={() => {
+                      const concepto = prompt('Concepto del ingreso:');
+                      if (!concepto) return;
+                      const monto = prompt('Monto:');
+                      if (!monto || isNaN(parseFloat(monto))) return;
+                      const nuevoIngreso = { id: Date.now(), concepto, monto: parseFloat(monto), fecha: new Date().toISOString().split('T')[0] };
+                      setCajaIngresos([...cajaIngresos, nuevoIngreso]);
+                    }}
+                    className="p-2 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {cajaIngresos.length === 0 ? (
+                    <p className="text-slate-500 text-sm">Sin ingresos</p>
+                  ) : (
+                    cajaIngresos.map(item => (
+                      <div key={item.id} className="flex items-center justify-between bg-white/5 rounded-lg p-3">
+                        <div>
+                          <p className="text-sm font-medium">{item.concepto}</p>
+                          <p className="text-xs text-slate-400">{item.fecha}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-green-400 font-semibold">${item.monto.toLocaleString()}</span>
+                          <button
+                            onClick={() => setCajaIngresos(cajaIngresos.filter(i => i.id !== item.id))}
+                            className="p-1 text-red-400 hover:text-red-300"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <p className="text-sm text-slate-400">Total: <span className="text-green-400 font-bold">${cajaIngresos.reduce((sum, i) => sum + i.monto, 0).toLocaleString()}</span></p>
+                </div>
+              </div>
+
+              {/* Egresos */}
+              <div className="glass rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-red-400">Egresos</h3>
+                  <button
+                    onClick={() => {
+                      const concepto = prompt('Concepto del egreso:');
+                      if (!concepto) return;
+                      const monto = prompt('Monto:');
+                      if (!monto || isNaN(parseFloat(monto))) return;
+                      const nuevoEgreso = { id: Date.now(), concepto, monto: parseFloat(monto), fecha: new Date().toISOString().split('T')[0] };
+                      setCajaEgresos([...cajaEgresos, nuevoEgreso]);
+                    }}
+                    className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {cajaEgresos.length === 0 ? (
+                    <p className="text-slate-500 text-sm">Sin egresos</p>
+                  ) : (
+                    cajaEgresos.map(item => (
+                      <div key={item.id} className="flex items-center justify-between bg-white/5 rounded-lg p-3">
+                        <div>
+                          <p className="text-sm font-medium">{item.concepto}</p>
+                          <p className="text-xs text-slate-400">{item.fecha}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-red-400 font-semibold">${item.monto.toLocaleString()}</span>
+                          <button
+                            onClick={() => setCajaEgresos(cajaEgresos.filter(i => i.id !== item.id))}
+                            className="p-1 text-red-400 hover:text-red-300"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <p className="text-sm text-slate-400">Total: <span className="text-red-400 font-bold">${cajaEgresos.reduce((sum, i) => sum + i.monto, 0).toLocaleString()}</span></p>
+                </div>
+              </div>
+
+              {/* Retiros */}
+              <div className="glass rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-yellow-400">Retiros</h3>
+                  <button
+                    onClick={() => {
+                      const concepto = prompt('Concepto del retiro:');
+                      if (!concepto) return;
+                      const monto = prompt('Monto:');
+                      if (!monto || isNaN(parseFloat(monto))) return;
+                      const nuevoRetiro = { id: Date.now(), concepto, monto: parseFloat(monto), fecha: new Date().toISOString().split('T')[0] };
+                      setCajaRetiros([...cajaRetiros, nuevoRetiro]);
+                    }}
+                    className="p-2 rounded-lg bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {cajaRetiros.length === 0 ? (
+                    <p className="text-slate-500 text-sm">Sin retiros</p>
+                  ) : (
+                    cajaRetiros.map(item => (
+                      <div key={item.id} className="flex items-center justify-between bg-white/5 rounded-lg p-3">
+                        <div>
+                          <p className="text-sm font-medium">{item.concepto}</p>
+                          <p className="text-xs text-slate-400">{item.fecha}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-yellow-400 font-semibold">${item.monto.toLocaleString()}</span>
+                          <button
+                            onClick={() => setCajaRetiros(cajaRetiros.filter(i => i.id !== item.id))}
+                            className="p-1 text-red-400 hover:text-red-300"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <p className="text-sm text-slate-400">Total: <span className="text-yellow-400 font-bold">${cajaRetiros.reduce((sum, i) => sum + i.monto, 0).toLocaleString()}</span></p>
+                </div>
+              </div>
+            </div>
+
+            {/* Resumen */}
             <div className="glass rounded-2xl p-6">
-              <p className="text-slate-400">Sección de Caja - En construcción</p>
+              <h3 className="text-lg font-semibold mb-4">Resumen de Caja</h3>
+              <div className="grid grid-cols-4 gap-4">
+                <div className="text-center">
+                  <p className="text-sm text-slate-400">Ingresos</p>
+                  <p className="text-xl font-bold text-green-400">${cajaIngresos.reduce((sum, i) => sum + i.monto, 0).toLocaleString()}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-slate-400">Egresos</p>
+                  <p className="text-xl font-bold text-red-400">${cajaEgresos.reduce((sum, i) => sum + i.monto, 0).toLocaleString()}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-slate-400">Retiros</p>
+                  <p className="text-xl font-bold text-yellow-400">${cajaRetiros.reduce((sum, i) => sum + i.monto, 0).toLocaleString()}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-slate-400">Saldo</p>
+                  <p className={`text-xl font-bold ${(cajaIngresos.reduce((sum, i) => sum + i.monto, 0) - cajaEgresos.reduce((sum, i) => sum + i.monto, 0) - cajaRetiros.reduce((sum, i) => sum + i.monto, 0)) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    ${(cajaIngresos.reduce((sum, i) => sum + i.monto, 0) - cajaEgresos.reduce((sum, i) => sum + i.monto, 0) - cajaRetiros.reduce((sum, i) => sum + i.monto, 0)).toLocaleString()}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         )}
