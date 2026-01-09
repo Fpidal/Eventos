@@ -539,28 +539,40 @@ export default function App() {
   };
 
   const handleAnularEvento = async (evento) => {
-    const motivo = prompt('Motivo de la anulación del evento:');
-    if (!motivo) {
-      console.log('Anulación cancelada - sin motivo');
+    // Verificar si tiene pagos
+    const pagosDelEvento = pagos.filter(p => p.evento_id === evento.id);
+    if (pagosDelEvento.length > 0) {
+      alert(`No se puede anular este evento porque tiene ${pagosDelEvento.length} pago(s) registrado(s).\n\nPrimero debe anular los pagos en Cobranzas → Detalle de Pagos.`);
       return;
     }
 
-    console.log('Anulando evento:', evento.id, 'Motivo:', motivo);
+    // Verificar si es evento realizado (pasado)
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const fechaEvento = new Date(evento.fecha + 'T12:00:00');
+    if (fechaEvento < hoy) {
+      const clave = prompt('Este evento ya fue realizado. Ingrese la clave para anular:');
+      if (clave !== 'admin1234') {
+        alert('Clave incorrecta');
+        return;
+      }
+    }
+
+    const motivo = prompt('Motivo de la anulación del evento:');
+    if (!motivo) {
+      return;
+    }
 
     // Marcar evento como anulado
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('eventos')
       .update({ anulado: true })
-      .eq('id', evento.id)
-      .select();
-
-    console.log('Resultado update:', { data, error });
+      .eq('id', evento.id);
 
     if (error) {
       console.error('Error al anular:', error);
       alert('Error al anular el evento: ' + error.message);
     } else {
-      console.log('Evento anulado correctamente');
       fetchEventos();
       setSelectedEvento(null);
       // Guardar auditoría
@@ -572,7 +584,6 @@ export default function App() {
         motivo: motivo,
         usuario: user?.email || 'Sistema'
       }).then(({ error: auditError }) => {
-        console.log('Auditoría evento:', auditError ? auditError.message : 'OK');
         if (!auditError) fetchAuditoriaEventos();
       });
     }
