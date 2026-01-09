@@ -186,6 +186,7 @@ export default function App() {
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [cajaDesbloqueada, setCajaDesbloqueada] = useState(false);
+  const [cajaDesbloqueoTime, setCajaDesbloqueoTime] = useState(null);
   const [cajaMovimientos, setCajaMovimientos] = useState([]);
   const [tipoCambio, setTipoCambio] = useState(1200);
 
@@ -2934,15 +2935,22 @@ export default function App() {
               key={tab.id}
               onClick={() => {
                 if (tab.id === 'caja') {
-                  const clave = prompt('Ingrese la clave para acceder a Caja:');
-                  if (clave === '1970') {
-                    setCajaDesbloqueada(true);
+                  // Verificar si la caja está desbloqueada y no pasaron 5 minutos
+                  const ahora = Date.now();
+                  const cincoMinutos = 5 * 60 * 1000;
+                  if (cajaDesbloqueada && cajaDesbloqueoTime && (ahora - cajaDesbloqueoTime) < cincoMinutos) {
                     setActiveTab('caja');
-                  } else if (clave !== null) {
-                    alert('Clave incorrecta');
+                  } else {
+                    const clave = prompt('Ingrese la clave para acceder a Caja:');
+                    if (clave === '1970') {
+                      setCajaDesbloqueada(true);
+                      setCajaDesbloqueoTime(Date.now());
+                      setActiveTab('caja');
+                    } else if (clave !== null) {
+                      alert('Clave incorrecta');
+                    }
                   }
                 } else {
-                  setCajaDesbloqueada(false);
                   setActiveTab(tab.id);
                 }
               }}
