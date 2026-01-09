@@ -192,9 +192,11 @@ export default function App() {
   const [cajaTab, setCajaTab] = useState('ingresos');
   const [showCajaIngresoForm, setShowCajaIngresoForm] = useState(false);
   const [showCajaEgresoForm, setShowCajaEgresoForm] = useState(false);
-  const [cajaIngresoForm, setCajaIngresoForm] = useState({ concepto: '', monto_pesos: '', monto_dolares: '', persona: '' });
-  const [cajaEgresoForm, setCajaEgresoForm] = useState({ concepto: '', monto_pesos: '', observacion: '' });
-  const CONCEPTOS_EGRESO = ['R. Rodrigo', 'R. Piru', 'R. Francisco', 'A Caja', 'Otros pagos'];
+  const [cajaIngresoForm, setCajaIngresoForm] = useState({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
+  const [cajaEgresoForm, setCajaEgresoForm] = useState({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', observacion: '' });
+  const CONCEPTOS_INGRESO = ['Evento', 'Vta directa', 'Caja', 'Banco', 'Otros'];
+  const CONCEPTOS_EGRESO = ['R. Socios', 'Pagos extras', 'Aporte', 'Otros'];
+  const RECEPTORES_EGRESO = ['Rodrigo', 'Francisco', 'Piru', 'Caja', 'Otros'];
   const SOCIOS = ['Rodrigo', 'Piru', 'Francisco'];
 
   // Permisos según rol
@@ -4423,38 +4425,49 @@ export default function App() {
                     e.preventDefault();
                     const pesos = parseFloat(cajaIngresoForm.monto_pesos) || 0;
                     const dolares = parseFloat(cajaIngresoForm.monto_dolares) || 0;
+                    const tc = parseFloat(cajaIngresoForm.cotizacion) || tipoCambio;
                     if (pesos === 0 && dolares === 0) { alert('Ingrese un monto'); return; }
-                    if (!cajaIngresoForm.concepto) { alert('Ingrese un concepto'); return; }
-                    if (!cajaIngresoForm.persona) { alert('Seleccione cobrador'); return; }
+                    if (!cajaIngresoForm.concepto) { alert('Seleccione un concepto'); return; }
+                    if (!cajaIngresoForm.receptor) { alert('Seleccione quién recibe'); return; }
                     await supabase.from('caja_movimientos').insert({
                       tipo: 'ingreso',
                       concepto: cajaIngresoForm.concepto,
-                      monto_pesos: pesos + (dolares * tipoCambio),
+                      monto_pesos: pesos + (dolares * tc),
                       monto_dolares: dolares || null,
-                      cotizacion: dolares ? tipoCambio : null,
-                      persona: cajaIngresoForm.persona,
-                      fecha: new Date().toISOString().split('T')[0]
+                      cotizacion: dolares ? tc : null,
+                      persona: cajaIngresoForm.receptor,
+                      fecha: cajaIngresoForm.fecha
                     });
-                    setCajaIngresoForm({ concepto: '', monto_pesos: '', monto_dolares: '', persona: '' });
+                    setCajaIngresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
                     setShowCajaIngresoForm(false);
                     fetchCajaMovimientos();
                   }} className="mb-4 p-4 bg-green-500/10 rounded-xl border border-green-500/30 space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-3 gap-3">
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1">Concepto/Cliente *</label>
+                        <label className="block text-xs text-slate-400 mb-1">Fecha *</label>
                         <input
-                          type="text"
-                          value={cajaIngresoForm.concepto}
-                          onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, concepto: e.target.value})}
+                          type="date"
+                          value={cajaIngresoForm.fecha}
+                          onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, fecha: e.target.value})}
                           className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
-                          placeholder="Descripción del ingreso"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1">Cobrado por *</label>
+                        <label className="block text-xs text-slate-400 mb-1">Concepto *</label>
                         <select
-                          value={cajaIngresoForm.persona}
-                          onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, persona: e.target.value})}
+                          value={cajaIngresoForm.concepto}
+                          onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, concepto: e.target.value})}
+                          className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                        >
+                          <option value="">Seleccionar...</option>
+                          {CONCEPTOS_INGRESO.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Quién recibe *</label>
+                        <select
+                          value={cajaIngresoForm.receptor}
+                          onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, receptor: e.target.value})}
                           className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
                         >
                           <option value="">Seleccionar...</option>
@@ -4462,7 +4475,7 @@ export default function App() {
                         </select>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Monto Pesos</label>
                         <input
@@ -4481,6 +4494,16 @@ export default function App() {
                           onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, monto_dolares: e.target.value})}
                           className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
                           placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Tipo Cambio {cajaIngresoForm.monto_dolares ? '*' : ''}</label>
+                        <input
+                          type="number"
+                          value={cajaIngresoForm.cotizacion}
+                          onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, cotizacion: e.target.value})}
+                          className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                          placeholder={tipoCambio.toString()}
                         />
                       </div>
                     </div>
@@ -4553,10 +4576,10 @@ export default function App() {
                     const pesos = parseFloat(cajaEgresoForm.monto_pesos) || 0;
                     if (pesos === 0) { alert('Ingrese un monto'); return; }
                     if (!cajaEgresoForm.concepto) { alert('Seleccione un concepto'); return; }
+                    if (!cajaEgresoForm.receptor) { alert('Seleccione quién recibe'); return; }
 
-                    // Si es retiro de socio (R. Rodrigo, R. Piru, R. Francisco)
-                    const esRetiro = cajaEgresoForm.concepto.startsWith('R. ');
-                    const socio = esRetiro ? cajaEgresoForm.concepto.replace('R. ', '') : null;
+                    // Si es retiro de socio (concepto R. Socios y receptor es socio)
+                    const esRetiro = cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor);
 
                     await supabase.from('caja_movimientos').insert({
                       tipo: esRetiro ? 'retiro' : 'egreso',
@@ -4564,14 +4587,23 @@ export default function App() {
                       monto_pesos: pesos,
                       monto_dolares: esRetiro ? (pesos / tipoCambio) : null,
                       cotizacion: esRetiro ? tipoCambio : null,
-                      persona: socio,
-                      fecha: new Date().toISOString().split('T')[0]
+                      persona: cajaEgresoForm.receptor,
+                      fecha: cajaEgresoForm.fecha
                     });
-                    setCajaEgresoForm({ concepto: '', monto_pesos: '', observacion: '' });
+                    setCajaEgresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', observacion: '' });
                     setShowCajaEgresoForm(false);
                     fetchCajaMovimientos();
                   }} className="mb-4 p-4 bg-red-500/10 rounded-xl border border-red-500/30 space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Fecha *</label>
+                        <input
+                          type="date"
+                          value={cajaEgresoForm.fecha}
+                          onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, fecha: e.target.value})}
+                          className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                        />
+                      </div>
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Concepto *</label>
                         <select
@@ -4582,10 +4614,23 @@ export default function App() {
                           <option value="">Seleccionar...</option>
                           {CONCEPTOS_EGRESO.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
-                        {cajaEgresoForm.concepto.startsWith('R. ') && (
-                          <p className="text-xs text-yellow-400 mt-1">→ Irá a la pestaña Retiros</p>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Quién recibe *</label>
+                        <select
+                          value={cajaEgresoForm.receptor}
+                          onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, receptor: e.target.value})}
+                          className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                        >
+                          <option value="">Seleccionar...</option>
+                          {RECEPTORES_EGRESO.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        {cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) && (
+                          <p className="text-xs text-yellow-400 mt-1">→ Irá a Retiros</p>
                         )}
                       </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Monto Pesos *</label>
                         <input
@@ -4595,24 +4640,24 @@ export default function App() {
                           className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
                           placeholder="0"
                         />
-                        {cajaEgresoForm.concepto.startsWith('R. ') && cajaEgresoForm.monto_pesos && (
+                        {cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) && cajaEgresoForm.monto_pesos && (
                           <p className="text-xs text-blue-400 mt-1">≈ USD {(parseFloat(cajaEgresoForm.monto_pesos) / tipoCambio).toFixed(2)}</p>
                         )}
                       </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-slate-400 mb-1">Observación</label>
-                      <input
-                        type="text"
-                        value={cajaEgresoForm.observacion}
-                        onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, observacion: e.target.value})}
-                        className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
-                        placeholder="Detalle opcional"
-                      />
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Observación</label>
+                        <input
+                          type="text"
+                          value={cajaEgresoForm.observacion}
+                          onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, observacion: e.target.value})}
+                          className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                          placeholder="Detalle opcional"
+                        />
+                      </div>
                     </div>
                     <div className="flex justify-end">
-                      <button type="submit" className={`px-4 py-2 rounded-lg text-white text-sm font-medium ${cajaEgresoForm.concepto.startsWith('R. ') ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-red-500 hover:bg-red-600'}`}>
-                        {cajaEgresoForm.concepto.startsWith('R. ') ? 'Guardar Retiro' : 'Guardar Egreso'}
+                      <button type="submit" className={`px-4 py-2 rounded-lg text-white text-sm font-medium ${cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-red-500 hover:bg-red-600'}`}>
+                        {cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) ? 'Guardar Retiro' : 'Guardar Egreso'}
                       </button>
                     </div>
                   </form>
