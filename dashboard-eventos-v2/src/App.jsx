@@ -189,20 +189,22 @@ export default function App() {
   const [cajaDesbloqueoTime, setCajaDesbloqueoTime] = useState(null);
   const [cajaMovimientos, setCajaMovimientos] = useState([]);
   const [tipoCambio, setTipoCambio] = useState(1200);
+  const [tcLoading, setTcLoading] = useState(false);
   const [cajaTab, setCajaTab] = useState('ingresos');
   const [showCajaIngresoForm, setShowCajaIngresoForm] = useState(false);
   const [showCajaEgresoForm, setShowCajaEgresoForm] = useState(false);
   const [editingCajaIngreso, setEditingCajaIngreso] = useState(null);
   const [editingCajaEgreso, setEditingCajaEgreso] = useState(null);
-  const [cajaIngresoForm, setCajaIngresoForm] = useState({ fecha: new Date().toISOString().split('T')[0], origen: '', descripcion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
-  const [cajaEgresoForm, setCajaEgresoForm] = useState({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
+  const [cajaIngresoForm, setCajaIngresoForm] = useState({ fecha: new Date().toISOString().split('T')[0], origen: '', observacion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
+  const [cajaEgresoForm, setCajaEgresoForm] = useState({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', aportante: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
   const [showTransferenciaForm, setShowTransferenciaForm] = useState(false);
   const [transferenciaForm, setTransferenciaForm] = useState({ fecha: new Date().toISOString().split('T')[0], origen: '', destino: '', monto_pesos: '', observacion: '' });
+  const [editingTransferencia, setEditingTransferencia] = useState(null); // { ingresoId, egresoId }
   const CONCEPTOS_INGRESO = ['Evento', 'Vta directa', 'Caja', 'Banco', 'Otros'];
   const CONCEPTOS_EGRESO = ['R. Socios', 'Pagos extras', 'Aporte', 'Otros'];
   const RECEPTORES_EGRESO = ['Rodrigo', 'Francisco', 'Piru', 'Caja', 'Otros'];
   const SOCIOS = ['Rodrigo', 'Piru', 'Francisco'];
-  const CAJAS = ['Rodrigo', 'Francisco', 'Piru', 'Banco'];
+  const CAJAS = ['Francisco', 'Rodrigo', 'Alejandro', 'Banco', 'Caja'];
 
   // Permisos según rol
   const canCreate = userRole === 'admin' || userRole === 'vendedor';
@@ -356,6 +358,7 @@ export default function App() {
       fetchAuditoriaPagos();
       fetchAuditoriaEventos();
       fetchCajaMovimientos();
+      fetchTipoCambio();
       if (userRole === 'admin') {
         fetchUsuarios();
       }
@@ -574,6 +577,34 @@ export default function App() {
     } catch (e) {
       // Tabla no existe todavía
     }
+  };
+
+  // Obtener tipo de cambio del dólar blue (intenta varias fuentes)
+  const fetchTipoCambio = async () => {
+    setTcLoading(true);
+    try {
+      // Primero intenta con DolarAPI
+      const response = await fetch('https://dolarapi.com/v1/dolares/blue');
+      const data = await response.json();
+      if (data && data.venta) {
+        setTipoCambio(data.venta);
+        setTcLoading(false);
+        return;
+      }
+    } catch (e) {
+      console.log('DolarAPI no disponible, intentando Bluelytics...');
+    }
+    try {
+      // Fallback a Bluelytics
+      const response = await fetch('https://api.bluelytics.com.ar/v2/latest');
+      const data = await response.json();
+      if (data && data.blue && data.blue.value_sell) {
+        setTipoCambio(data.blue.value_sell);
+      }
+    } catch (e) {
+      console.log('No se pudo obtener TC, usando valor por defecto');
+    }
+    setTcLoading(false);
   };
 
   const handleConfirmarEvento = async (evento, confirmar = true) => {
@@ -2806,14 +2837,23 @@ export default function App() {
               </div>
               {nuevoPago.moneda === 'USD' && (
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Cotización dólar *</label>
+                  <label className="block text-xs text-slate-400 mb-1 flex items-center justify-between">
+                    <span>Cotización dólar *</span>
+                    <button
+                      type="button"
+                      onClick={() => setNuevoPago({...nuevoPago, cotizacionDolar: tipoCambio.toString()})}
+                      className="text-blue-400 hover:text-blue-300 text-xs"
+                    >
+                      Usar TC Blue (${tipoCambio})
+                    </button>
+                  </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
                     <input
                       type="text"
                       inputMode="numeric"
                       required
-                      placeholder="1200"
+                      placeholder={tipoCambio.toString()}
                       value={formatNumberInput(nuevoPago.cotizacionDolar)}
                       onChange={(e) => setNuevoPago({...nuevoPago, cotizacionDolar: parseNumberInput(e.target.value)})}
                       className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
@@ -3775,7 +3815,7 @@ export default function App() {
         {activeTab === 'cobranzas' && (
           <div className="space-y-6">
             {/* Stats de Cobranzas */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="glass rounded-2xl p-5 glow">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="p-2.5 rounded-xl bg-indigo-500/20">
@@ -3811,6 +3851,28 @@ export default function App() {
                   <span className="text-sm text-slate-400">Eventos con saldo</span>
                 </div>
                 <p className="text-2xl font-bold text-white">{statsCobranzas.eventosConSaldo}</p>
+              </div>
+              <div className="glass rounded-2xl p-5 glow">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2.5 rounded-xl bg-blue-500/20">
+                    <DollarSign className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <span className="text-sm text-slate-400 flex items-center gap-1">
+                    TC Blue
+                    <button onClick={fetchTipoCambio} className="text-blue-400 hover:text-blue-300" title="Actualizar TC">
+                      {tcLoading ? '...' : '↻'}
+                    </button>
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-2xl font-bold text-blue-400">$</span>
+                  <input
+                    type="number"
+                    value={tipoCambio}
+                    onChange={(e) => setTipoCambio(parseFloat(e.target.value) || 0)}
+                    className="w-24 px-2 py-1 rounded border border-white/10 bg-white/5 text-blue-400 text-2xl font-bold"
+                  />
+                </div>
               </div>
             </div>
 
@@ -4328,20 +4390,6 @@ export default function App() {
         {/* CAJA */}
         {activeTab === 'caja' && cajaDesbloqueada && (
           <div className="space-y-6">
-            {/* Header con TC */}
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">Caja</h2>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-400">TC:</span>
-                <input
-                  type="number"
-                  value={tipoCambio}
-                  onChange={(e) => setTipoCambio(parseFloat(e.target.value) || 0)}
-                  className="w-20 px-2 py-1 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
-                />
-              </div>
-            </div>
-
             {/* Resumen Fijo Arriba */}
             <div className="glass rounded-xl p-3">
               <div className="grid grid-cols-5 gap-4 text-center">
@@ -4362,44 +4410,33 @@ export default function App() {
                   {(() => {
                     const ingresos = cajaMovimientos.filter(m => m.tipo === 'ingreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
                     const egresos = cajaMovimientos.filter(m => m.tipo === 'egreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
-                    // Retiros NO restan de caja, son distribución de ganancias
                     const saldo = ingresos - egresos;
                     return <p className={`text-lg font-bold ${saldo >= 0 ? 'text-green-400' : 'text-red-400'}`}>${saldo.toLocaleString()}</p>;
                   })()}
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400">Saldo USD</p>
+                  <p className="text-xs text-slate-400">Pagos en USD (ref.)</p>
                   <p className="text-lg font-bold text-blue-400">
-                    {(cajaMovimientos.filter(m => m.tipo === 'ingreso').reduce((sum, i) => sum + (i.monto_dolares || 0), 0) - cajaMovimientos.filter(m => m.tipo === 'egreso').reduce((sum, i) => sum + (i.monto_dolares || 0), 0)).toLocaleString()}
+                    {cajaMovimientos.filter(m => m.tipo === 'ingreso' && m.monto_dolares > 0).reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toLocaleString()}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Dinero por Persona */}
-            {(() => {
-              const ingresos = cajaMovimientos.filter(m => m.tipo === 'ingreso');
-              const egresos = cajaMovimientos.filter(m => m.tipo === 'egreso');
-              const retiros = cajaMovimientos.filter(m => m.tipo === 'retiro');
-              const personasSet = new Set();
-              ingresos.forEach(m => m.persona && personasSet.add(m.persona));
-              egresos.forEach(m => m.persona && personasSet.add(m.persona));
-              const personas = Array.from(personasSet).filter(p => p && p !== 'Caja');
-
-              if (personas.length === 0) return null;
-
-              return (
-                <div className="glass rounded-xl p-3">
-                  <p className="text-xs text-slate-400 mb-2">Dinero por persona (ingresos - egresos - retiros)</p>
+            {/* Dinero por Caja + TC */}
+            <div className="glass rounded-xl p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-slate-400 mb-2">Dinero por caja (ingresos - egresos - retiros)</p>
                   <div className="flex flex-wrap gap-4">
-                    {personas.map(persona => {
-                      const ingresosPersona = ingresos.filter(m => m.persona === persona).reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
-                      const egresosPersona = egresos.filter(m => m.persona === persona).reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
-                      const retirosPersona = retiros.filter(m => m.persona === persona).reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
-                      const saldo = ingresosPersona - egresosPersona - retirosPersona;
+                    {CAJAS.map(caja => {
+                      const ingresos = cajaMovimientos.filter(m => m.tipo === 'ingreso' && m.persona === caja).reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
+                      const egresos = cajaMovimientos.filter(m => m.tipo === 'egreso' && m.persona === caja).reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
+                      const retiros = cajaMovimientos.filter(m => m.tipo === 'retiro' && m.persona === caja).reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
+                      const saldo = ingresos - egresos - retiros;
                       return (
-                        <div key={persona} className="bg-white/5 rounded-lg px-3 py-2 min-w-[120px]">
-                          <p className="text-xs text-slate-400">{persona}</p>
+                        <div key={caja} className="bg-white/5 rounded-lg px-3 py-2 min-w-[100px] text-center">
+                          <p className="text-xs text-slate-400">{caja}</p>
                           <p className={`text-sm font-bold ${saldo >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                             ${saldo.toLocaleString()}
                           </p>
@@ -4408,8 +4445,25 @@ export default function App() {
                     })}
                   </div>
                 </div>
-              );
-            })()}
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl px-4 py-3 text-center">
+                  <p className="text-xs text-slate-400 flex items-center justify-center gap-1 mb-1">
+                    TC Blue
+                    <button onClick={fetchTipoCambio} className="text-blue-400 hover:text-blue-300" title="Actualizar TC">
+                      {tcLoading ? '...' : '↻'}
+                    </button>
+                  </p>
+                  <div className="flex items-center justify-center gap-1">
+                    <span className="text-lg font-bold text-blue-400">$</span>
+                    <input
+                      type="number"
+                      value={tipoCambio}
+                      onChange={(e) => setTipoCambio(parseFloat(e.target.value) || 0)}
+                      className="w-20 px-2 py-0.5 rounded border border-white/10 bg-white/5 text-blue-400 text-lg font-bold text-center"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
 
             {/* Tabs */}
             <div className="flex gap-2 items-center">
@@ -4434,6 +4488,16 @@ export default function App() {
                 Egresos
               </button>
               <button
+                onClick={() => setCajaTab('transferencias')}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                  cajaTab === 'transferencias'
+                    ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
+                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                }`}
+              >
+                Transferencias
+              </button>
+              <button
                 onClick={() => setCajaTab('retiros')}
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                   cajaTab === 'retiros'
@@ -4443,65 +4507,65 @@ export default function App() {
               >
                 Retiros
               </button>
-              <div className="flex-1" />
-              <button
-                onClick={() => setShowTransferenciaForm(!showTransferenciaForm)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${
-                  showTransferenciaForm
-                    ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
-                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
-                }`}
-              >
-                <ArrowLeftRight className="w-4 h-4" />
-                Transferencia
-              </button>
             </div>
 
-            {/* Formulario de Transferencia */}
+            {/* Modal Formulario de Transferencia */}
             {showTransferenciaForm && (
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                if (!transferenciaForm.origen || !transferenciaForm.destino || !transferenciaForm.monto_pesos) {
-                  alert('Complete origen, destino y monto');
-                  return;
-                }
-                if (transferenciaForm.origen === transferenciaForm.destino) {
-                  alert('Origen y destino deben ser diferentes');
-                  return;
-                }
-                const monto = parseFloat(transferenciaForm.monto_pesos) || 0;
-                if (monto <= 0) {
-                  alert('El monto debe ser mayor a 0');
-                  return;
-                }
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => { setShowTransferenciaForm(false); setEditingTransferencia(null); setTransferenciaForm({ fecha: new Date().toISOString().split('T')[0], origen: '', destino: '', monto_pesos: '', observacion: '' }); }}>
+                <form onClick={(e) => e.stopPropagation()} onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!transferenciaForm.origen || !transferenciaForm.destino || !transferenciaForm.monto_pesos) {
+                    alert('Complete origen, destino y monto');
+                    return;
+                  }
+                  if (transferenciaForm.origen === transferenciaForm.destino) {
+                    alert('Origen y destino deben ser diferentes');
+                    return;
+                  }
+                  const monto = parseFloat(transferenciaForm.monto_pesos) || 0;
+                  if (monto <= 0) {
+                    alert('El monto debe ser mayor a 0');
+                    return;
+                  }
 
-                // Crear egreso del origen
-                await supabase.from('caja_movimientos').insert({
-                  tipo: 'egreso',
-                  concepto: `Transferencia a ${transferenciaForm.destino}${transferenciaForm.observacion ? ' - ' + transferenciaForm.observacion : ''}`,
-                  monto_pesos: monto,
-                  persona: transferenciaForm.origen,
-                  fecha: transferenciaForm.fecha
-                });
+                  // Si estamos editando, eliminar los registros antiguos primero
+                  if (editingTransferencia) {
+                    await supabase.from('caja_movimientos').delete().eq('id', editingTransferencia.ingresoId);
+                    if (editingTransferencia.egresoId) {
+                      await supabase.from('caja_movimientos').delete().eq('id', editingTransferencia.egresoId);
+                    }
+                  }
 
-                // Crear ingreso al destino
-                await supabase.from('caja_movimientos').insert({
-                  tipo: 'ingreso',
-                  concepto: `Transferencia | De ${transferenciaForm.origen}${transferenciaForm.observacion ? ' - ' + transferenciaForm.observacion : ''}`,
-                  monto_pesos: monto,
-                  persona: transferenciaForm.destino,
-                  fecha: transferenciaForm.fecha
-                });
+                  // Crear egreso del origen (quien aporta)
+                  await supabase.from('caja_movimientos').insert({
+                    tipo: 'egreso',
+                    concepto: `Transferencia interna${transferenciaForm.observacion ? ' | ' + transferenciaForm.observacion : ''}`,
+                    monto_pesos: monto,
+                    persona: transferenciaForm.origen,
+                    aportante: transferenciaForm.origen,
+                    fecha: transferenciaForm.fecha
+                  });
 
-                setTransferenciaForm({ fecha: new Date().toISOString().split('T')[0], origen: '', destino: '', monto_pesos: '', observacion: '' });
-                setShowTransferenciaForm(false);
-                fetchCajaMovimientos();
-              }} className="glass rounded-xl p-4 border border-purple-500/30 space-y-3">
+                  // Crear ingreso al destino (quien recibe)
+                  await supabase.from('caja_movimientos').insert({
+                    tipo: 'ingreso',
+                    concepto: `Transferencia interna${transferenciaForm.observacion ? ' | ' + transferenciaForm.observacion : ''}`,
+                    monto_pesos: monto,
+                    persona: transferenciaForm.destino,
+                    aportante: transferenciaForm.origen,
+                    fecha: transferenciaForm.fecha
+                  });
+
+                  setTransferenciaForm({ fecha: new Date().toISOString().split('T')[0], origen: '', destino: '', monto_pesos: '', observacion: '' });
+                  setEditingTransferencia(null);
+                  setShowTransferenciaForm(false);
+                  fetchCajaMovimientos();
+                }} className="p-6 bg-slate-800 rounded-xl border border-purple-500/30 space-y-4 w-full max-w-md mx-4">
                 <div className="flex items-center gap-2 mb-2">
                   <ArrowLeftRight className="w-5 h-5 text-purple-400" />
-                  <span className="font-medium text-purple-400">Nueva Transferencia Interna</span>
+                  <span className="font-medium text-purple-400">{editingTransferencia ? 'Editar Transferencia' : 'Nueva Transferencia Interna'}</span>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   <div>
                     <label className="text-xs text-slate-400">Fecha</label>
                     <input
@@ -4581,6 +4645,7 @@ export default function App() {
                   </button>
                 </div>
               </form>
+              </div>
             )}
 
             {/* Contenido de Ingresos */}
@@ -4593,7 +4658,7 @@ export default function App() {
                       if (showCajaIngresoForm) {
                         setShowCajaIngresoForm(false);
                         setEditingCajaIngreso(null);
-                        setCajaIngresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
+                        setCajaIngresoForm({ fecha: new Date().toISOString().split('T')[0], origen: '', cliente: '', observacion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
                       } else {
                         setShowCajaIngresoForm(true);
                       }
@@ -4605,43 +4670,48 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Formulario de Ingreso */}
+                {/* Modal Formulario de Ingreso */}
                 {showCajaIngresoForm && (
-                  <form onSubmit={async (e) => {
-                    e.preventDefault();
-                    const pesos = parseFloat(cajaIngresoForm.monto_pesos) || 0;
-                    const dolares = parseFloat(cajaIngresoForm.monto_dolares) || 0;
-                    const tc = parseFloat(cajaIngresoForm.cotizacion) || tipoCambio;
-                    if (pesos === 0 && dolares === 0) { alert('Ingrese un monto'); return; }
-                    if (!cajaIngresoForm.origen) { alert('Seleccione origen'); return; }
-                    if (cajaIngresoForm.origen === 'Evento' && !cajaIngresoForm.descripcion) { alert('Ingrese el nombre del evento'); return; }
-                    if (!cajaIngresoForm.receptor) { alert('Seleccione quién recibe'); return; }
+                  <div className="fixed inset-0 bg-black/50 flex items-start justify-center pt-20 z-50" onClick={() => { setShowCajaIngresoForm(false); setEditingCajaIngreso(null); setCajaIngresoForm({ fecha: new Date().toISOString().split('T')[0], origen: '', observacion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' }); }}>
+                    <form onClick={(e) => e.stopPropagation()} onSubmit={async (e) => {
+                      e.preventDefault();
+                      const pesos = parseFloat(cajaIngresoForm.monto_pesos) || 0;
+                      const dolares = parseFloat(cajaIngresoForm.monto_dolares) || 0;
+                      const tc = parseFloat(cajaIngresoForm.cotizacion) || tipoCambio;
+                      if (pesos === 0 && dolares === 0) { alert('Ingrese un monto'); return; }
+                      if (!cajaIngresoForm.origen) { alert('Seleccione origen'); return; }
+                      if (!cajaIngresoForm.receptor) { alert('Seleccione quién recibe'); return; }
 
-                    const data = {
-                      tipo: 'ingreso',
-                      concepto: cajaIngresoForm.descripcion ? `${cajaIngresoForm.origen} | ${cajaIngresoForm.descripcion}` : cajaIngresoForm.origen,
-                      monto_pesos: pesos + (dolares * tc),
-                      monto_dolares: dolares || null,
-                      cotizacion: dolares ? tc : null,
-                      persona: cajaIngresoForm.receptor,
-                      fecha: cajaIngresoForm.fecha
-                    };
+                      // Construir concepto: Origen | Observación
+                      let conceptoParts = [cajaIngresoForm.origen];
+                      if (cajaIngresoForm.observacion) conceptoParts.push(cajaIngresoForm.observacion);
+                      const conceptoFinal = conceptoParts.join(' | ');
 
-                    if (editingCajaIngreso) {
-                      await supabase.from('caja_movimientos').update(data).eq('id', editingCajaIngreso);
-                    } else {
-                      await supabase.from('caja_movimientos').insert(data);
-                    }
+                      const data = {
+                        tipo: 'ingreso',
+                        concepto: conceptoFinal,
+                        monto_pesos: pesos + (dolares * tc),
+                        monto_dolares: dolares || null,
+                        cotizacion: dolares ? tc : null,
+                        persona: cajaIngresoForm.receptor,
+                        fecha: cajaIngresoForm.fecha
+                      };
 
-                    setCajaIngresoForm({ fecha: new Date().toISOString().split('T')[0], origen: '', descripcion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
-                    setShowCajaIngresoForm(false);
-                    setEditingCajaIngreso(null);
-                    fetchCajaMovimientos();
-                  }} className="mb-4 p-4 bg-green-500/10 rounded-xl border border-green-500/30 space-y-3">
+                      if (editingCajaIngreso) {
+                        await supabase.from('caja_movimientos').update(data).eq('id', editingCajaIngreso);
+                      } else {
+                        await supabase.from('caja_movimientos').insert(data);
+                      }
+
+                      setCajaIngresoForm({ fecha: new Date().toISOString().split('T')[0], origen: '', observacion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
+                      setShowCajaIngresoForm(false);
+                      setEditingCajaIngreso(null);
+                      fetchCajaMovimientos();
+                    }} className="p-6 bg-slate-800 rounded-xl border border-green-500/30 space-y-4 w-full max-w-lg mx-4">
                     {editingCajaIngreso && (
                       <div className="text-xs text-yellow-400 mb-2">Editando ingreso...</div>
                     )}
-                    <div className="grid grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Fecha *</label>
                         <input
@@ -4663,17 +4733,17 @@ export default function App() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1">Descripción {cajaIngresoForm.origen === 'Evento' ? '*' : ''}</label>
+                        <label className="block text-xs text-slate-400 mb-1">Observaciones</label>
                         <input
                           type="text"
-                          value={cajaIngresoForm.descripcion}
-                          onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, descripcion: e.target.value})}
+                          value={cajaIngresoForm.observacion}
+                          onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, observacion: e.target.value})}
                           className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
-                          placeholder={cajaIngresoForm.origen === 'Evento' ? 'Ej: Josefina, Boda García...' : 'Cliente o detalle'}
+                          placeholder="Detalle opcional"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1">Quién recibe *</label>
+                        <label className="block text-xs text-slate-400 mb-1">Recibido por *</label>
                         <select
                           value={cajaIngresoForm.receptor}
                           onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, receptor: e.target.value})}
@@ -4716,12 +4786,16 @@ export default function App() {
                         />
                       </div>
                     </div>
-                    <div className="flex justify-end">
-                      <button type="submit" className="px-4 py-2 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600">
-                        {editingCajaIngreso ? 'Actualizar' : 'Guardar'} Ingreso
-                      </button>
-                    </div>
-                  </form>
+                      <div className="flex justify-end gap-2">
+                        <button type="button" onClick={() => { setShowCajaIngresoForm(false); setEditingCajaIngreso(null); setCajaIngresoForm({ fecha: new Date().toISOString().split('T')[0], origen: '', cliente: '', observacion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' }); }} className="px-4 py-2 rounded-lg bg-slate-600 text-white text-sm font-medium hover:bg-slate-700">
+                          Cancelar
+                        </button>
+                        <button type="submit" className="px-4 py-2 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600">
+                          {editingCajaIngreso ? 'Actualizar' : 'Guardar'} Ingreso
+                        </button>
+                      </div>
+                    </form>
+                  </div>
                 )}
 
                 <div className="overflow-x-auto">
@@ -4730,7 +4804,8 @@ export default function App() {
                       <tr className="border-b border-white/10 text-slate-400 text-xs">
                         <th className="text-left py-2 px-3">Fecha</th>
                         <th className="text-left py-2 px-3">Origen</th>
-                        <th className="text-left py-2 px-3">Descripción</th>
+                        <th className="text-left py-2 px-3">Cliente</th>
+                        <th className="text-left py-2 px-3">Observaciones</th>
                         <th className="text-left py-2 px-3">Recibido por</th>
                         <th className="text-right py-2 px-3">Pesos</th>
                         <th className="text-right py-2 px-3">USD</th>
@@ -4738,12 +4813,15 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {cajaMovimientos.filter(m => m.tipo === 'ingreso').map(item => {
+                      {cajaMovimientos.filter(m => m.tipo === 'ingreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).map(item => {
                         // Si tiene evento_id, viene de la sección de Eventos (cobranza)
                         const esDeEvento = !!item.evento_id;
                         const partes = (item.concepto || '').split(' | ');
                         const origen = esDeEvento ? 'Evento' : (partes[0] || '');
-                        const descripcion = esDeEvento ? item.concepto : (partes[1] || '');
+                        // Cliente: solo si viene de eventos
+                        const cliente = esDeEvento ? item.concepto : '';
+                        // Observaciones: solo si es ingreso manual (partes[1])
+                        const observacion = esDeEvento ? '' : (partes[1] || '');
                         return (
                           <tr key={item.id} className="border-b border-white/5 hover:bg-white/5">
                             <td className="py-2 px-3 text-slate-400">{item.fecha}</td>
@@ -4752,7 +4830,8 @@ export default function App() {
                                 {origen}
                               </span>
                             </td>
-                            <td className={`py-2 px-3 font-medium ${esDeEvento ? 'text-purple-400' : ''}`}>{descripcion || '-'}</td>
+                            <td className="py-2 px-3 text-purple-400 font-medium">{cliente || '-'}</td>
+                            <td className="py-2 px-3 text-slate-400 text-xs">{observacion || '-'}</td>
                             <td className="py-2 px-3 text-slate-400">{item.persona}</td>
                             <td className="py-2 px-3 text-right text-green-400">${(item.monto_pesos || 0).toLocaleString()}</td>
                             <td className="py-2 px-3 text-right text-blue-400">{item.monto_dolares ? item.monto_dolares.toLocaleString() : '-'}</td>
@@ -4767,7 +4846,7 @@ export default function App() {
                                     setCajaIngresoForm({
                                       fecha: item.fecha,
                                       origen: partes[0] || '',
-                                      descripcion: partes[1] || '',
+                                      observacion: partes[1] || '',
                                       receptor: item.persona,
                                       monto_pesos: item.monto_dolares ? '' : (item.monto_pesos || '').toString(),
                                       monto_dolares: (item.monto_dolares || '').toString(),
@@ -4786,15 +4865,15 @@ export default function App() {
                           </tr>
                         );
                       })}
-                      {cajaMovimientos.filter(m => m.tipo === 'ingreso').length === 0 && (
-                        <tr><td colSpan="7" className="py-8 text-center text-slate-500">Sin ingresos registrados</td></tr>
+                      {cajaMovimientos.filter(m => m.tipo === 'ingreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).length === 0 && (
+                        <tr><td colSpan="8" className="py-8 text-center text-slate-500">Sin ingresos registrados</td></tr>
                       )}
                     </tbody>
                   </table>
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/10 flex justify-end gap-6 text-sm">
-                  <span className="text-slate-400">Total $: <span className="text-green-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'ingreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toLocaleString()}</span></span>
-                  <span className="text-slate-400">Total USD: <span className="text-blue-400 font-bold">{cajaMovimientos.filter(m => m.tipo === 'ingreso').reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toLocaleString()}</span></span>
+                  <span className="text-slate-400">Total $: <span className="text-green-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'ingreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toLocaleString()}</span></span>
+                  <span className="text-slate-400">Total USD: <span className="text-blue-400 font-bold">{cajaMovimientos.filter(m => m.tipo === 'ingreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toLocaleString()}</span></span>
                 </div>
               </div>
             )}
@@ -4809,7 +4888,7 @@ export default function App() {
                       if (showCajaEgresoForm) {
                         setShowCajaEgresoForm(false);
                         setEditingCajaEgreso(null);
-                        setCajaEgresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
+                        setCajaEgresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', aportante: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
                       } else {
                         setShowCajaEgresoForm(true);
                       }
@@ -4821,62 +4900,103 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Formulario de Egreso */}
+                {/* Modal Formulario de Egreso */}
                 {showCajaEgresoForm && (
-                  <form onSubmit={async (e) => {
-                    e.preventDefault();
-                    const pesos = parseFloat(cajaEgresoForm.monto_pesos) || 0;
-                    const dolares = parseFloat(cajaEgresoForm.monto_dolares) || 0;
-                    const tc = parseFloat(cajaEgresoForm.cotizacion) || tipoCambio;
-                    if (pesos === 0 && dolares === 0) { alert('Ingrese un monto'); return; }
-                    if (!cajaEgresoForm.concepto) { alert('Seleccione un concepto'); return; }
-                    if (!cajaEgresoForm.receptor) { alert('Seleccione quién recibe'); return; }
+                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => { setShowCajaEgresoForm(false); setEditingCajaEgreso(null); setCajaEgresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', aportante: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' }); }}>
+                    <form onClick={(e) => e.stopPropagation()} onSubmit={async (e) => {
+                      e.preventDefault();
+                      const pesos = parseFloat(cajaEgresoForm.monto_pesos) || 0;
+                      const dolares = parseFloat(cajaEgresoForm.monto_dolares) || 0;
+                      const tc = parseFloat(cajaEgresoForm.cotizacion) || tipoCambio;
+                      if (pesos === 0 && dolares === 0) { alert('Ingrese un monto'); return; }
+                      if (!cajaEgresoForm.concepto) { alert('Seleccione un concepto'); return; }
+                      if (!cajaEgresoForm.receptor) { alert('Seleccione quién recibe'); return; }
 
-                    // Si es retiro de socio (concepto R. Socios y receptor es socio)
-                    const esRetiro = cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor);
-                    const totalPesos = pesos + (dolares * tc);
+                      // Si es retiro de socio (concepto R. Socios y receptor es socio)
+                      const esRetiro = cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor);
+                      const esAporte = cajaEgresoForm.concepto === 'Aporte' && cajaEgresoForm.aportante;
+                      const totalPesos = pesos + (dolares * tc);
 
-                    // Si es R. Socios, siempre guardar valor en dólares con cotización
-                    const data = {
-                      tipo: 'egreso',
-                      concepto: cajaEgresoForm.observacion || cajaEgresoForm.concepto,
-                      monto_pesos: totalPesos,
-                      monto_dolares: esRetiro ? (totalPesos / tc) : (dolares || null),
-                      cotizacion: esRetiro ? tc : (dolares ? tc : null),
-                      persona: cajaEgresoForm.receptor,
-                      fecha: cajaEgresoForm.fecha
-                    };
-
-                    if (editingCajaEgreso) {
-                      // Solo actualizar el egreso existente
-                      await supabase.from('caja_movimientos').update(data).eq('id', editingCajaEgreso);
-                    } else {
-                      // Crear nuevo egreso
-                      await supabase.from('caja_movimientos').insert(data);
-
-                      // Si es retiro de socio, también registrar en retiros
                       if (esRetiro) {
+                        // Retiro de socio:
+                        // 1. Egreso del aportante (baja su caja)
+                        // 2. Retiro para el socio (registro de retiro)
+                        if (cajaEgresoForm.aportante) {
+                          await supabase.from('caja_movimientos').insert({
+                            tipo: 'egreso',
+                            concepto: `R. Socios a ${cajaEgresoForm.receptor}${cajaEgresoForm.observacion ? ' | ' + cajaEgresoForm.observacion : ''}`,
+                            monto_pesos: totalPesos,
+                            monto_dolares: dolares || null,
+                            cotizacion: dolares ? tc : null,
+                            persona: cajaEgresoForm.aportante,
+                            aportante: cajaEgresoForm.aportante,
+                            fecha: cajaEgresoForm.fecha
+                          });
+                        }
+                        // Registro de retiro para el socio
                         await supabase.from('caja_movimientos').insert({
                           tipo: 'retiro',
                           concepto: cajaEgresoForm.observacion || cajaEgresoForm.concepto,
                           monto_pesos: totalPesos,
-                          monto_dolares: totalPesos / tc,
-                          cotizacion: tc,
+                          monto_dolares: dolares || null,
+                          cotizacion: dolares ? tc : null,
                           persona: cajaEgresoForm.receptor,
+                          aportante: cajaEgresoForm.aportante || null,
                           fecha: cajaEgresoForm.fecha
                         });
-                      }
-                    }
+                      } else if (esAporte) {
+                        // Aporte: el aportante da dinero (egreso) y el receptor lo recibe (ingreso)
+                        // Egreso del aportante
+                        await supabase.from('caja_movimientos').insert({
+                          tipo: 'egreso',
+                          concepto: `Aporte a ${cajaEgresoForm.receptor}${cajaEgresoForm.observacion ? ' | ' + cajaEgresoForm.observacion : ''}`,
+                          monto_pesos: totalPesos,
+                          monto_dolares: dolares || null,
+                          cotizacion: dolares ? tc : null,
+                          persona: cajaEgresoForm.aportante,
+                          aportante: cajaEgresoForm.aportante,
+                          fecha: cajaEgresoForm.fecha
+                        });
+                        // Ingreso al receptor
+                        await supabase.from('caja_movimientos').insert({
+                          tipo: 'ingreso',
+                          concepto: `Aporte de ${cajaEgresoForm.aportante}${cajaEgresoForm.observacion ? ' | ' + cajaEgresoForm.observacion : ''}`,
+                          monto_pesos: totalPesos,
+                          monto_dolares: dolares || null,
+                          cotizacion: dolares ? tc : null,
+                          persona: cajaEgresoForm.receptor,
+                          aportante: cajaEgresoForm.aportante,
+                          fecha: cajaEgresoForm.fecha
+                        });
+                      } else {
+                        // Egreso normal
+                        const data = {
+                          tipo: 'egreso',
+                          concepto: cajaEgresoForm.observacion || cajaEgresoForm.concepto,
+                          monto_pesos: totalPesos,
+                          monto_dolares: dolares || null,
+                          cotizacion: dolares ? tc : null,
+                          persona: cajaEgresoForm.receptor,
+                          aportante: cajaEgresoForm.aportante || null,
+                          fecha: cajaEgresoForm.fecha
+                        };
 
-                    setCajaEgresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
-                    setShowCajaEgresoForm(false);
-                    setEditingCajaEgreso(null);
-                    fetchCajaMovimientos();
-                  }} className="mb-4 p-4 bg-red-500/10 rounded-xl border border-red-500/30 space-y-3">
-                    {editingCajaEgreso && (
-                      <div className="text-xs text-yellow-400 mb-2">Editando egreso...</div>
-                    )}
-                    <div className="grid grid-cols-3 gap-3">
+                        if (editingCajaEgreso) {
+                          await supabase.from('caja_movimientos').update(data).eq('id', editingCajaEgreso);
+                        } else {
+                          await supabase.from('caja_movimientos').insert(data);
+                        }
+                      }
+
+                      setCajaEgresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', aportante: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
+                      setShowCajaEgresoForm(false);
+                      setEditingCajaEgreso(null);
+                      fetchCajaMovimientos();
+                    }} className="p-6 bg-slate-800 rounded-xl border border-red-500/30 space-y-4 w-full max-w-lg mx-4">
+                      {editingCajaEgreso && (
+                        <div className="text-xs text-yellow-400 mb-2">Editando egreso...</div>
+                      )}
+                      <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Fecha *</label>
                         <input
@@ -4885,6 +5005,17 @@ export default function App() {
                           onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, fecha: e.target.value})}
                           className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
                         />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Aportado por</label>
+                        <select
+                          value={cajaEgresoForm.aportante}
+                          onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, aportante: e.target.value})}
+                          className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                        >
+                          <option value="">Seleccionar...</option>
+                          {CAJAS.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
                       </div>
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Concepto *</label>
@@ -4898,7 +5029,7 @@ export default function App() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1">Quién recibe *</label>
+                        <label className="block text-xs text-slate-400 mb-1">Recibido por *</label>
                         <select
                           value={cajaEgresoForm.receptor}
                           onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, receptor: e.target.value})}
@@ -4908,7 +5039,7 @@ export default function App() {
                           {RECEPTORES_EGRESO.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                         {cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) && (
-                          <p className="text-xs text-yellow-400 mt-1">→ Egresos + Retiros</p>
+                          <p className="text-xs text-yellow-400 mt-1">→ Solo Retiros (no afecta caja)</p>
                         )}
                       </div>
                     </div>
@@ -4959,13 +5090,17 @@ export default function App() {
                         className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
                         placeholder="Detalle opcional"
                       />
-                    </div>
-                    <div className="flex justify-end">
-                      <button type="submit" className={`px-4 py-2 rounded-lg text-white text-sm font-medium ${cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) && !editingCajaEgreso ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-red-500 hover:bg-red-600'}`}>
-                        {editingCajaEgreso ? 'Actualizar Egreso' : (cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) ? 'Guardar Retiro' : 'Guardar Egreso')}
-                      </button>
-                    </div>
-                  </form>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <button type="button" onClick={() => { setShowCajaEgresoForm(false); setEditingCajaEgreso(null); setCajaEgresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', aportante: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' }); }} className="px-4 py-2 rounded-lg bg-slate-600 text-white text-sm font-medium hover:bg-slate-700">
+                          Cancelar
+                        </button>
+                        <button type="submit" className={`px-4 py-2 rounded-lg text-white text-sm font-medium ${cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) && !editingCajaEgreso ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-red-500 hover:bg-red-600'}`}>
+                          {editingCajaEgreso ? 'Actualizar Egreso' : (cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) ? 'Guardar Retiro' : 'Guardar Egreso')}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
                 )}
 
                 <div className="overflow-x-auto">
@@ -4973,6 +5108,7 @@ export default function App() {
                     <thead>
                       <tr className="border-b border-white/10 text-slate-400 text-xs">
                         <th className="text-left py-2 px-3">Fecha</th>
+                        <th className="text-left py-2 px-3">Aportado por</th>
                         <th className="text-left py-2 px-3">Concepto</th>
                         <th className="text-left py-2 px-3">Recibido por</th>
                         <th className="text-right py-2 px-3">Pesos</th>
@@ -4981,9 +5117,10 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {cajaMovimientos.filter(m => m.tipo === 'egreso').map(item => (
+                      {cajaMovimientos.filter(m => m.tipo === 'egreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).map(item => (
                         <tr key={item.id} className="border-b border-white/5 hover:bg-white/5">
                           <td className="py-2 px-3 text-slate-400">{item.fecha}</td>
+                          <td className="py-2 px-3 text-slate-400">{item.aportante || '-'}</td>
                           <td className="py-2 px-3 font-medium">{item.concepto}</td>
                           <td className="py-2 px-3 text-slate-400">{item.persona || '-'}</td>
                           <td className="py-2 px-3 text-right text-red-400">${(item.monto_pesos || 0).toLocaleString()}</td>
@@ -4995,6 +5132,7 @@ export default function App() {
                                 fecha: item.fecha,
                                 concepto: CONCEPTOS_EGRESO.includes(item.concepto) ? item.concepto : 'Otros',
                                 receptor: item.persona,
+                                aportante: item.aportante || '',
                                 monto_pesos: item.monto_dolares ? '' : (item.monto_pesos || '').toString(),
                                 monto_dolares: (item.monto_dolares || '').toString(),
                                 cotizacion: (item.cotizacion || '').toString(),
@@ -5010,15 +5148,125 @@ export default function App() {
                           </td>
                         </tr>
                       ))}
-                      {cajaMovimientos.filter(m => m.tipo === 'egreso').length === 0 && (
-                        <tr><td colSpan="6" className="py-8 text-center text-slate-500">Sin egresos registrados</td></tr>
+                      {cajaMovimientos.filter(m => m.tipo === 'egreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).length === 0 && (
+                        <tr><td colSpan="7" className="py-8 text-center text-slate-500">Sin egresos registrados</td></tr>
                       )}
                     </tbody>
                   </table>
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/10 flex justify-end gap-6 text-sm">
-                  <span className="text-slate-400">Total $: <span className="text-red-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'egreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toLocaleString()}</span></span>
-                  <span className="text-slate-400">Total USD: <span className="text-blue-400 font-bold">{cajaMovimientos.filter(m => m.tipo === 'egreso').reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toLocaleString()}</span></span>
+                  <span className="text-slate-400">Total $: <span className="text-red-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'egreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toLocaleString()}</span></span>
+                  <span className="text-slate-400">Total USD: <span className="text-blue-400 font-bold">{cajaMovimientos.filter(m => m.tipo === 'egreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toLocaleString()}</span></span>
+                </div>
+              </div>
+            )}
+
+            {/* Contenido de Transferencias */}
+            {cajaTab === 'transferencias' && (
+              <div className="glass rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-purple-400">Transferencias Internas</h3>
+                  <button
+                    onClick={() => setShowTransferenciaForm(true)}
+                    className="px-3 py-1.5 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 text-sm flex items-center gap-1"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Nueva Transferencia
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/10 text-slate-400">
+                        <th className="text-left py-2 px-3">Fecha</th>
+                        <th className="text-left py-2 px-3">Origen</th>
+                        <th className="text-left py-2 px-3">Destino</th>
+                        <th className="text-right py-2 px-3">Monto $</th>
+                        <th className="text-left py-2 px-3">Observación</th>
+                        <th className="text-center py-2 px-3">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        // Filtrar solo los ingresos de transferencia para evitar duplicados
+                        const transferencias = cajaMovimientos.filter(m =>
+                          m.tipo === 'ingreso' && m.concepto && m.concepto.startsWith('Transferencia interna')
+                        );
+                        if (transferencias.length === 0) {
+                          return <tr><td colSpan="6" className="py-8 text-center text-slate-500">Sin transferencias registradas</td></tr>;
+                        }
+                        return transferencias.map(item => {
+                          const observacion = item.concepto.includes(' | ') ? item.concepto.split(' | ')[1] : '';
+                          return (
+                            <tr key={item.id} className="border-b border-white/5 hover:bg-white/5">
+                              <td className="py-2 px-3">{item.fecha}</td>
+                              <td className="py-2 px-3 text-red-400">{item.aportante || '-'}</td>
+                              <td className="py-2 px-3 text-green-400">{item.persona}</td>
+                              <td className="py-2 px-3 text-right text-purple-400">${(item.monto_pesos || 0).toLocaleString()}</td>
+                              <td className="py-2 px-3 text-slate-400">{observacion}</td>
+                              <td className="py-2 px-3 text-center flex gap-1 justify-center">
+                                <button
+                                  onClick={async () => {
+                                    // Buscar el egreso correspondiente
+                                    const { data: egresos } = await supabase.from('caja_movimientos')
+                                      .select('*')
+                                      .eq('tipo', 'egreso')
+                                      .eq('fecha', item.fecha)
+                                      .eq('persona', item.aportante)
+                                      .eq('monto_pesos', item.monto_pesos)
+                                      .ilike('concepto', 'Transferencia interna%');
+
+                                    setEditingTransferencia({
+                                      ingresoId: item.id,
+                                      egresoId: egresos && egresos.length > 0 ? egresos[0].id : null
+                                    });
+                                    setTransferenciaForm({
+                                      fecha: item.fecha,
+                                      origen: item.aportante || '',
+                                      destino: item.persona,
+                                      monto_pesos: (item.monto_pesos || '').toString(),
+                                      observacion: observacion
+                                    });
+                                    setShowTransferenciaForm(true);
+                                  }}
+                                  className="p-1 text-blue-400 hover:bg-blue-500/20 rounded"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (confirm('¿Eliminar esta transferencia? Se eliminarán ambos movimientos (ingreso y egreso)')) {
+                                      // Eliminar el ingreso
+                                      await supabase.from('caja_movimientos').delete().eq('id', item.id);
+                                      // Buscar y eliminar el egreso correspondiente (mismo monto, fecha, y aportante como persona)
+                                      const { data: egresos } = await supabase.from('caja_movimientos')
+                                        .select('*')
+                                        .eq('tipo', 'egreso')
+                                        .eq('fecha', item.fecha)
+                                        .eq('persona', item.aportante)
+                                        .eq('monto_pesos', item.monto_pesos)
+                                        .ilike('concepto', 'Transferencia interna%');
+                                      if (egresos && egresos.length > 0) {
+                                        await supabase.from('caja_movimientos').delete().eq('id', egresos[0].id);
+                                      }
+                                      fetchCajaMovimientos();
+                                    }
+                                  }}
+                                  className="p-1 text-red-400 hover:bg-red-500/20 rounded"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-4 pt-4 border-t border-white/10 flex justify-end gap-6 text-sm">
+                  <span className="text-slate-400">Total Transferido: <span className="text-purple-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'ingreso' && m.concepto && m.concepto.startsWith('Transferencia interna')).reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toLocaleString()}</span></span>
                 </div>
               </div>
             )}
