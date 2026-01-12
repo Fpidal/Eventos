@@ -1375,19 +1375,24 @@ export default function App() {
     doc.setFont('helvetica', 'normal');
     y += detalleBlockH + 8;
 
-    // --- MENÚ ---
+    // --- MENÚ (encuadrado con líneas) ---
     const menuDetalle = evento.menu_detalle;
     const menuTitulo = 'MENÚ: ' + (menuDetalle?.nombre || evento.menu || 'Menu 3 Pasos');
 
-    doc.setFontSize(13);
+    // Guardar posición inicial del recuadro
+    const menuBoxY = y - 2;
+    const menuPadding = 5;
+
+    // Título del menú
+    doc.setFontSize(12);
     doc.setTextColor(...VERDE_TERO);
     doc.setFont('helvetica', 'bold');
-    doc.text(menuTitulo, marginLeft, y);
-    y += 8;
+    doc.text(menuTitulo, marginLeft + menuPadding, y + 4);
+    y += 10;
 
     // Items del menú desde menu_detalle - 2 columnas reales
     if (menuDetalle && menuDetalle.categorias) {
-      const menuColLeft = marginLeft;
+      const menuColLeft = marginLeft + menuPadding;
       const menuColRight = centerX + 5;
 
       // Filtrar categorías con items
@@ -1442,8 +1447,16 @@ export default function App() {
       });
 
       // Usar la altura máxima de ambas columnas
-      y = Math.max(yLeft, yRight) + 4;
+      y = Math.max(yLeft, yRight) + 2;
     }
+
+    // Dibujar recuadro alrededor del menú
+    const menuBoxH = y - menuBoxY + 2;
+    doc.setDrawColor(...VERDE_TERO);
+    doc.setLineWidth(0.5);
+    doc.rect(marginLeft, menuBoxY, contentWidth, menuBoxH);
+
+    y += 8;
 
     // --- DETALLE DE PRECIOS ---
     // Verificar si necesitamos nueva página (espacio para tabla completa ~80mm)
