@@ -276,6 +276,7 @@ export default function App() {
   const [editingCatalogoItem, setEditingCatalogoItem] = useState(null);
   const [catalogoForm, setCatalogoForm] = useState({ nombre: '', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' });
   const [catalogoFiltro, setCatalogoFiltro] = useState('todos');
+  const [catalogoBusqueda, setCatalogoBusqueda] = useState('');
   const CATEGORIAS_CATALOGO = ['Platos', 'Tapas', 'Islas', 'Bebidas'];
   const SUBCATEGORIAS_CATALOGO = {
     'Platos': ['Entradas', 'Principales', 'Postres'],
@@ -380,11 +381,100 @@ export default function App() {
     }
   }, [user, userRole]);
 
-  // Cargar catálogo desde localStorage
+  // Cargar catálogo desde localStorage o datos iniciales
   useEffect(() => {
     const saved = localStorage.getItem('catalogoItems');
     if (saved) {
       setCatalogoItems(JSON.parse(saved));
+    } else {
+      // Datos iniciales del catálogo
+      const catalogoInicial = [
+        // TAPAS - Tapeo Frío
+        { id: 1, nombre: 'Montadito De Salmon Ahumado', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Frío' },
+        { id: 2, nombre: 'Langostino & Mousse De Palta', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Frío' },
+        { id: 3, nombre: 'Crostini Jamon Crudo & Huevo De Codorniz', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Frío' },
+        { id: 4, nombre: 'Tortilla Española & Morron Asado', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Frío' },
+        { id: 5, nombre: 'Montadito Queso Brie, Rucula & Salmon Ahumado', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Frío' },
+        { id: 6, nombre: 'Montadito De Tomates Confitados Y Albahaca', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Frío' },
+        { id: 7, nombre: 'Focaccia Con Caponata Siciliana', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Frío' },
+        { id: 8, nombre: 'Mini De Bondiola Braseada A La Barbacoa & Coleslaw', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Frío' },
+        { id: 9, nombre: 'Pintxo Capresse', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Frío' },
+        // TAPAS - Tapeo Caliente
+        { id: 10, nombre: 'Langostinos Apanados & Alioli', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Caliente' },
+        { id: 11, nombre: 'Empanadillas De Langostinos & Muzzarella', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Caliente' },
+        { id: 12, nombre: 'Pincho De Pollo, Panceta Ahumada, Verdeo & Salsa Thai', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Caliente' },
+        { id: 13, nombre: 'Tapas De Solomillo & Cebolla Caramelizada', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Caliente' },
+        { id: 14, nombre: 'Pinchos De Solomillo Marinados', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Caliente' },
+        { id: 15, nombre: 'Croquetas Catalanas', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Caliente' },
+        { id: 16, nombre: 'Montaditos De Chorizos Con Chimichurri', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Caliente' },
+        { id: 17, nombre: 'Albondiguillas Griegas', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Caliente' },
+        { id: 18, nombre: 'Bastones Mozzarella Apanado', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Caliente' },
+        { id: 19, nombre: 'Mini Hamburguesas', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Caliente' },
+        { id: 20, nombre: 'Finger De Ave Apanado & Barbacoa', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Caliente' },
+        // TAPAS - Mesa de Dulces
+        { id: 21, nombre: 'Mini Lemon Pie', descripcion: '', categoria: 'Tapas', subcategoria: 'Mesa de Dulces' },
+        { id: 22, nombre: 'Mini Brownie, Dulce De Leche & Almendras', descripcion: '', categoria: 'Tapas', subcategoria: 'Mesa de Dulces' },
+        { id: 23, nombre: 'Tartines De Coco Con Dulce De Leche', descripcion: '', categoria: 'Tapas', subcategoria: 'Mesa de Dulces' },
+        { id: 24, nombre: 'Cuadraditos De Pastafrola', descripcion: '', categoria: 'Tapas', subcategoria: 'Mesa de Dulces' },
+        { id: 25, nombre: 'Bocaditos Artesanales Chocolate & Dulce De Leche', descripcion: '', categoria: 'Tapas', subcategoria: 'Mesa de Dulces' },
+        { id: 26, nombre: 'Shot Mousse De Chocolate', descripcion: '', categoria: 'Tapas', subcategoria: 'Mesa de Dulces' },
+        { id: 27, nombre: 'Shot Bavarois De Frutilla', descripcion: '', categoria: 'Tapas', subcategoria: 'Mesa de Dulces' },
+        { id: 28, nombre: 'Espuma De Durazno Con Salsa De Maracuya', descripcion: '', categoria: 'Tapas', subcategoria: 'Mesa de Dulces' },
+        // PLATOS - Entradas (Asado)
+        { id: 29, nombre: 'Chorizo Criollo', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' },
+        { id: 30, nombre: 'Morcilla', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' },
+        { id: 31, nombre: 'Mollejas', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' },
+        { id: 32, nombre: 'Chinchulin', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' },
+        { id: 33, nombre: 'Provoleta', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' },
+        { id: 34, nombre: 'Tabla de Picada Regional', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' },
+        { id: 35, nombre: 'Langostinos a la Parrilla Saborizados', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' },
+        { id: 36, nombre: 'Vieiras Gratinadas', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' },
+        { id: 37, nombre: 'Burratina con Salmorejo', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' },
+        { id: 38, nombre: 'Langostinos a la Milanesa', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' },
+        { id: 39, nombre: 'Gambas al Ajillo', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' },
+        { id: 40, nombre: 'Muzzarella Apanada', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' },
+        { id: 41, nombre: 'Rabas a la Romana', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' },
+        // PLATOS - Principales
+        { id: 42, nombre: 'Asado Banderita', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 43, nombre: 'Asado al Asador', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 44, nombre: 'Picanha', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 45, nombre: 'Colita de Cuadril', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 46, nombre: 'Bife de Chorizo', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 47, nombre: 'Entraña', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 48, nombre: 'Lomo', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 49, nombre: 'Ojo de Bife', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 50, nombre: 'Prime Ribs', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 51, nombre: 'Pechito de Cerdo', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 52, nombre: 'Brochete de Pollo', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 53, nombre: 'Bondiola', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 54, nombre: 'Vacío', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 55, nombre: 'Risotto del Bosque', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 56, nombre: 'Cintas Mediterránea', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 57, nombre: 'Risotto de Mariscos', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 58, nombre: 'Ñoquis Soufflé', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 59, nombre: 'Sorrentinos de Pollo y Hongos', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 60, nombre: 'Ensalada Caesar', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 61, nombre: 'Ensalada de Mar y Huerto', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 62, nombre: 'Bife de Chorizo a la Pimienta', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 63, nombre: 'Pollo Relleno de Espinaca y Parmesano', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 64, nombre: 'Bondiola con Barbacoa', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 65, nombre: 'Costilla Braseada en su Jugo', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 66, nombre: 'Pescado Blanco con Salsa de Azafrán', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        { id: 67, nombre: 'Agnolotis de Jamón y Queso', descripcion: '', categoria: 'Platos', subcategoria: 'Principales' },
+        // PLATOS - Postres
+        { id: 68, nombre: 'Queso y Dulce', descripcion: '', categoria: 'Platos', subcategoria: 'Postres' },
+        { id: 69, nombre: 'Helado 2 Sabores', descripcion: '', categoria: 'Platos', subcategoria: 'Postres' },
+        { id: 70, nombre: 'Tiramisú', descripcion: '', categoria: 'Platos', subcategoria: 'Postres' },
+        { id: 71, nombre: 'Volcán de Chocolate', descripcion: '', categoria: 'Platos', subcategoria: 'Postres' },
+        { id: 72, nombre: 'Clásico Tiramisú', descripcion: '', categoria: 'Platos', subcategoria: 'Postres' },
+        { id: 73, nombre: 'Flan Casero', descripcion: '', categoria: 'Platos', subcategoria: 'Postres' },
+        { id: 74, nombre: 'Creppes de DDL, Rum, Nueces y Pasas', descripcion: '', categoria: 'Platos', subcategoria: 'Postres' },
+        { id: 75, nombre: 'Macedonia de Frutas', descripcion: '', categoria: 'Platos', subcategoria: 'Postres' },
+        { id: 76, nombre: 'Helado con Frutos Rojos', descripcion: '', categoria: 'Platos', subcategoria: 'Postres' },
+        { id: 77, nombre: 'Volcán de Dulce de Leche', descripcion: '', categoria: 'Platos', subcategoria: 'Postres' },
+      ];
+      setCatalogoItems(catalogoInicial);
+      localStorage.setItem('catalogoItems', JSON.stringify(catalogoInicial));
     }
   }, []);
 
@@ -4233,11 +4323,23 @@ export default function App() {
                   )}
                 </div>
 
+                {/* Buscador */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={catalogoBusqueda}
+                    onChange={(e) => setCatalogoBusqueda(e.target.value)}
+                    placeholder="Buscar por nombre, categoría..."
+                    className="w-full pl-10 pr-4 py-2 rounded-xl bg-white/5 border border-white/10 focus:border-purple-500 focus:outline-none text-sm"
+                  />
+                </div>
+
                 {/* Filtros */}
-                <div className="flex gap-3 flex-wrap">
+                <div className="flex gap-2 flex-wrap">
                   <button
                     onClick={() => setCatalogoFiltro('todos')}
-                    className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                       catalogoFiltro === 'todos'
                         ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
                         : 'bg-white/5 text-slate-400 hover:bg-white/10'
@@ -4247,7 +4349,7 @@ export default function App() {
                   </button>
                   <button
                     onClick={() => setCatalogoFiltro('Platos')}
-                    className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                       catalogoFiltro === 'Platos'
                         ? 'bg-orange-500/20 text-orange-400 border border-orange-500/50'
                         : 'bg-white/5 text-slate-400 hover:bg-white/10'
@@ -4257,7 +4359,7 @@ export default function App() {
                   </button>
                   <button
                     onClick={() => setCatalogoFiltro('Tapas')}
-                    className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                       catalogoFiltro === 'Tapas'
                         ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50'
                         : 'bg-white/5 text-slate-400 hover:bg-white/10'
@@ -4267,7 +4369,7 @@ export default function App() {
                   </button>
                   <button
                     onClick={() => setCatalogoFiltro('Islas')}
-                    className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                       catalogoFiltro === 'Islas'
                         ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
                         : 'bg-white/5 text-slate-400 hover:bg-white/10'
@@ -4277,7 +4379,7 @@ export default function App() {
                   </button>
                   <button
                     onClick={() => setCatalogoFiltro('Bebidas')}
-                    className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                       catalogoFiltro === 'Bebidas'
                         ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
                         : 'bg-white/5 text-slate-400 hover:bg-white/10'
@@ -4288,17 +4390,31 @@ export default function App() {
                 </div>
 
                 {/* Lista de items */}
-                {catalogoItems.filter(item => catalogoFiltro === 'todos' || item.categoria === catalogoFiltro).length === 0 ? (
+                {catalogoItems.filter(item => {
+                  const matchCategoria = catalogoFiltro === 'todos' || item.categoria === catalogoFiltro;
+                  const matchBusqueda = !catalogoBusqueda ||
+                    item.nombre.toLowerCase().includes(catalogoBusqueda.toLowerCase()) ||
+                    item.subcategoria.toLowerCase().includes(catalogoBusqueda.toLowerCase()) ||
+                    (item.descripcion && item.descripcion.toLowerCase().includes(catalogoBusqueda.toLowerCase()));
+                  return matchCategoria && matchBusqueda;
+                }).length === 0 ? (
                   <div className="glass rounded-2xl p-12 text-center">
                     <FileText className="w-16 h-16 mx-auto text-slate-600 mb-4" />
-                    <p className="text-slate-400 text-lg">No hay items en el catálogo</p>
-                    <p className="text-slate-500 text-sm mt-2">Agregá platos y bebidas para usarlos en los presupuestos</p>
+                    <p className="text-slate-400 text-lg">{catalogoBusqueda ? 'No se encontraron resultados' : 'No hay items en el catálogo'}</p>
+                    <p className="text-slate-500 text-sm mt-2">{catalogoBusqueda ? 'Probá con otro término de búsqueda' : 'Agregá platos y bebidas para usarlos en los presupuestos'}</p>
                   </div>
                 ) : (
                   <div className="grid gap-4">
                     {Object.entries(
                       catalogoItems
-                        .filter(item => catalogoFiltro === 'todos' || item.categoria === catalogoFiltro)
+                        .filter(item => {
+                          const matchCategoria = catalogoFiltro === 'todos' || item.categoria === catalogoFiltro;
+                          const matchBusqueda = !catalogoBusqueda ||
+                            item.nombre.toLowerCase().includes(catalogoBusqueda.toLowerCase()) ||
+                            item.subcategoria.toLowerCase().includes(catalogoBusqueda.toLowerCase()) ||
+                            (item.descripcion && item.descripcion.toLowerCase().includes(catalogoBusqueda.toLowerCase()));
+                          return matchCategoria && matchBusqueda;
+                        })
                         .reduce((acc, item) => {
                           const key = `${item.categoria} - ${item.subcategoria}`;
                           if (!acc[key]) acc[key] = [];
@@ -4306,19 +4422,19 @@ export default function App() {
                           return acc;
                         }, {})
                     ).map(([grupo, items]) => (
-                      <div key={grupo} className="glass rounded-2xl p-6">
-                        <h3 className="text-lg font-bold text-purple-400 mb-4">{grupo}</h3>
-                        <div className="space-y-3">
+                      <div key={grupo} className="glass rounded-2xl p-4">
+                        <h3 className="text-sm font-bold text-purple-400 mb-2">{grupo}</h3>
+                        <div className="space-y-1">
                           {items.map(item => (
-                            <div key={item.id} className="flex items-start justify-between p-4 bg-white/5 rounded-xl">
-                              <div className="flex-1">
-                                <h4 className="font-semibold text-white">{item.nombre}</h4>
+                            <div key={item.id} className="flex items-center justify-between py-1.5 px-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all">
+                              <div className="flex-1 min-w-0">
+                                <span className="text-sm text-white">{item.nombre}</span>
                                 {item.descripcion && (
-                                  <p className="text-sm text-slate-400 mt-1">{item.descripcion}</p>
+                                  <span className="text-xs text-slate-500 ml-2">- {item.descripcion}</span>
                                 )}
                               </div>
                               {canEdit && (
-                                <div className="flex gap-2 ml-4">
+                                <div className="flex gap-1 ml-2">
                                   <button
                                     onClick={() => {
                                       setCatalogoForm({
@@ -4330,9 +4446,9 @@ export default function App() {
                                       setEditingCatalogoItem(item.id);
                                       setShowCatalogoForm(true);
                                     }}
-                                    className="p-2 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-all"
+                                    className="p-1 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-all"
                                   >
-                                    <Edit3 className="w-4 h-4" />
+                                    <Edit3 className="w-3 h-3" />
                                   </button>
                                   {canDelete && (
                                     <button
@@ -4343,9 +4459,9 @@ export default function App() {
                                           localStorage.setItem('catalogoItems', JSON.stringify(updated));
                                         }
                                       }}
-                                      className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all"
+                                      className="p-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all"
                                     >
-                                      <Trash2 className="w-4 h-4" />
+                                      <Trash2 className="w-3 h-3" />
                                     </button>
                                   )}
                                 </div>
