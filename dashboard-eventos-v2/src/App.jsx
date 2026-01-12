@@ -268,6 +268,19 @@ export default function App() {
   const [nuevoItem, setNuevoItem] = useState('');
   const [nuevoExtra, setNuevoExtra] = useState('');
   const [menuTipoOtro, setMenuTipoOtro] = useState(false);
+
+  // Estados para catálogo de platos y bebidas
+  const [menuTab, setMenuTab] = useState('plantillas');
+  const [catalogoItems, setCatalogoItems] = useState([]);
+  const [showCatalogoForm, setShowCatalogoForm] = useState(false);
+  const [editingCatalogoItem, setEditingCatalogoItem] = useState(null);
+  const [catalogoForm, setCatalogoForm] = useState({ nombre: '', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' });
+  const [catalogoFiltro, setCatalogoFiltro] = useState('todos');
+  const CATEGORIAS_CATALOGO = ['Platos', 'Bebidas'];
+  const SUBCATEGORIAS_CATALOGO = {
+    'Platos': ['Entradas', 'Principales', 'Postres', 'Tapeo Frío', 'Tapeo Caliente', 'Cazuelas', 'Mesa de Dulces'],
+    'Bebidas': ['Vinos', 'Espumantes', 'Cervezas', 'Tragos', 'Sin Alcohol', 'Aguas', 'Gaseosas']
+  };
   const [nuevoEvento, setNuevoEvento] = useState({
     fecha: '',
     cliente: '',
@@ -364,6 +377,14 @@ export default function App() {
       }
     }
   }, [user, userRole]);
+
+  // Cargar catálogo desde localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('catalogoItems');
+    if (saved) {
+      setCatalogoItems(JSON.parse(saved));
+    }
+  }, []);
 
   const fetchEventos = async () => {
     setLoading(true);
@@ -4081,85 +4102,350 @@ export default function App() {
         {/* Menús */}
         {activeTab === 'menus' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">Plantillas de Menú</h2>
-              {canCreate && (
-                <button
-                  onClick={() => {
-                    resetNuevoMenu();
-                    setShowMenuModal(true);
-                  }}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium hover:from-purple-700 hover:to-indigo-700 transition-all"
-                >
-                  <Plus className="w-5 h-5" />
-                  Nuevo Menú
-                </button>
-              )}
+            {/* Sub-tabs de Menús */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setMenuTab('plantillas')}
+                className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                  menuTab === 'plantillas'
+                    ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
+                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                }`}
+              >
+                Plantillas de Menú
+              </button>
+              <button
+                onClick={() => setMenuTab('catalogo')}
+                className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                  menuTab === 'catalogo'
+                    ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
+                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                }`}
+              >
+                Catálogo
+              </button>
             </div>
 
-            {menus.length === 0 ? (
-              <div className="glass rounded-2xl p-12 text-center">
-                <UtensilsCrossed className="w-16 h-16 mx-auto text-slate-600 mb-4" />
-                <p className="text-slate-400 text-lg">No hay menús creados</p>
-                <p className="text-slate-500 text-sm mt-2">Creá tu primer menú para usarlo en las cotizaciones</p>
-              </div>
-            ) : (
-              <div className="grid gap-4">
-                {menus.map(menu => (
-                  <div key={menu.id} className="glass rounded-2xl p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <h3 className="text-lg font-bold text-white">{menu.nombre}</h3>
-                      {canEdit && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleEditMenu(menu)}
-                            className="p-2 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-all"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          {canDelete && (
-                            <button
-                              onClick={() => handleDeleteMenu(menu.id)}
-                              className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+            {/* Plantillas de Menú */}
+            {menuTab === 'plantillas' && (
+              <>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold">Plantillas de Menú</h2>
+                  {canCreate && (
+                    <button
+                      onClick={() => {
+                        resetNuevoMenu();
+                        setShowMenuModal(true);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium hover:from-purple-700 hover:to-indigo-700 transition-all"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Nuevo Menú
+                    </button>
+                  )}
+                </div>
+
+                {menus.length === 0 ? (
+                  <div className="glass rounded-2xl p-12 text-center">
+                    <UtensilsCrossed className="w-16 h-16 mx-auto text-slate-600 mb-4" />
+                    <p className="text-slate-400 text-lg">No hay menús creados</p>
+                    <p className="text-slate-500 text-sm mt-2">Creá tu primer menú para usarlo en las cotizaciones</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {menus.map(menu => (
+                      <div key={menu.id} className="glass rounded-2xl p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <h3 className="text-lg font-bold text-white">{menu.nombre}</h3>
+                          {canEdit && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleEditMenu(menu)}
+                                className="p-2 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-all"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              {canDelete && (
+                                <button
+                                  onClick={() => handleDeleteMenu(menu.id)}
+                                  className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
                           )}
                         </div>
-                      )}
-                    </div>
 
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {menu.categorias && menu.categorias.map((cat, idx) => (
-                        cat.items && cat.items.length > 0 && (
-                          <div key={idx} className="bg-white/5 rounded-xl p-4">
-                            <h4 className="text-sm font-semibold text-purple-400 mb-2">{cat.nombre}</h4>
-                            <ul className="space-y-1">
-                              {cat.items.map((item, itemIdx) => (
-                                <li key={itemIdx} className="text-sm text-slate-300">• {item}</li>
+                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {menu.categorias && menu.categorias.map((cat, idx) => (
+                            cat.items && cat.items.length > 0 && (
+                              <div key={idx} className="bg-white/5 rounded-xl p-4">
+                                <h4 className="text-sm font-semibold text-purple-400 mb-2">{cat.nombre}</h4>
+                                <ul className="space-y-1">
+                                  {cat.items.map((item, itemIdx) => (
+                                    <li key={itemIdx} className="text-sm text-slate-300">• {item}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )
+                          ))}
+                        </div>
+
+                        {menu.extras && menu.extras.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-white/10">
+                            <h4 className="text-sm font-semibold text-emerald-400 mb-2">Extras Opcionales</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {menu.extras.map((extra, idx) => (
+                                <span key={idx} className="px-3 py-1 bg-emerald-500/20 text-emerald-300 rounded-full text-sm">
+                                  {extra}
+                                </span>
                               ))}
-                            </ul>
+                            </div>
                           </div>
-                        )
-                      ))}
-                    </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
 
-                    {menu.extras && menu.extras.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-white/10">
-                        <h4 className="text-sm font-semibold text-emerald-400 mb-2">Extras Opcionales</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {menu.extras.map((extra, idx) => (
-                            <span key={idx} className="px-3 py-1 bg-emerald-500/20 text-emerald-300 rounded-full text-sm">
-                              {extra}
-                            </span>
+            {/* Catálogo de Platos y Bebidas */}
+            {menuTab === 'catalogo' && (
+              <>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold">Catálogo de Platos y Bebidas</h2>
+                  {canCreate && (
+                    <button
+                      onClick={() => {
+                        setCatalogoForm({ nombre: '', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' });
+                        setEditingCatalogoItem(null);
+                        setShowCatalogoForm(true);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium hover:from-purple-700 hover:to-indigo-700 transition-all"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Agregar Item
+                    </button>
+                  )}
+                </div>
+
+                {/* Filtros */}
+                <div className="flex gap-3 flex-wrap">
+                  <button
+                    onClick={() => setCatalogoFiltro('todos')}
+                    className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                      catalogoFiltro === 'todos'
+                        ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
+                        : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  <button
+                    onClick={() => setCatalogoFiltro('Platos')}
+                    className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                      catalogoFiltro === 'Platos'
+                        ? 'bg-orange-500/20 text-orange-400 border border-orange-500/50'
+                        : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                    }`}
+                  >
+                    Platos
+                  </button>
+                  <button
+                    onClick={() => setCatalogoFiltro('Bebidas')}
+                    className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                      catalogoFiltro === 'Bebidas'
+                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
+                        : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                    }`}
+                  >
+                    Bebidas
+                  </button>
+                </div>
+
+                {/* Lista de items */}
+                {catalogoItems.filter(item => catalogoFiltro === 'todos' || item.categoria === catalogoFiltro).length === 0 ? (
+                  <div className="glass rounded-2xl p-12 text-center">
+                    <FileText className="w-16 h-16 mx-auto text-slate-600 mb-4" />
+                    <p className="text-slate-400 text-lg">No hay items en el catálogo</p>
+                    <p className="text-slate-500 text-sm mt-2">Agregá platos y bebidas para usarlos en los presupuestos</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {Object.entries(
+                      catalogoItems
+                        .filter(item => catalogoFiltro === 'todos' || item.categoria === catalogoFiltro)
+                        .reduce((acc, item) => {
+                          const key = `${item.categoria} - ${item.subcategoria}`;
+                          if (!acc[key]) acc[key] = [];
+                          acc[key].push(item);
+                          return acc;
+                        }, {})
+                    ).map(([grupo, items]) => (
+                      <div key={grupo} className="glass rounded-2xl p-6">
+                        <h3 className="text-lg font-bold text-purple-400 mb-4">{grupo}</h3>
+                        <div className="space-y-3">
+                          {items.map(item => (
+                            <div key={item.id} className="flex items-start justify-between p-4 bg-white/5 rounded-xl">
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-white">{item.nombre}</h4>
+                                {item.descripcion && (
+                                  <p className="text-sm text-slate-400 mt-1">{item.descripcion}</p>
+                                )}
+                              </div>
+                              {canEdit && (
+                                <div className="flex gap-2 ml-4">
+                                  <button
+                                    onClick={() => {
+                                      setCatalogoForm({
+                                        nombre: item.nombre,
+                                        descripcion: item.descripcion || '',
+                                        categoria: item.categoria,
+                                        subcategoria: item.subcategoria
+                                      });
+                                      setEditingCatalogoItem(item.id);
+                                      setShowCatalogoForm(true);
+                                    }}
+                                    className="p-2 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-all"
+                                  >
+                                    <Edit3 className="w-4 h-4" />
+                                  </button>
+                                  {canDelete && (
+                                    <button
+                                      onClick={() => {
+                                        if (confirm('¿Eliminar este item del catálogo?')) {
+                                          const updated = catalogoItems.filter(i => i.id !== item.id);
+                                          setCatalogoItems(updated);
+                                          localStorage.setItem('catalogoItems', JSON.stringify(updated));
+                                        }
+                                      }}
+                                      className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           ))}
                         </div>
                       </div>
-                    )}
+                    ))}
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
+          </div>
+        )}
+
+        {/* Modal Catálogo Form */}
+        {showCatalogoForm && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="glass rounded-2xl p-6 w-full max-w-md">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold">
+                  {editingCatalogoItem ? 'Editar Item' : 'Nuevo Item'}
+                </h3>
+                <button
+                  onClick={() => setShowCatalogoForm(false)}
+                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Nombre *</label>
+                  <input
+                    type="text"
+                    value={catalogoForm.nombre}
+                    onChange={(e) => setCatalogoForm({ ...catalogoForm, nombre: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 focus:border-purple-500 focus:outline-none"
+                    placeholder="Ej: Risotto de Mariscos"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Descripción</label>
+                  <textarea
+                    value={catalogoForm.descripcion}
+                    onChange={(e) => setCatalogoForm({ ...catalogoForm, descripcion: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 focus:border-purple-500 focus:outline-none resize-none"
+                    rows={3}
+                    placeholder="Descripción opcional del plato o bebida"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Categoría</label>
+                  <select
+                    value={catalogoForm.categoria}
+                    onChange={(e) => {
+                      const newCat = e.target.value;
+                      setCatalogoForm({
+                        ...catalogoForm,
+                        categoria: newCat,
+                        subcategoria: SUBCATEGORIAS_CATALOGO[newCat][0]
+                      });
+                    }}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 focus:border-purple-500 focus:outline-none"
+                  >
+                    {CATEGORIAS_CATALOGO.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Subcategoría</label>
+                  <select
+                    value={catalogoForm.subcategoria}
+                    onChange={(e) => setCatalogoForm({ ...catalogoForm, subcategoria: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 focus:border-purple-500 focus:outline-none"
+                  >
+                    {SUBCATEGORIAS_CATALOGO[catalogoForm.categoria].map(sub => (
+                      <option key={sub} value={sub}>{sub}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  onClick={() => {
+                    if (!catalogoForm.nombre.trim()) {
+                      alert('El nombre es obligatorio');
+                      return;
+                    }
+
+                    let updated;
+                    if (editingCatalogoItem) {
+                      updated = catalogoItems.map(item =>
+                        item.id === editingCatalogoItem
+                          ? { ...item, ...catalogoForm }
+                          : item
+                      );
+                    } else {
+                      const newItem = {
+                        id: Date.now(),
+                        ...catalogoForm
+                      };
+                      updated = [...catalogoItems, newItem];
+                    }
+
+                    setCatalogoItems(updated);
+                    localStorage.setItem('catalogoItems', JSON.stringify(updated));
+                    setShowCatalogoForm(false);
+                    setCatalogoForm({ nombre: '', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' });
+                    setEditingCatalogoItem(null);
+                  }}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium hover:from-purple-700 hover:to-indigo-700 transition-all"
+                >
+                  {editingCatalogoItem ? 'Guardar Cambios' : 'Agregar al Catálogo'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
