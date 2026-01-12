@@ -276,9 +276,11 @@ export default function App() {
   const [editingCatalogoItem, setEditingCatalogoItem] = useState(null);
   const [catalogoForm, setCatalogoForm] = useState({ nombre: '', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' });
   const [catalogoFiltro, setCatalogoFiltro] = useState('todos');
-  const CATEGORIAS_CATALOGO = ['Platos', 'Bebidas'];
+  const CATEGORIAS_CATALOGO = ['Platos', 'Tapas', 'Islas', 'Bebidas'];
   const SUBCATEGORIAS_CATALOGO = {
-    'Platos': ['Entradas', 'Principales', 'Postres', 'Tapeo Frío', 'Tapeo Caliente', 'Cazuelas', 'Mesa de Dulces'],
+    'Platos': ['Entradas', 'Principales', 'Postres'],
+    'Tapas': ['Tapeo Frío', 'Tapeo Caliente', 'Cazuelas', 'Mesa de Dulces', 'Fin de Fiesta'],
+    'Islas': ['Quesos', 'Fiambres', 'Frutas', 'Dulces', 'Otros'],
     'Bebidas': ['Vinos', 'Espumantes', 'Cervezas', 'Tragos', 'Sin Alcohol', 'Aguas', 'Gaseosas']
   };
   const [nuevoEvento, setNuevoEvento] = useState({
@@ -4252,6 +4254,26 @@ export default function App() {
                     }`}
                   >
                     Platos
+                  </button>
+                  <button
+                    onClick={() => setCatalogoFiltro('Tapas')}
+                    className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                      catalogoFiltro === 'Tapas'
+                        ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50'
+                        : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                    }`}
+                  >
+                    Tapas
+                  </button>
+                  <button
+                    onClick={() => setCatalogoFiltro('Islas')}
+                    className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                      catalogoFiltro === 'Islas'
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                        : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                    }`}
+                  >
+                    Islas
                   </button>
                   <button
                     onClick={() => setCatalogoFiltro('Bebidas')}
