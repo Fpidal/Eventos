@@ -1235,32 +1235,31 @@ export default function App() {
 
     // ============ PÁGINA 1 ============
 
-    // --- LOGO ---
-    doc.setFontSize(26);
-    doc.setTextColor(...VERDE_OSCURO);
-    doc.setFont('helvetica', 'bold');
-    doc.text('TERO', centerX, y + 10, { align: 'center' });
+    // --- LOGO (imagen) ---
+    try {
+      doc.addImage('/logo-tero.jpg', 'JPEG', centerX - 18, y, 36, 25);
+      y += 30;
+    } catch (e) {
+      // Fallback a texto si no hay imagen
+      doc.setFontSize(24);
+      doc.setTextColor(...VERDE_OSCURO);
+      doc.setFont('helvetica', 'bold');
+      doc.text('TERO RESTÓ', centerX, y + 12, { align: 'center' });
+      y += 20;
+    }
 
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.setCharSpace(3);
-    doc.text('RESTÓ', centerX, y + 16, { align: 'center' });
-    doc.setCharSpace(0);
-
-    y += 26;
-
-    // --- TÍTULO COTIZACIÓN ---
-    doc.setFontSize(18);
+    // --- TÍTULO COTIZACIÓN (centrado) ---
+    doc.setFontSize(16);
     doc.setTextColor(...NEGRO);
     doc.setFont('helvetica', 'normal');
-    doc.setCharSpace(3);
+    doc.setCharSpace(2);
     doc.text('COTIZACIÓN DE EVENTO', centerX, y, { align: 'center' });
     doc.setCharSpace(0);
 
     y += 4;
     doc.setDrawColor(...VERDE_TERO);
     doc.setLineWidth(0.8);
-    doc.line(centerX - 30, y, centerX + 30, y);
+    doc.line(centerX - 35, y, centerX + 35, y);
 
     y += 10;
 
@@ -1527,12 +1526,16 @@ export default function App() {
     const iva = subtotal * 0.21;
     const total = subtotal + iva;
 
-    doc.setFontSize(10);
-    doc.setTextColor(...GRIS_SEC);
+    // Subtotal en verde
+    doc.setFontSize(11);
+    doc.setTextColor(...VERDE_TERO);
+    doc.setFont('helvetica', 'bold');
     doc.text('Subtotal:', colPrecio, y);
     doc.text(formatMoneyPDF(subtotal), colSubtotal, y, { align: 'right' });
 
     y += 6;
+    doc.setTextColor(...GRIS_SEC);
+    doc.setFont('helvetica', 'normal');
     doc.text('IVA 21%:', colPrecio, y);
     doc.text(formatMoneyPDF(iva), colSubtotal, y, { align: 'right' });
 
@@ -1542,11 +1545,11 @@ export default function App() {
     doc.line(colPrecio - 5, y, colSubtotal, y);
     y += 8;
 
-    doc.setFontSize(14);
+    // Total mismo tamaño que subtotal
+    doc.setFontSize(11);
     doc.setTextColor(...VERDE_TERO);
     doc.setFont('helvetica', 'bold');
     doc.text('TOTAL:', colPrecio, y);
-    doc.setFontSize(16);
     doc.text(formatMoneyPDF(total), colSubtotal, y, { align: 'right' });
 
     y += 15;
