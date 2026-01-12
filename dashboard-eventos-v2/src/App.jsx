@@ -1172,258 +1172,294 @@ export default function App() {
     doc.save(fileName);
   };
 
-  const generarCotizacion = (evento) => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const menuDetalle = evento.menu_detalle;
-    const margin = 15;
+  const generarCotizacion = (evento, menuData = null) => {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
 
-    // Colores del diseño
-    const colors = {
-      verdePrincipal: [31, 122, 99],      // #1F7A63
-      verdeSuave: [234, 244, 241],        // #EAF4F1
-      negro: [17, 24, 39],                // #111827
-      grisTexto: [55, 65, 81],            // #374151
-      grisSecundario: [107, 114, 128],    // #6B7280
-      grisLineas: [229, 231, 235],        // #E5E7EB
-      blanco: [255, 255, 255]
+    // ============ COLORES (RGB) ============
+    const VERDE_TERO = [31, 122, 99];       // #1F7A63
+    const VERDE_SUAVE = [234, 244, 241];    // #EAF4F1
+    const VERDE_OSCURO = [21, 94, 75];      // #155E4B
+    const NEGRO = [17, 24, 39];             // #111827
+    const GRIS_TEXTO = [55, 65, 81];        // #374151
+    const GRIS_SEC = [107, 114, 128];       // #6B7280
+    const GRIS_LINEA = [229, 231, 235];     // #E5E7EB
+
+    // ============ MEDIDAS ============
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const marginLeft = 22;
+    const marginRight = 22;
+    const contentWidth = pageWidth - marginLeft - marginRight;
+    const centerX = pageWidth / 2;
+
+    let y = 20;
+
+    // ============ HELPERS ============
+    const formatMoneyPDF = (num) => {
+      if (!num && num !== 0) return '$0';
+      return '$' + Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     };
 
-    // Función para formatear moneda (puntos como separador de miles)
-    const fmtMoney = (num) => '$' + Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-
-    // Función para dibujar bloque con fondo
-    const drawBlock = (x, y, w, h) => {
-      doc.setFillColor(...colors.verdeSuave);
-      doc.roundedRect(x, y, w, h, 2, 2, 'F');
+    const drawLine = (yPos, color = GRIS_LINEA, width = 0.3) => {
+      doc.setDrawColor(...color);
+      doc.setLineWidth(width);
+      doc.line(marginLeft, yPos, pageWidth - marginRight, yPos);
     };
 
-    // Función para verificar nueva página
-    const checkNewPage = (currentY, neededSpace = 30) => {
-      if (currentY + neededSpace > pageHeight - 25) {
-        doc.addPage();
-        return 20;
-      }
-      return currentY;
+    const drawBlock = (x, yPos, w, h, fillColor = VERDE_SUAVE) => {
+      doc.setFillColor(...fillColor);
+      doc.rect(x, yPos, w, h, 'F');
     };
 
-    let y = 15;
+    const drawSectionTitle = (title, yPos) => {
+      const textWidth = doc.getStringUnitWidth(title) * 11 / doc.internal.scaleFactor;
+      const lineY = yPos;
+      const gap = 4;
 
-    // === LOGO ===
-    try {
-      const logoImg = new Image();
-      logoImg.src = '/logo-tero.jpg';
-      doc.addImage(logoImg, 'JPEG', pageWidth / 2 - 18, y, 36, 25);
-    } catch (e) {
-      // Si no hay logo, mostrar texto
-      doc.setFontSize(24);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(...colors.verdePrincipal);
-      doc.text('TERO', pageWidth / 2, y + 15, { align: 'center' });
-    }
+      doc.setDrawColor(...GRIS_LINEA);
+      doc.setLineWidth(0.3);
+      doc.line(marginLeft, lineY, centerX - textWidth/2 - gap, lineY);
+      doc.line(centerX + textWidth/2 + gap, lineY, pageWidth - marginRight, lineY);
+
+      doc.setFontSize(11);
+      doc.setTextColor(...GRIS_SEC);
+      doc.setFont('helvetica', 'normal');
+      doc.text(title, centerX, lineY + 0.5, { align: 'center' });
+
+      return yPos + 10;
+    };
+
+    // ============ PÁGINA 1 ============
+
+    // --- LOGO ---
+    doc.setFontSize(32);
+    doc.setTextColor(...VERDE_OSCURO);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TERO', centerX, y + 12, { align: 'center' });
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setCharSpace(4);
+    doc.text('RESTÓ', centerX, y + 20, { align: 'center' });
+    doc.setCharSpace(0);
+
     y += 32;
 
-    // === TÍTULO ===
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...colors.negro);
-    doc.setCharSpace(2);
-    doc.text('COTIZACIÓN DE EVENTO', pageWidth / 2, y, { align: 'center' });
+    // --- TÍTULO COTIZACIÓN ---
+    doc.setFontSize(18);
+    doc.setTextColor(...NEGRO);
+    doc.setFont('helvetica', 'normal');
+    doc.setCharSpace(3);
+    doc.text('COTIZACIÓN DE EVENTO', centerX, y, { align: 'center' });
     doc.setCharSpace(0);
-    y += 5;
 
-    // Línea decorativa
-    doc.setDrawColor(...colors.verdePrincipal);
+    y += 4;
+    doc.setDrawColor(...VERDE_TERO);
     doc.setLineWidth(0.8);
-    doc.line(pageWidth / 2 - 30, y, pageWidth / 2 + 30, y);
+    doc.line(centerX - 30, y, centerX + 30, y);
+
     y += 10;
 
-    // === FECHAS ===
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...colors.grisSecundario);
-    const fechaCotizacion = new Date().toLocaleDateString('es-AR');
+    // --- FECHAS ---
+    const fechaHoy = new Date().toLocaleDateString('es-AR');
     const fechaValidez = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('es-AR');
-    doc.text(`Fecha: ${fechaCotizacion}`, margin, y);
-    doc.text(`Válida hasta: ${fechaValidez}`, pageWidth - margin, y, { align: 'right' });
-    y += 10;
-
-    // === DATOS DEL CLIENTE ===
-    drawBlock(margin, y - 4, pageWidth - margin * 2, 22);
 
     doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...colors.negro);
-    doc.text('DATOS DEL CLIENTE', margin + 4, y + 3);
-
-    doc.setFontSize(10);
+    doc.setTextColor(...GRIS_SEC);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...colors.grisTexto);
-    y += 10;
-    doc.text(`Cliente: ${evento.cliente}`, margin + 4, y);
-    if (evento.telefono) {
-      doc.text(`Tel: ${evento.telefono}`, pageWidth / 2, y);
+    doc.text('Fecha: ' + fechaHoy, marginLeft, y);
+    doc.text('Válida hasta: ' + fechaValidez, pageWidth - marginRight, y, { align: 'right' });
+
+    y += 12;
+
+    // --- DATOS DEL CLIENTE ---
+    y = drawSectionTitle('DATOS DEL CLIENTE', y);
+
+    const clienteBlockY = y;
+    const clienteBlockH = 16;
+    drawBlock(marginLeft, clienteBlockY, contentWidth, clienteBlockH);
+
+    doc.setFontSize(11);
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('Cliente:', marginLeft + 5, y + 6);
+    doc.text('Tel:', centerX + 10, y + 6);
+
+    doc.setTextColor(...NEGRO);
+    doc.setFont('helvetica', 'bold');
+    doc.text(evento.cliente || evento.nombre || 'N/A', marginLeft + 22, y + 6);
+    doc.text(evento.telefono || 'N/A', centerX + 20, y + 6);
+    doc.setFont('helvetica', 'normal');
+
+    y += clienteBlockH + 8;
+
+    // --- DETALLES DEL EVENTO ---
+    y = drawSectionTitle('DETALLES DEL EVENTO', y);
+
+    const detalleBlockY = y;
+    const detalleBlockH = 28;
+    drawBlock(marginLeft, detalleBlockY, contentWidth, detalleBlockH);
+
+    const col1 = marginLeft + 5;
+    const col1Val = marginLeft + 22;
+    const col2 = centerX + 5;
+    const col2Val = centerX + 30;
+
+    let fechaEvento = evento.fecha || 'N/A';
+    if (evento.fecha) {
+      try {
+        const date = new Date(evento.fecha + 'T12:00:00');
+        const dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+        const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+        fechaEvento = dias[date.getDay()] + ', ' + date.getDate() + ' de ' + meses[date.getMonth()] + ' de ' + date.getFullYear();
+        fechaEvento = fechaEvento.charAt(0).toUpperCase() + fechaEvento.slice(1);
+      } catch (e) {
+        fechaEvento = evento.fecha;
+      }
     }
-    y += 18;
-
-    // === DETALLES DEL EVENTO ===
-    drawBlock(margin, y - 4, pageWidth - margin * 2, 28);
 
     doc.setFontSize(10);
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('Evento:', col1, y + 6);
+    doc.text('Fecha:', col1, y + 13);
+    doc.text('Salón:', col1, y + 20);
+
+    doc.setTextColor(...NEGRO);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...colors.negro);
-    doc.text('DETALLES DEL EVENTO', margin + 4, y + 3);
-
-    doc.setFontSize(9);
+    doc.text(evento.tipo_evento || evento.tipo || 'N/A', col1Val, y + 6);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...colors.grisTexto);
-    y += 10;
+    doc.text(fechaEvento, col1Val, y + 13);
+    doc.setFont('helvetica', 'bold');
+    doc.text(evento.salon || 'N/A', col1Val, y + 20);
 
-    const fechaEvento = new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-    });
-    doc.text(`Fecha: ${fechaEvento}`, margin + 4, y);
-    y += 5;
-    doc.text(`Tipo: ${evento.tipo_evento}`, margin + 4, y);
-    doc.text(`Salón: ${evento.salon}`, pageWidth / 2, y);
-    y += 5;
-    const horario = evento.hora_inicio && evento.hora_fin ? ` (${evento.hora_inicio} - ${evento.hora_fin})` : '';
-    doc.text(`Turno: ${evento.turno}${horario}`, margin + 4, y);
-    doc.text(`Invitados: ${evento.adultos || 0} adultos${evento.menores ? `, ${evento.menores} menores` : ''}`, pageWidth / 2, y);
-    y += 14;
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('Turno:', col2, y + 6);
+    doc.text('Invitados:', col2, y + 13);
 
-    // === MENÚ DETALLADO ===
+    const turnoText = evento.turno || 'Noche';
+    const horaText = evento.hora_inicio && evento.hora_fin ? ' (' + evento.hora_inicio + ' - ' + evento.hora_fin + ')' : '';
+
+    doc.setTextColor(...NEGRO);
+    doc.setFont('helvetica', 'bold');
+    doc.text(turnoText + horaText, col2Val, y + 6);
+
+    let invitadosText = (evento.adultos || 0) + ' adultos';
+    if (evento.menores && evento.menores > 0) {
+      invitadosText += ', ' + evento.menores + ' menores';
+    }
+    doc.text(invitadosText, col2Val, y + 13);
+
+    doc.setFont('helvetica', 'normal');
+    y += detalleBlockH + 10;
+
+    // --- MENÚ ---
+    const menuDetalle = evento.menu_detalle;
+    const menuTitulo = 'MENÚ: ' + (menuDetalle?.nombre || evento.menu || 'Menu 3 Pasos');
+
+    doc.setFontSize(13);
+    doc.setTextColor(...VERDE_TERO);
+    doc.setFont('helvetica', 'bold');
+    doc.text(menuTitulo, marginLeft, y);
+    y += 8;
+
+    // Items del menú desde menu_detalle
     if (menuDetalle && menuDetalle.categorias) {
-      y = checkNewPage(y, 20);
+      const menuColLeft = marginLeft;
+      const menuColRight = centerX + 5;
 
-      // Título del menú
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(...colors.verdePrincipal);
-      doc.text(`MENÚ: ${menuDetalle.nombre}`, margin, y);
-      y += 8;
-
-      // Items del menú en 2 columnas
-      const colWidth = (pageWidth - margin * 2 - 10) / 2;
-      let col = 0;
-      let colY = y;
-      let maxY = y;
+      let yLeft = y;
+      let yRight = y;
+      let useRight = false;
 
       menuDetalle.categorias.forEach(categoria => {
         if (categoria.items && categoria.items.length > 0) {
-          const neededHeight = 8 + categoria.items.length * 4;
+          const xPos = useRight ? menuColRight : menuColLeft;
+          let yLocal = useRight ? yRight : yLeft;
 
-          if (colY + neededHeight > pageHeight - 40) {
-            if (col === 0) {
-              col = 1;
-              colY = y;
-            } else {
-              doc.addPage();
-              y = 20;
-              colY = y;
-              col = 0;
-              maxY = y;
-            }
-          }
-
-          const xPos = margin + col * (colWidth + 10);
-
-          // Título categoría
-          doc.setFontSize(9);
+          doc.setFontSize(11);
+          doc.setTextColor(...VERDE_TERO);
           doc.setFont('helvetica', 'bold');
-          doc.setTextColor(...colors.verdePrincipal);
-          doc.text(categoria.nombre, xPos, colY);
-          colY += 5;
+          doc.text(categoria.nombre, xPos, yLocal);
+          yLocal += 5;
 
-          // Items
-          doc.setFontSize(8);
+          doc.setFontSize(10);
+          doc.setTextColor(...GRIS_TEXTO);
           doc.setFont('helvetica', 'normal');
-          doc.setTextColor(...colors.grisTexto);
-          categoria.items.forEach(item => {
-            doc.text(`• ${item}`, xPos + 2, colY);
-            colY += 4;
-          });
-          colY += 4;
 
-          if (colY > maxY) maxY = colY;
+          categoria.items.forEach(item => {
+            doc.text('• ' + item, xPos, yLocal);
+            yLocal += 5;
+          });
+          yLocal += 4;
+
+          if (useRight) {
+            yRight = yLocal;
+          } else {
+            yLeft = yLocal;
+          }
+          useRight = !useRight;
         }
       });
 
-      y = maxY + 6;
-
-      // Extras del menú
-      if (menuDetalle.extras && menuDetalle.extras.length > 0) {
-        y = checkNewPage(y, 15);
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...colors.verdePrincipal);
-        doc.text('Extras del Menú:', margin, y);
-        y += 5;
-
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(...colors.grisTexto);
-        menuDetalle.extras.forEach(extra => {
-          doc.text(`• ${extra}`, margin + 2, y);
-          y += 4;
-        });
-        y += 4;
-      }
+      y = Math.max(yLeft, yRight) + 6;
     }
 
-    // === DETALLE DE PRECIOS ===
-    y = checkNewPage(y, 50);
-    y += 4;
-
-    doc.setFontSize(11);
+    // --- DETALLE DE PRECIOS ---
+    doc.setFontSize(13);
+    doc.setTextColor(...NEGRO);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...colors.negro);
-    doc.text('DETALLE DE PRECIOS', margin, y);
+    doc.text('DETALLE DE PRECIOS', marginLeft, y);
     y += 8;
 
-    // Encabezados de tabla
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...colors.grisSecundario);
-    doc.text('Concepto', margin, y);
-    doc.text('Cant.', 95, y);
-    doc.text('Precio Unit.', 115, y);
-    doc.text('Subtotal', pageWidth - margin, y, { align: 'right' });
+    const colConcepto = marginLeft;
+    const colCant = marginLeft + 80;
+    const colPrecio = marginLeft + 105;
+    const colSubtotal = pageWidth - marginRight;
 
-    // Línea bajo encabezados
-    y += 2;
-    doc.setDrawColor(...colors.grisLineas);
-    doc.setLineWidth(0.3);
-    doc.line(margin, y, pageWidth - margin, y);
+    doc.setFontSize(10);
+    doc.setTextColor(...GRIS_SEC);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Concepto', colConcepto, y);
+    doc.text('Cant.', colCant, y);
+    doc.text('Precio Unit.', colPrecio, y);
+    doc.text('Subtotal', colSubtotal, y, { align: 'right' });
+
+    y += 3;
+    drawLine(y, GRIS_LINEA, 0.3);
     y += 6;
 
-    // Filas de precios
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...colors.grisTexto);
-    doc.setFontSize(9);
-
+    let subtotalGeneral = 0;
     const adultos = evento.adultos || 0;
     const precioAdulto = evento.precio_adulto || 0;
-    doc.text('Adultos', margin, y);
-    doc.text(adultos.toString(), 95, y);
-    doc.text(fmtMoney(precioAdulto), 115, y);
-    doc.text(fmtMoney(adultos * precioAdulto), pageWidth - margin, y, { align: 'right' });
-    y += 6;
+    const menores = evento.menores || 0;
+    const precioMenor = evento.precio_menor || 0;
 
-    // Línea separadora
-    doc.setDrawColor(...colors.grisLineas);
-    doc.line(margin, y - 2, pageWidth - margin, y - 2);
+    doc.setTextColor(...GRIS_TEXTO);
 
-    if (evento.menores > 0) {
-      const menores = evento.menores || 0;
-      const precioMenor = evento.precio_menor || 0;
-      doc.text('Menores', margin, y);
-      doc.text(menores.toString(), 95, y);
-      doc.text(fmtMoney(precioMenor), 115, y);
-      doc.text(fmtMoney(menores * precioMenor), pageWidth - margin, y, { align: 'right' });
-      y += 6;
-      doc.line(margin, y - 2, pageWidth - margin, y - 2);
+    // Adultos
+    if (adultos > 0) {
+      const subtotalAdultos = adultos * precioAdulto;
+      subtotalGeneral += subtotalAdultos;
+      doc.text('Adultos', colConcepto, y);
+      doc.text(String(adultos), colCant, y);
+      doc.text(formatMoneyPDF(precioAdulto), colPrecio, y);
+      doc.text(formatMoneyPDF(subtotalAdultos), colSubtotal, y, { align: 'right' });
+      y += 7;
+    }
+
+    // Menores
+    if (menores > 0) {
+      const subtotalMenores = menores * precioMenor;
+      subtotalGeneral += subtotalMenores;
+      doc.text('Menores', colConcepto, y);
+      doc.text(String(menores), colCant, y);
+      doc.text(formatMoneyPDF(precioMenor), colPrecio, y);
+      doc.text(formatMoneyPDF(subtotalMenores), colSubtotal, y, { align: 'right' });
+      y += 7;
     }
 
     // Extras
@@ -1432,128 +1468,131 @@ export default function App() {
       const valor = evento[`extra${i}_valor`] || 0;
       const tipo = evento[`extra${i}_tipo`];
       if (desc && valor > 0) {
-        const subtotalExtra = tipo === 'por_persona' ? valor * adultos : valor;
-        doc.text(desc.substring(0, 35), margin, y);
-        doc.text(tipo === 'por_persona' ? adultos.toString() : '1', 95, y);
-        doc.text(fmtMoney(valor), 115, y);
-        doc.text(fmtMoney(subtotalExtra), pageWidth - margin, y, { align: 'right' });
-        y += 6;
-        doc.line(margin, y - 2, pageWidth - margin, y - 2);
+        const cant = tipo === 'por_persona' ? adultos : 1;
+        const subtotalExtra = valor * cant;
+        subtotalGeneral += subtotalExtra;
+        doc.text(desc.substring(0, 30), colConcepto, y);
+        doc.text(String(cant), colCant, y);
+        doc.text(formatMoneyPDF(valor), colPrecio, y);
+        doc.text(formatMoneyPDF(subtotalExtra), colSubtotal, y, { align: 'right' });
+        y += 7;
       }
     });
 
-    y += 4;
-
-    // Subtotal
-    const subtotal = evento.totalEvento || evento.total_evento || 0;
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...colors.grisSecundario);
-    doc.text('Subtotal:', 115, y);
-    doc.text(fmtMoney(subtotal), pageWidth - margin, y, { align: 'right' });
-    y += 5;
-
-    // IVA
-    const iva = subtotal * 0.21;
-    doc.text('IVA 21%:', 115, y);
-    doc.text(fmtMoney(iva), pageWidth - margin, y, { align: 'right' });
+    y += 2;
+    drawLine(y, GRIS_LINEA, 0.3);
     y += 8;
 
-    // TOTAL
-    const totalConIva = subtotal + iva;
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...colors.verdePrincipal);
-    doc.text('TOTAL:', 115, y);
-    doc.text(fmtMoney(totalConIva), pageWidth - margin, y, { align: 'right' });
-    y += 12;
+    const subtotal = evento.total_evento || evento.totalEvento || subtotalGeneral || 0;
+    const iva = subtotal * 0.21;
+    const total = subtotal + iva;
 
-    // === SERVICIOS ADICIONALES ===
+    doc.setFontSize(10);
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('Subtotal:', colPrecio, y);
+    doc.text(formatMoneyPDF(subtotal), colSubtotal, y, { align: 'right' });
+
+    y += 6;
+    doc.text('IVA 21%:', colPrecio, y);
+    doc.text(formatMoneyPDF(iva), colSubtotal, y, { align: 'right' });
+
+    y += 4;
+    doc.setDrawColor(...VERDE_TERO);
+    doc.setLineWidth(0.5);
+    doc.line(colPrecio - 5, y, colSubtotal, y);
+    y += 8;
+
+    doc.setFontSize(14);
+    doc.setTextColor(...VERDE_TERO);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TOTAL:', colPrecio, y);
+    doc.setFontSize(16);
+    doc.text(formatMoneyPDF(total), colSubtotal, y, { align: 'right' });
+
+    y += 15;
+
+    // --- SERVICIOS ADICIONALES ---
     const tieneServicios = evento.tecnica || evento.tecnica_superior || evento.dj;
     if (tieneServicios) {
-      y = checkNewPage(y, 20);
-
-      doc.setFontSize(10);
+      doc.setFontSize(11);
+      doc.setTextColor(...NEGRO);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(...colors.negro);
-      doc.text('SERVICIOS ADICIONALES', margin, y);
+      doc.text('SERVICIOS ADICIONALES', marginLeft, y);
       y += 6;
 
-      doc.setFontSize(9);
+      doc.setFontSize(10);
+      doc.setTextColor(...GRIS_TEXTO);
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(...colors.grisTexto);
 
       if (evento.tecnica) {
-        doc.text('• Técnica de sonido e iluminación', margin + 2, y);
+        doc.text('• Técnica de sonido e iluminación', marginLeft, y);
         y += 5;
       }
       if (evento.tecnica_superior) {
-        doc.text('• Técnica superior (equipamiento premium)', margin + 2, y);
+        doc.text('• Técnica superior (equipamiento premium)', marginLeft, y);
         y += 5;
       }
       if (evento.dj) {
-        doc.text(`• DJ: ${evento.dj}`, margin + 2, y);
+        doc.text('• DJ: ' + evento.dj, marginLeft, y);
         y += 5;
       }
-      y += 4;
+      y += 5;
     }
 
-    // === OBSERVACIONES ===
+    // --- OBSERVACIONES ---
     if (evento.otros) {
-      y = checkNewPage(y, 20);
-
-      doc.setFontSize(10);
+      doc.setFontSize(11);
+      doc.setTextColor(...NEGRO);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(...colors.negro);
-      doc.text('OBSERVACIONES', margin, y);
+      doc.text('OBSERVACIONES', marginLeft, y);
       y += 6;
 
-      doc.setFontSize(9);
+      doc.setFontSize(10);
+      doc.setTextColor(...GRIS_TEXTO);
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(...colors.grisTexto);
-      const obsLines = doc.splitTextToSize(evento.otros, pageWidth - margin * 2);
+      const obsLines = doc.splitTextToSize(evento.otros, contentWidth);
       obsLines.forEach(line => {
-        y = checkNewPage(y, 5);
-        doc.text(line, margin + 2, y);
+        doc.text(line, marginLeft, y);
         y += 5;
       });
-      y += 4;
+      y += 5;
     }
 
-    // === CONDICIONES ===
-    y = checkNewPage(y, 30);
+    // --- CONDICIONES ---
+    if (y > 240) {
+      doc.addPage();
+      y = 25;
+    }
 
-    doc.setFontSize(10);
+    doc.setFontSize(11);
+    doc.setTextColor(...NEGRO);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...colors.negro);
-    doc.text('CONDICIONES', margin, y);
+    doc.text('CONDICIONES', marginLeft, y);
     y += 6;
 
-    doc.setFontSize(9.5);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...colors.grisSecundario);
     const condiciones = [
-      '• Seña del 50% para confirmar el evento',
-      '• El saldo se ajustará por IPC al momento del pago',
-      '• Cancelación: hasta 7 días antes del evento',
-      '• Cotización válida por 15 días'
+      'Seña del 50% para confirmar el evento',
+      'El saldo se ajustará por IPC al momento del pago',
+      'Cancelación: hasta 7 días antes del evento',
+      'Cotización válida por 15 días'
     ];
+
+    doc.setFontSize(9.5);
+    doc.setTextColor(...GRIS_SEC);
+    doc.setFont('helvetica', 'normal');
     condiciones.forEach(cond => {
-      doc.text(cond, margin + 2, y);
+      doc.text('• ' + cond, marginLeft, y);
       y += 5;
     });
 
-    // === FOOTER ===
-    const totalPages = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i);
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'italic');
-      doc.setTextColor(...colors.grisSecundario);
-      doc.text('Gracias por confiar en Tero Restó', pageWidth / 2, pageHeight - 12, { align: 'center' });
-    }
+    // --- FOOTER ---
+    doc.setFontSize(11);
+    doc.setTextColor(...GRIS_SEC);
+    doc.setFont('helvetica', 'italic');
+    doc.text('Gracias por confiar en Tero Restó', centerX, pageHeight - 15, { align: 'center' });
 
-    const fileName = `Cotizacion_${evento.cliente.replace(/\s+/g, '_')}_${evento.fecha}.pdf`;
+    // ============ GUARDAR ============
+    const fileName = 'Cotizacion_' + (evento.cliente || evento.nombre || 'evento').replace(/\s+/g, '_') + '_' + (evento.fecha || 'fecha') + '.pdf';
     doc.save(fileName);
   };
 
