@@ -352,6 +352,23 @@ export default function App() {
     setAuthLoading(false);
   }, []);
 
+  // Session timeout (10 minutos = 600000 ms)
+  const sessionTimeoutRef = React.useRef(null);
+  const SESSION_TIMEOUT = 10 * 60 * 1000; // 10 minutos
+
+  // Función para iniciar el timer de sesión
+  const startSessionTimer = () => {
+    // Limpiar timer anterior si existe
+    if (sessionTimeoutRef.current) {
+      clearTimeout(sessionTimeoutRef.current);
+    }
+    // Iniciar nuevo timer
+    sessionTimeoutRef.current = setTimeout(() => {
+      alert('Tu sesión ha expirado. Por favor, ingresa nuevamente.');
+      handleLogout();
+    }, SESSION_TIMEOUT);
+  };
+
   // Login
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -363,6 +380,8 @@ export default function App() {
       setUser({ email: loginForm.email || 'usuario@eventos.com', id: 'temp-user' });
       setUserRole('admin');
       setLoginLoading(false);
+      // Iniciar timer de 10 minutos
+      startSessionTimer();
       return;
     }
 
@@ -372,9 +391,25 @@ export default function App() {
 
   // Logout
   const handleLogout = async () => {
+    // Limpiar timer de sesión
+    if (sessionTimeoutRef.current) {
+      clearTimeout(sessionTimeoutRef.current);
+      sessionTimeoutRef.current = null;
+    }
     await supabase.auth.signOut();
     setUser(null);
+    // Limpiar formulario para que pida clave de nuevo
+    setLoginForm({ email: '', password: '' });
   };
+
+  // Limpiar timer al desmontar componente
+  useEffect(() => {
+    return () => {
+      if (sessionTimeoutRef.current) {
+        clearTimeout(sessionTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (user) {
