@@ -1236,18 +1236,18 @@ export default function App() {
     // ============ PÁGINA 1 ============
 
     // --- LOGO ---
-    doc.setFontSize(32);
+    doc.setFontSize(26);
     doc.setTextColor(...VERDE_OSCURO);
     doc.setFont('helvetica', 'bold');
-    doc.text('TERO', centerX, y + 12, { align: 'center' });
+    doc.text('TERO', centerX, y + 10, { align: 'center' });
 
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.setCharSpace(4);
-    doc.text('RESTÓ', centerX, y + 20, { align: 'center' });
+    doc.setCharSpace(3);
+    doc.text('RESTÓ', centerX, y + 16, { align: 'center' });
     doc.setCharSpace(0);
 
-    y += 32;
+    y += 26;
 
     // --- TÍTULO COTIZACIÓN ---
     doc.setFontSize(18);
@@ -1280,33 +1280,39 @@ export default function App() {
     y = drawSectionTitle('DATOS DEL CLIENTE', y);
 
     const clienteBlockY = y;
-    const clienteBlockH = 16;
+    const clienteBlockH = 12;
+    // Dibujar bloque ANTES del texto
     drawBlock(marginLeft, clienteBlockY, contentWidth, clienteBlockH);
 
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setTextColor(...GRIS_SEC);
-    doc.text('Cliente:', marginLeft + 5, y + 6);
-    doc.text('Tel:', centerX + 10, y + 6);
-
+    doc.text('Cliente:', marginLeft + 5, y + 7);
     doc.setTextColor(...NEGRO);
     doc.setFont('helvetica', 'bold');
-    doc.text(evento.cliente || evento.nombre || 'N/A', marginLeft + 22, y + 6);
-    doc.text(evento.telefono || 'N/A', centerX + 20, y + 6);
+    doc.text(evento.cliente || evento.nombre || 'N/A', marginLeft + 20, y + 7);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('Tel:', centerX + 10, y + 7);
+    doc.setTextColor(...NEGRO);
+    doc.setFont('helvetica', 'bold');
+    doc.text(evento.telefono || 'N/A', centerX + 20, y + 7);
     doc.setFont('helvetica', 'normal');
 
-    y += clienteBlockH + 8;
+    y += clienteBlockH + 6;
 
     // --- DETALLES DEL EVENTO ---
     y = drawSectionTitle('DETALLES DEL EVENTO', y);
 
     const detalleBlockY = y;
-    const detalleBlockH = 28;
+    const detalleBlockH = 24;
+    // Dibujar bloque ANTES del texto
     drawBlock(marginLeft, detalleBlockY, contentWidth, detalleBlockH);
 
     const col1 = marginLeft + 5;
-    const col1Val = marginLeft + 22;
+    const col1Val = marginLeft + 18;
     const col2 = centerX + 5;
-    const col2Val = centerX + 30;
+    const col2Val = centerX + 25;
 
     let fechaEvento = evento.fecha || 'N/A';
     if (evento.fecha) {
@@ -1321,40 +1327,50 @@ export default function App() {
       }
     }
 
+    // Fila 1: Evento y Turno
     doc.setFontSize(10);
     doc.setTextColor(...GRIS_SEC);
     doc.text('Evento:', col1, y + 6);
-    doc.text('Fecha:', col1, y + 13);
-    doc.text('Salón:', col1, y + 20);
-
     doc.setTextColor(...NEGRO);
     doc.setFont('helvetica', 'bold');
     doc.text(evento.tipo_evento || evento.tipo || 'N/A', col1Val, y + 6);
-    doc.setFont('helvetica', 'normal');
-    doc.text(fechaEvento, col1Val, y + 13);
-    doc.setFont('helvetica', 'bold');
-    doc.text(evento.salon || 'N/A', col1Val, y + 20);
 
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...GRIS_SEC);
     doc.text('Turno:', col2, y + 6);
-    doc.text('Invitados:', col2, y + 13);
-
     const turnoText = evento.turno || 'Noche';
     const horaText = evento.hora_inicio && evento.hora_fin ? ' (' + evento.hora_inicio + ' - ' + evento.hora_fin + ')' : '';
-
     doc.setTextColor(...NEGRO);
     doc.setFont('helvetica', 'bold');
     doc.text(turnoText + horaText, col2Val, y + 6);
 
+    // Fila 2: Fecha e Invitados
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('Fecha:', col1, y + 12);
+    doc.setTextColor(...NEGRO);
+    doc.text(fechaEvento, col1Val, y + 12);
+
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('Invitados:', col2, y + 12);
     let invitadosText = (evento.adultos || 0) + ' adultos';
     if (evento.menores && evento.menores > 0) {
       invitadosText += ', ' + evento.menores + ' menores';
     }
-    doc.text(invitadosText, col2Val, y + 13);
+    doc.setTextColor(...NEGRO);
+    doc.setFont('helvetica', 'bold');
+    doc.text(invitadosText, col2Val, y + 12);
+
+    // Fila 3: Salón
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('Salón:', col1, y + 18);
+    doc.setTextColor(...NEGRO);
+    doc.setFont('helvetica', 'bold');
+    doc.text(evento.salon || 'N/A', col1Val, y + 18);
 
     doc.setFont('helvetica', 'normal');
-    y += detalleBlockH + 10;
+    y += detalleBlockH + 8;
 
     // --- MENÚ ---
     const menuDetalle = evento.menu_detalle;
@@ -1366,49 +1382,73 @@ export default function App() {
     doc.text(menuTitulo, marginLeft, y);
     y += 8;
 
-    // Items del menú desde menu_detalle
+    // Items del menú desde menu_detalle - 2 columnas reales
     if (menuDetalle && menuDetalle.categorias) {
       const menuColLeft = marginLeft;
       const menuColRight = centerX + 5;
 
+      // Filtrar categorías con items
+      const categoriasConItems = menuDetalle.categorias.filter(c => c.items && c.items.length > 0);
+      const totalCategorias = categoriasConItems.length;
+      const mitad = Math.ceil(totalCategorias / 2);
+
+      // Columna izquierda: primeras categorías
+      const categoriasIzq = categoriasConItems.slice(0, mitad);
+      // Columna derecha: últimas categorías
+      const categoriasDer = categoriasConItems.slice(mitad);
+
       let yLeft = y;
       let yRight = y;
-      let useRight = false;
 
-      menuDetalle.categorias.forEach(categoria => {
-        if (categoria.items && categoria.items.length > 0) {
-          const xPos = useRight ? menuColRight : menuColLeft;
-          let yLocal = useRight ? yRight : yLeft;
+      // Dibujar columna izquierda
+      categoriasIzq.forEach(categoria => {
+        doc.setFontSize(10);
+        doc.setTextColor(...VERDE_TERO);
+        doc.setFont('helvetica', 'bold');
+        doc.text(categoria.nombre, menuColLeft, yLeft);
+        yLeft += 5;
 
-          doc.setFontSize(11);
-          doc.setTextColor(...VERDE_TERO);
-          doc.setFont('helvetica', 'bold');
-          doc.text(categoria.nombre, xPos, yLocal);
-          yLocal += 5;
+        doc.setFontSize(9);
+        doc.setTextColor(...GRIS_TEXTO);
+        doc.setFont('helvetica', 'normal');
 
-          doc.setFontSize(10);
-          doc.setTextColor(...GRIS_TEXTO);
-          doc.setFont('helvetica', 'normal');
-
-          categoria.items.forEach(item => {
-            doc.text('• ' + item, xPos, yLocal);
-            yLocal += 5;
-          });
-          yLocal += 4;
-
-          if (useRight) {
-            yRight = yLocal;
-          } else {
-            yLeft = yLocal;
-          }
-          useRight = !useRight;
-        }
+        categoria.items.forEach(item => {
+          doc.text('• ' + item, menuColLeft, yLeft);
+          yLeft += 4;
+        });
+        yLeft += 3;
       });
 
-      y = Math.max(yLeft, yRight) + 6;
+      // Dibujar columna derecha
+      categoriasDer.forEach(categoria => {
+        doc.setFontSize(10);
+        doc.setTextColor(...VERDE_TERO);
+        doc.setFont('helvetica', 'bold');
+        doc.text(categoria.nombre, menuColRight, yRight);
+        yRight += 5;
+
+        doc.setFontSize(9);
+        doc.setTextColor(...GRIS_TEXTO);
+        doc.setFont('helvetica', 'normal');
+
+        categoria.items.forEach(item => {
+          doc.text('• ' + item, menuColRight, yRight);
+          yRight += 4;
+        });
+        yRight += 3;
+      });
+
+      // Usar la altura máxima de ambas columnas
+      y = Math.max(yLeft, yRight) + 4;
     }
 
     // --- DETALLE DE PRECIOS ---
+    // Verificar si necesitamos nueva página (espacio para tabla completa ~80mm)
+    if (y > 200) {
+      doc.addPage();
+      y = 25;
+    }
+
     doc.setFontSize(13);
     doc.setTextColor(...NEGRO);
     doc.setFont('helvetica', 'bold');
@@ -1585,11 +1625,15 @@ export default function App() {
       y += 5;
     });
 
-    // --- FOOTER ---
-    doc.setFontSize(11);
-    doc.setTextColor(...GRIS_SEC);
-    doc.setFont('helvetica', 'italic');
-    doc.text('Gracias por confiar en Tero Restó', centerX, pageHeight - 15, { align: 'center' });
+    // --- FOOTER en todas las páginas ---
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(10);
+      doc.setTextColor(...GRIS_SEC);
+      doc.setFont('helvetica', 'italic');
+      doc.text('Gracias por confiar en Tero Restó', centerX, pageHeight - 12, { align: 'center' });
+    }
 
     // ============ GUARDAR ============
     const fileName = 'Cotizacion_' + (evento.cliente || evento.nombre || 'evento').replace(/\s+/g, '_') + '_' + (evento.fecha || 'fecha') + '.pdf';
