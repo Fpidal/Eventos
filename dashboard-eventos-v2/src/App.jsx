@@ -1377,23 +1377,29 @@ export default function App() {
 
     // --- MENÚ (encuadrado con líneas) ---
     const menuDetalle = evento.menu_detalle;
-    const menuTitulo = 'MENÚ: ' + (menuDetalle?.nombre || evento.menu || 'Menu 3 Pasos');
+    const menuTitulo = (menuDetalle?.nombre || evento.menu || 'Menu 3 Pasos').toUpperCase();
 
     // Guardar posición inicial del recuadro
     const menuBoxY = y - 2;
     const menuPadding = 5;
+    const menuHeaderH = 8;
 
-    // Título del menú
-    doc.setFontSize(12);
-    doc.setTextColor(...VERDE_TERO);
+    // Header con fondo verde oliva y texto blanco centrado
+    doc.setFillColor(...VERDE_TERO);
+    doc.rect(marginLeft, menuBoxY, contentWidth, menuHeaderH, 'F');
+    doc.setFontSize(11);
+    doc.setTextColor(255, 255, 255); // Blanco
     doc.setFont('helvetica', 'bold');
-    doc.text(menuTitulo, marginLeft + menuPadding, y + 4);
-    y += 10;
+    doc.text('MENÚ: ' + menuTitulo, centerX, menuBoxY + 5.5, { align: 'center' });
+
+    y = menuBoxY + menuHeaderH + 4;
 
     // Items del menú desde menu_detalle - 2 columnas reales
     if (menuDetalle && menuDetalle.categorias) {
       const menuColLeft = marginLeft + menuPadding;
       const menuColRight = centerX + 5;
+      // Ancho máximo para cada columna (para truncar texto largo)
+      const colMaxWidth = centerX - marginLeft - menuPadding - 5;
 
       // Filtrar categorías con items
       const categoriasConItems = menuDetalle.categorias.filter(c => c.items && c.items.length > 0);
@@ -1408,6 +1414,14 @@ export default function App() {
       let yLeft = y;
       let yRight = y;
 
+      // Función para truncar texto si es muy largo
+      const truncarTexto = (texto, maxChars) => {
+        if (texto.length > maxChars) {
+          return texto.substring(0, maxChars - 2) + '...';
+        }
+        return texto;
+      };
+
       // Dibujar columna izquierda
       categoriasIzq.forEach(categoria => {
         doc.setFontSize(10);
@@ -1421,7 +1435,8 @@ export default function App() {
         doc.setFont('helvetica', 'normal');
 
         categoria.items.forEach(item => {
-          doc.text('• ' + item, menuColLeft, yLeft);
+          const itemTruncado = truncarTexto(item, 38);
+          doc.text('• ' + itemTruncado, menuColLeft, yLeft);
           yLeft += 4;
         });
         yLeft += 3;
@@ -1440,7 +1455,8 @@ export default function App() {
         doc.setFont('helvetica', 'normal');
 
         categoria.items.forEach(item => {
-          doc.text('• ' + item, menuColRight, yRight);
+          const itemTruncado = truncarTexto(item, 38);
+          doc.text('• ' + itemTruncado, menuColRight, yRight);
           yRight += 4;
         });
         yRight += 3;
@@ -1450,7 +1466,7 @@ export default function App() {
       y = Math.max(yLeft, yRight) + 2;
     }
 
-    // Dibujar recuadro alrededor del menú
+    // Dibujar recuadro alrededor del menú (sin el header que ya tiene fondo)
     const menuBoxH = y - menuBoxY + 2;
     doc.setDrawColor(...VERDE_TERO);
     doc.setLineWidth(0.5);
