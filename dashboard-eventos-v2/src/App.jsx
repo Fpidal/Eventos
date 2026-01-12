@@ -4,9 +4,19 @@ import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaCh
 import { supabase } from './supabase';
 import { jsPDF } from 'jspdf';
 
+// Formatear montos con signo $ y puntos como separador de miles
 const formatCurrency = (value) => {
-  if (value === null || value === undefined) return '-';
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(value);
+  if (value === null || value === undefined) return '$0';
+  return '$' + Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+};
+
+// Alias para compatibilidad
+const formatMoney = formatCurrency;
+
+// Formatear números sin signo $ con puntos como separador de miles
+const formatNumber = (num) => {
+  if (num === null || num === undefined) return '0';
+  return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
 
 // Formatear número con puntos de miles para inputs
@@ -1167,361 +1177,380 @@ export default function App() {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const menuDetalle = evento.menu_detalle;
-    const margin = 10;
+    const margin = 15;
 
-    // Función para dibujar marco en cada página
-    const dibujarMarco = () => {
-      doc.setDrawColor(41, 128, 185);
-      doc.setLineWidth(0.5);
-      doc.rect(margin, margin, pageWidth - margin * 2, pageHeight - margin * 2);
+    // Colores del diseño
+    const colors = {
+      verdePrincipal: [31, 122, 99],      // #1F7A63
+      verdeSuave: [234, 244, 241],        // #EAF4F1
+      negro: [17, 24, 39],                // #111827
+      grisTexto: [55, 65, 81],            // #374151
+      grisSecundario: [107, 114, 128],    // #6B7280
+      grisLineas: [229, 231, 235],        // #E5E7EB
+      blanco: [255, 255, 255]
     };
 
-    // Dibujar marco en la primera página
-    dibujarMarco();
+    // Función para formatear moneda (puntos como separador de miles)
+    const fmtMoney = (num) => '$' + Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 
+    // Función para dibujar bloque con fondo
+    const drawBlock = (x, y, w, h) => {
+      doc.setFillColor(...colors.verdeSuave);
+      doc.roundedRect(x, y, w, h, 2, 2, 'F');
+    };
+
+    // Función para verificar nueva página
     const checkNewPage = (currentY, neededSpace = 30) => {
-      if (currentY + neededSpace > pageHeight - 20) {
+      if (currentY + neededSpace > pageHeight - 25) {
         doc.addPage();
-        dibujarMarco();
-        return 25;
+        return 20;
       }
       return currentY;
     };
 
-    // Logo - centrado y proporcionado
+    let y = 15;
+
+    // === LOGO ===
     try {
       const logoImg = new Image();
       logoImg.src = '/logo-tero.jpg';
-      doc.addImage(logoImg, 'JPEG', pageWidth / 2 - 20, 15, 40, 28);
+      doc.addImage(logoImg, 'JPEG', pageWidth / 2 - 18, y, 36, 25);
     } catch (e) {
-      console.log('Logo no disponible');
+      // Si no hay logo, mostrar texto
+      doc.setFontSize(24);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...colors.verdePrincipal);
+      doc.text('TERO', pageWidth / 2, y + 15, { align: 'center' });
     }
+    y += 32;
 
-    // Encabezado (sin salón, va en detalles)
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 100, 100);
-    doc.text('Av. Agustín García 9501, Benavídez', pageWidth / 2, 48, { align: 'center' });
-    doc.text('Tel: 11-3112-8757 | Email: francisco.pidal@gmail.com', pageWidth / 2, 55, { align: 'center' });
-
-    doc.setDrawColor(200, 200, 200);
-    doc.line(20, 62, pageWidth - 20, 62);
-
-    // Título
-    doc.setFontSize(16);
+    // === TÍTULO ===
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(41, 128, 185);
-    doc.text('COTIZACIÓN DE EVENTO', pageWidth / 2, 72, { align: 'center' });
+    doc.setTextColor(...colors.negro);
+    doc.setCharSpace(2);
+    doc.text('COTIZACIÓN DE EVENTO', pageWidth / 2, y, { align: 'center' });
+    doc.setCharSpace(0);
+    y += 5;
 
-    // Fechas
+    // Línea decorativa
+    doc.setDrawColor(...colors.verdePrincipal);
+    doc.setLineWidth(0.8);
+    doc.line(pageWidth / 2 - 30, y, pageWidth / 2 + 30, y);
+    y += 10;
+
+    // === FECHAS ===
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 100, 100);
+    doc.setTextColor(...colors.grisSecundario);
     const fechaCotizacion = new Date().toLocaleDateString('es-AR');
     const fechaValidez = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('es-AR');
-    doc.text(`Fecha: ${fechaCotizacion}`, 20, 80);
-    doc.text(`Válida hasta: ${fechaValidez}`, pageWidth - 20, 80, { align: 'right' });
+    doc.text(`Fecha: ${fechaCotizacion}`, margin, y);
+    doc.text(`Válida hasta: ${fechaValidez}`, pageWidth - margin, y, { align: 'right' });
+    y += 10;
 
-    // Datos del cliente
-    let y = 90;
-    doc.setFillColor(245, 245, 245);
-    doc.rect(20, y - 5, pageWidth - 40, 25, 'F');
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(51, 51, 51);
-    doc.text('DATOS DEL CLIENTE', 25, y + 3);
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    y += 12;
-    doc.text(`Cliente: ${evento.cliente}`, 25, y);
-    if (evento.telefono) {
-      doc.text(`Teléfono: ${evento.telefono}`, pageWidth / 2, y);
-    }
+    // === DATOS DEL CLIENTE ===
+    drawBlock(margin, y - 4, pageWidth - margin * 2, 22);
 
-    // Detalles del evento
-    y += 25;
-    doc.setFillColor(41, 128, 185);
-    doc.rect(20, y - 5, pageWidth - 40, 10, 'F');
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 255, 255);
-    doc.text('DETALLES DEL EVENTO', 25, y + 2);
-
-    doc.setTextColor(51, 51, 51);
-    doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    y += 12;
-    doc.text(`Fecha: ${new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`, 25, y);
-    y += 6;
-    doc.text(`Tipo de evento: ${evento.tipo_evento}`, 25, y);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...colors.negro);
+    doc.text('DATOS DEL CLIENTE', margin + 4, y + 3);
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...colors.grisTexto);
+    y += 10;
+    doc.text(`Cliente: ${evento.cliente}`, margin + 4, y);
+    if (evento.telefono) {
+      doc.text(`Tel: ${evento.telefono}`, pageWidth / 2, y);
+    }
+    y += 18;
+
+    // === DETALLES DEL EVENTO ===
+    drawBlock(margin, y - 4, pageWidth - margin * 2, 28);
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...colors.negro);
+    doc.text('DETALLES DEL EVENTO', margin + 4, y + 3);
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...colors.grisTexto);
+    y += 10;
+
+    const fechaEvento = new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+    doc.text(`Fecha: ${fechaEvento}`, margin + 4, y);
+    y += 5;
+    doc.text(`Tipo: ${evento.tipo_evento}`, margin + 4, y);
     doc.text(`Salón: ${evento.salon}`, pageWidth / 2, y);
-    y += 6;
-    doc.text(`Turno: ${evento.turno}${evento.hora_inicio && evento.hora_fin ? ` (${evento.hora_inicio} a ${evento.hora_fin} hs)` : ''}`, 25, y);
+    y += 5;
+    const horario = evento.hora_inicio && evento.hora_fin ? ` (${evento.hora_inicio} - ${evento.hora_fin})` : '';
+    doc.text(`Turno: ${evento.turno}${horario}`, margin + 4, y);
     doc.text(`Invitados: ${evento.adultos || 0} adultos${evento.menores ? `, ${evento.menores} menores` : ''}`, pageWidth / 2, y);
+    y += 14;
 
-    // MENÚ DETALLADO
+    // === MENÚ DETALLADO ===
     if (menuDetalle && menuDetalle.categorias) {
-      y += 12;
-      y = checkNewPage(y, 15);
+      y = checkNewPage(y, 20);
 
-      doc.setFillColor(100, 180, 230);
-      doc.rect(20, y - 5, pageWidth - 40, 10, 'F');
-      doc.setFontSize(12);
+      // Título del menú
+      doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(255, 255, 255);
-      doc.text(`MENÚ: ${menuDetalle.nombre}`, 25, y + 2);
+      doc.setTextColor(...colors.verdePrincipal);
+      doc.text(`MENÚ: ${menuDetalle.nombre}`, margin, y);
+      y += 8;
 
-      y += 12;
+      // Items del menú en 2 columnas
+      const colWidth = (pageWidth - margin * 2 - 10) / 2;
+      let col = 0;
+      let colY = y;
+      let maxY = y;
 
       menuDetalle.categorias.forEach(categoria => {
         if (categoria.items && categoria.items.length > 0) {
-          y = checkNewPage(y, 12 + categoria.items.length * 4);
+          const neededHeight = 8 + categoria.items.length * 4;
 
-          doc.setFontSize(10);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(70, 150, 200);
-          doc.text(categoria.nombre, 25, y);
-          y += 5;
+          if (colY + neededHeight > pageHeight - 40) {
+            if (col === 0) {
+              col = 1;
+              colY = y;
+            } else {
+              doc.addPage();
+              y = 20;
+              colY = y;
+              col = 0;
+              maxY = y;
+            }
+          }
 
+          const xPos = margin + col * (colWidth + 10);
+
+          // Título categoría
           doc.setFontSize(9);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(80, 80, 80);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(...colors.verdePrincipal);
+          doc.text(categoria.nombre, xPos, colY);
+          colY += 5;
 
+          // Items
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...colors.grisTexto);
           categoria.items.forEach(item => {
-            y = checkNewPage(y, 4);
-            doc.text(`• ${item}`, 30, y);
-            y += 4;
+            doc.text(`• ${item}`, xPos + 2, colY);
+            colY += 4;
           });
-          y += 3;
+          colY += 4;
+
+          if (colY > maxY) maxY = colY;
         }
       });
+
+      y = maxY + 6;
 
       // Extras del menú
       if (menuDetalle.extras && menuDetalle.extras.length > 0) {
         y = checkNewPage(y, 15);
-        doc.setFontSize(10);
+        doc.setFontSize(9);
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(16, 185, 129);
-        doc.text('Extras Opcionales del Menú:', 25, y);
+        doc.setTextColor(...colors.verdePrincipal);
+        doc.text('Extras del Menú:', margin, y);
         y += 5;
 
-        doc.setFontSize(9);
+        doc.setFontSize(8);
         doc.setFont('helvetica', 'normal');
-        doc.setTextColor(80, 80, 80);
-
+        doc.setTextColor(...colors.grisTexto);
         menuDetalle.extras.forEach(extra => {
-          y = checkNewPage(y, 4);
-          doc.text(`• ${extra}`, 30, y);
+          doc.text(`• ${extra}`, margin + 2, y);
           y += 4;
         });
+        y += 4;
       }
     }
 
-    // Detalle de precios
-    y += 10;
-    y = checkNewPage(y, 60);
+    // === DETALLE DE PRECIOS ===
+    y = checkNewPage(y, 50);
+    y += 4;
 
-    doc.setFillColor(41, 128, 185);
-    doc.rect(20, y - 5, pageWidth - 40, 10, 'F');
-    doc.setFontSize(10);
+    doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 255, 255);
-    doc.text('DETALLE DE PRECIOS', 25, y + 2);
+    doc.setTextColor(...colors.negro);
+    doc.text('DETALLE DE PRECIOS', margin, y);
+    y += 8;
 
-    doc.setTextColor(51, 51, 51);
-    y += 10;
-
-    doc.setFontSize(9);
+    // Encabezados de tabla
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
-    doc.text('Concepto', 25, y);
-    doc.text('Cant.', 100, y);
-    doc.text('Precio Unit.', 125, y);
-    doc.text('Subtotal', 165, y);
+    doc.setTextColor(...colors.grisSecundario);
+    doc.text('Concepto', margin, y);
+    doc.text('Cant.', 95, y);
+    doc.text('Precio Unit.', 115, y);
+    doc.text('Subtotal', pageWidth - margin, y, { align: 'right' });
 
-    doc.setDrawColor(200, 200, 200);
-    y += 3;
-    doc.line(25, y, pageWidth - 25, y);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
+    // Línea bajo encabezados
+    y += 2;
+    doc.setDrawColor(...colors.grisLineas);
+    doc.setLineWidth(0.3);
+    doc.line(margin, y, pageWidth - margin, y);
     y += 6;
+
+    // Filas de precios
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...colors.grisTexto);
+    doc.setFontSize(9);
 
     const adultos = evento.adultos || 0;
     const precioAdulto = evento.precio_adulto || 0;
-    doc.text('Adultos', 25, y);
-    doc.text(adultos.toString(), 100, y);
-    doc.text(`$${precioAdulto.toLocaleString('es-AR')}`, 125, y);
-    doc.text(`$${(adultos * precioAdulto).toLocaleString('es-AR')}`, 165, y);
-    y += 5;
+    doc.text('Adultos', margin, y);
+    doc.text(adultos.toString(), 95, y);
+    doc.text(fmtMoney(precioAdulto), 115, y);
+    doc.text(fmtMoney(adultos * precioAdulto), pageWidth - margin, y, { align: 'right' });
+    y += 6;
+
+    // Línea separadora
+    doc.setDrawColor(...colors.grisLineas);
+    doc.line(margin, y - 2, pageWidth - margin, y - 2);
 
     if (evento.menores > 0) {
       const menores = evento.menores || 0;
       const precioMenor = evento.precio_menor || 0;
-      doc.text('Menores', 25, y);
-      doc.text(menores.toString(), 100, y);
-      doc.text(`$${precioMenor.toLocaleString('es-AR')}`, 125, y);
-      doc.text(`$${(menores * precioMenor).toLocaleString('es-AR')}`, 165, y);
-      y += 5;
+      doc.text('Menores', margin, y);
+      doc.text(menores.toString(), 95, y);
+      doc.text(fmtMoney(precioMenor), 115, y);
+      doc.text(fmtMoney(menores * precioMenor), pageWidth - margin, y, { align: 'right' });
+      y += 6;
+      doc.line(margin, y - 2, pageWidth - margin, y - 2);
     }
 
+    // Extras
     [1, 2, 3].forEach(i => {
       const desc = evento[`extra${i}_desc`];
       const valor = evento[`extra${i}_valor`] || 0;
       const tipo = evento[`extra${i}_tipo`];
       if (desc && valor > 0) {
-        const subtotal = tipo === 'por_persona' ? valor * adultos : valor;
-        doc.text(desc, 25, y);
-        doc.text(tipo === 'por_persona' ? adultos.toString() : '1', 100, y);
-        doc.text(`$${valor.toLocaleString('es-AR')}`, 125, y);
-        doc.text(`$${subtotal.toLocaleString('es-AR')}`, 165, y);
-        y += 5;
+        const subtotalExtra = tipo === 'por_persona' ? valor * adultos : valor;
+        doc.text(desc.substring(0, 35), margin, y);
+        doc.text(tipo === 'por_persona' ? adultos.toString() : '1', 95, y);
+        doc.text(fmtMoney(valor), 115, y);
+        doc.text(fmtMoney(subtotalExtra), pageWidth - margin, y, { align: 'right' });
+        y += 6;
+        doc.line(margin, y - 2, pageWidth - margin, y - 2);
       }
     });
 
-    doc.line(25, y, pageWidth - 25, y);
-    y += 6;
-
-    // Calcular subtotal, IVA y total
-    const subtotal = evento.totalEvento || evento.total_evento || 0;
-    const iva = subtotal * 0.21;
-    const totalConIva = subtotal + iva;
+    y += 4;
 
     // Subtotal
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(41, 128, 185);
-    doc.text('SUBTOTAL:', 125, y);
-    doc.text(`$${subtotal.toLocaleString('es-AR')}`, 165, y);
-    y += 5;
-
-    // IVA 21%
+    const subtotal = evento.totalEvento || evento.total_evento || 0;
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(80, 80, 80);
-    doc.text('IVA 21%:', 125, y);
-    doc.text(`$${Math.round(iva).toLocaleString('es-AR')}`, 165, y);
-    y += 6;
+    doc.setTextColor(...colors.grisSecundario);
+    doc.text('Subtotal:', 115, y);
+    doc.text(fmtMoney(subtotal), pageWidth - margin, y, { align: 'right' });
+    y += 5;
 
-    // Total con IVA
-    doc.setFontSize(10);
+    // IVA
+    const iva = subtotal * 0.21;
+    doc.text('IVA 21%:', 115, y);
+    doc.text(fmtMoney(iva), pageWidth - margin, y, { align: 'right' });
+    y += 8;
+
+    // TOTAL
+    const totalConIva = subtotal + iva;
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(41, 128, 185);
-    doc.text('TOTAL:', 125, y);
-    doc.text(`$${Math.round(totalConIva).toLocaleString('es-AR')}`, 165, y);
+    doc.setTextColor(...colors.verdePrincipal);
+    doc.text('TOTAL:', 115, y);
+    doc.text(fmtMoney(totalConIva), pageWidth - margin, y, { align: 'right' });
+    y += 12;
 
-    // Servicios adicionales (Técnica, DJ, etc.)
+    // === SERVICIOS ADICIONALES ===
     const tieneServicios = evento.tecnica || evento.tecnica_superior || evento.dj;
     if (tieneServicios) {
-      y += 10;
-      y = checkNewPage(y, 25);
+      y = checkNewPage(y, 20);
 
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(70, 150, 200);
-      doc.text('SERVICIOS ADICIONALES:', 25, y);
-      y += 5;
+      doc.setTextColor(...colors.negro);
+      doc.text('SERVICIOS ADICIONALES', margin, y);
+      y += 6;
 
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(80, 80, 80);
+      doc.setTextColor(...colors.grisTexto);
 
       if (evento.tecnica) {
-        doc.text('• Técnica de sonido e iluminación', 30, y);
-        y += 4;
+        doc.text('• Técnica de sonido e iluminación', margin + 2, y);
+        y += 5;
       }
       if (evento.tecnica_superior) {
-        doc.text('• Técnica superior (equipamiento premium)', 30, y);
-        y += 4;
+        doc.text('• Técnica superior (equipamiento premium)', margin + 2, y);
+        y += 5;
       }
       if (evento.dj) {
-        doc.text(`• DJ: ${evento.dj}`, 30, y);
-        y += 4;
+        doc.text(`• DJ: ${evento.dj}`, margin + 2, y);
+        y += 5;
       }
+      y += 4;
     }
 
-    // Extras del evento
-    const tieneExtrasEvento = evento.extra1_desc || evento.extra2_desc || evento.extra3_desc;
-    if (tieneExtrasEvento) {
-      y += 6;
-      y = checkNewPage(y, 20);
-
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(70, 150, 200);
-      doc.text('EXTRAS INCLUIDOS:', 25, y);
-      y += 5;
-
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(80, 80, 80);
-
-      if (evento.extra1_desc) {
-        doc.text(`• ${evento.extra1_desc}`, 30, y);
-        y += 4;
-      }
-      if (evento.extra2_desc) {
-        doc.text(`• ${evento.extra2_desc}`, 30, y);
-        y += 4;
-      }
-      if (evento.extra3_desc) {
-        doc.text(`• ${evento.extra3_desc}`, 30, y);
-        y += 4;
-      }
-    }
-
-    // Observaciones
+    // === OBSERVACIONES ===
     if (evento.otros) {
-      y += 6;
       y = checkNewPage(y, 20);
 
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(70, 150, 200);
-      doc.text('OBSERVACIONES:', 25, y);
-      y += 5;
+      doc.setTextColor(...colors.negro);
+      doc.text('OBSERVACIONES', margin, y);
+      y += 6;
 
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(80, 80, 80);
-
-      const obsLines = doc.splitTextToSize(evento.otros, pageWidth - 60);
+      doc.setTextColor(...colors.grisTexto);
+      const obsLines = doc.splitTextToSize(evento.otros, pageWidth - margin * 2);
       obsLines.forEach(line => {
         y = checkNewPage(y, 5);
-        doc.text(line, 30, y);
-        y += 4;
+        doc.text(line, margin + 2, y);
+        y += 5;
       });
+      y += 4;
     }
 
-    // Condiciones de pago
-    y += 8;
-    y = checkNewPage(y, 35);
+    // === CONDICIONES ===
+    y = checkNewPage(y, 30);
 
-    doc.setFillColor(245, 245, 245);
-    doc.rect(20, y - 5, pageWidth - 40, 32, 'F');
-
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(51, 51, 51);
-    doc.text('CONDICIONES', 25, y + 2);
+    doc.setTextColor(...colors.negro);
+    doc.text('CONDICIONES', margin, y);
+    y += 6;
 
-    doc.setFontSize(9);
+    doc.setFontSize(9.5);
     doc.setFont('helvetica', 'normal');
-    y += 10;
-    doc.text('• Seña del 50% para confirmar el evento', 25, y);
-    y += 5;
-    doc.text('• El saldo se ajustará por IPC al momento del pago', 25, y);
-    y += 5;
-    doc.text('• Cancelación: hasta 7 días antes del evento', 25, y);
-    y += 5;
-    doc.text('• Cotización válida por 15 días', 25, y);
+    doc.setTextColor(...colors.grisSecundario);
+    const condiciones = [
+      '• Seña del 50% para confirmar el evento',
+      '• El saldo se ajustará por IPC al momento del pago',
+      '• Cancelación: hasta 7 días antes del evento',
+      '• Cotización válida por 15 días'
+    ];
+    condiciones.forEach(cond => {
+      doc.text(cond, margin + 2, y);
+      y += 5;
+    });
 
-    // Pie de página
+    // === FOOTER ===
     const totalPages = doc.internal.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(9);
-      doc.setTextColor(150, 150, 150);
-      doc.text('Gracias por confiar en nosotros', pageWidth / 2, pageHeight - 15, { align: 'center' });
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(...colors.grisSecundario);
+      doc.text('Gracias por confiar en Tero Restó', pageWidth / 2, pageHeight - 12, { align: 'center' });
     }
 
     const fileName = `Cotizacion_${evento.cliente.replace(/\s+/g, '_')}_${evento.fecha}.pdf`;
@@ -2358,7 +2387,7 @@ export default function App() {
               {/* Total calculado */}
               <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
                 <p className="text-sm text-slate-400">Total Evento</p>
-                <p className="text-2xl font-bold text-emerald-400 mono">{formatCurrency(calcularTotal())}</p>
+                <p className="text-2xl font-bold text-emerald-400">{formatCurrency(calcularTotal())}</p>
               </div>
 
               {/* Otros */}
@@ -2518,7 +2547,7 @@ export default function App() {
 
               <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
                 <p className="text-xs text-slate-400">Total Evento</p>
-                <p className="text-xl font-bold text-emerald-400 mono">{formatCurrency(selectedEvento.totalEvento)}</p>
+                <p className="text-xl font-bold text-emerald-400">{formatCurrency(selectedEvento.totalEvento)}</p>
               </div>
 
               {/* Botones Editar y Eliminar */}
@@ -2816,7 +2845,7 @@ export default function App() {
               {/* Total calculado */}
               <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
                 <p className="text-sm text-slate-400">Total Evento</p>
-                <p className="text-2xl font-bold text-emerald-400 mono">{formatCurrency(calcularTotalEdit())}</p>
+                <p className="text-2xl font-bold text-emerald-400">{formatCurrency(calcularTotalEdit())}</p>
               </div>
 
               {/* Otros */}
@@ -3165,8 +3194,8 @@ export default function App() {
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-slate-400 text-xs sm:text-sm mb-1">{stat.label}</p>
-                      <p className="text-lg sm:text-2xl font-bold mono">
-                        {stat.format ? formatCurrency(stat.value) : stat.value.toLocaleString('es-AR')}
+                      <p className="text-lg sm:text-2xl font-bold">
+                        {stat.format ? formatCurrency(stat.value) : stat.value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
                       </p>
                     </div>
                     <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center`}>
@@ -3198,7 +3227,7 @@ export default function App() {
                     <p className="text-slate-500 text-sm">{proximosEventos[0].adultos} adultos • {proximosEventos[0].salon || 'Tero'}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-emerald-400 font-bold mono">{formatCurrency(proximosEventos[0].totalEvento)}</p>
+                    <p className="text-emerald-400 font-bold">{formatCurrency(proximosEventos[0].totalEvento)}</p>
                     <p className="text-slate-500 text-xs">{proximosEventos[0].vendedor}</p>
                   </div>
                 </div>
@@ -3299,7 +3328,7 @@ export default function App() {
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                 {eventosPorTipo.slice(0, 12).map((tipo) => (
                   <div key={tipo.name} className="bg-white/5 rounded-xl p-4 text-center border border-white/5 hover:border-purple-500/30 transition-all">
-                    <p className="text-2xl font-bold text-purple-400 mono">{tipo.value}</p>
+                    <p className="text-2xl font-bold text-purple-400">{tipo.value}</p>
                     <p className="text-xs text-slate-400 mt-1 truncate">{tipo.name}</p>
                   </div>
                 ))}
@@ -3463,7 +3492,7 @@ export default function App() {
                       {/* Total */}
                       <div className="flex-shrink-0 text-right">
                         <p className="text-xs text-slate-400">Total</p>
-                        <p className="text-xl font-bold text-emerald-400 mono">{formatCurrency(e.totalEvento)}</p>
+                        <p className="text-xl font-bold text-emerald-400">{formatCurrency(e.totalEvento)}</p>
                       </div>
                     </div>
 
@@ -3564,7 +3593,7 @@ export default function App() {
                       {/* Total */}
                       <div className="flex-shrink-0 text-right">
                         <p className="text-xs text-slate-400">Total</p>
-                        <p className="text-xl font-bold text-emerald-400 mono">{formatCurrency(e.totalEvento)}</p>
+                        <p className="text-xl font-bold text-emerald-400">{formatCurrency(e.totalEvento)}</p>
                       </div>
                     </div>
 
@@ -3657,7 +3686,7 @@ export default function App() {
                       {/* Total */}
                       <div className="flex-shrink-0 text-right">
                         <p className="text-xs text-slate-400">Total</p>
-                        <p className="text-xl font-bold text-emerald-400 mono">{formatCurrency(e.totalEvento)}</p>
+                        <p className="text-xl font-bold text-emerald-400">{formatCurrency(e.totalEvento)}</p>
                       </div>
                     </div>
 
@@ -3896,7 +3925,7 @@ export default function App() {
                         className="border-b border-white/5 row-hover transition-colors cursor-pointer"
                         onClick={() => setSelectedEvento(e)}
                       >
-                        <td className="px-5 py-4 mono text-sm">{formatDate(e.fecha)}</td>
+                        <td className="px-5 py-4text-sm">{formatDate(e.fecha)}</td>
                         <td className="px-5 py-4 font-medium">{e.cliente}</td>
                         <td className="px-5 py-4 hidden md:table-cell">
                           <span className="px-3 py-1 rounded-full text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30">
@@ -3910,8 +3939,8 @@ export default function App() {
                           </span>
                         </td>
                         <td className="px-5 py-4 text-slate-300 hidden lg:table-cell">{e.vendedor}</td>
-                        <td className="px-5 py-4 text-right mono hidden sm:table-cell">{e.adultos + (e.menores || 0)}</td>
-                        <td className="px-5 py-4 text-right font-semibold text-emerald-400 mono">{formatCurrency(e.totalEvento)}</td>
+                        <td className="px-5 py-4 text-righthidden sm:table-cell">{e.adultos + (e.menores || 0)}</td>
+                        <td className="px-5 py-4 text-right font-semibold text-emerald-400">{formatCurrency(e.totalEvento)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -3936,7 +3965,7 @@ export default function App() {
                   </div>
                   <span className="text-sm text-slate-400">Total Facturado</span>
                 </div>
-                <p className="text-2xl font-bold text-white mono">{formatCurrency(statsCobranzas.totalFacturado)}</p>
+                <p className="text-2xl font-bold text-white">{formatCurrency(statsCobranzas.totalFacturado)}</p>
               </div>
               <div className="glass rounded-2xl p-5 glow">
                 <div className="flex items-center gap-3 mb-3">
@@ -3945,7 +3974,7 @@ export default function App() {
                   </div>
                   <span className="text-sm text-slate-400">Total Cobrado</span>
                 </div>
-                <p className="text-2xl font-bold text-emerald-400 mono">{formatCurrency(statsCobranzas.totalCobrado)}</p>
+                <p className="text-2xl font-bold text-emerald-400">{formatCurrency(statsCobranzas.totalCobrado)}</p>
               </div>
               <div className="glass rounded-2xl p-5 glow">
                 <div className="flex items-center gap-3 mb-3">
@@ -3954,7 +3983,7 @@ export default function App() {
                   </div>
                   <span className="text-sm text-slate-400">Pendiente</span>
                 </div>
-                <p className="text-2xl font-bold text-amber-400 mono">{formatCurrency(statsCobranzas.totalPendiente)}</p>
+                <p className="text-2xl font-bold text-amber-400">{formatCurrency(statsCobranzas.totalPendiente)}</p>
               </div>
               <div className="glass rounded-2xl p-5 glow">
                 <div className="flex items-center gap-3 mb-3">
@@ -4076,18 +4105,18 @@ export default function App() {
                           <p className="font-medium">{evento.cliente}</p>
                           <p className="text-xs text-slate-400">{evento.tipoEvento}</p>
                         </td>
-                        <td className="px-5 py-4 text-right mono">{formatCurrency(evento.totalEvento)}</td>
-                        <td className="px-5 py-4 text-right text-emerald-400 mono">{formatCurrency(evento.pagosYSenas)}</td>
+                        <td className="px-5 py-4 text-right">{formatCurrency(evento.totalEvento)}</td>
+                        <td className="px-5 py-4 text-right text-emerald-400">{formatCurrency(evento.pagosYSenas)}</td>
                         <td className="px-5 py-4 text-right">
                           {evento.ajustesIPC > 0 ? (
-                            <span className="text-amber-400 mono">+{formatCurrency(evento.ajustesIPC)}</span>
+                            <span className="text-amber-400">+{formatCurrency(evento.ajustesIPC)}</span>
                           ) : (
                             <span className="text-slate-500">-</span>
                           )}
                         </td>
-                        <td className="px-5 py-4 text-right mono font-medium">{formatCurrency(evento.totalPagado)}</td>
+                        <td className="px-5 py-4 text-rightfont-medium">{formatCurrency(evento.totalPagado)}</td>
                         <td className="px-5 py-4 text-right">
-                          <span className={`font-semibold mono ${evento.saldo > 0 ? 'text-amber-400' : evento.saldo < 0 ? 'text-blue-400' : 'text-emerald-400'}`}>
+                          <span className={`font-semibold${evento.saldo > 0 ? 'text-amber-400' : evento.saldo < 0 ? 'text-blue-400' : 'text-emerald-400'}`}>
                             {formatCurrency(evento.saldo)}
                           </span>
                         </td>
@@ -4132,7 +4161,7 @@ export default function App() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-slate-400">Saldo</p>
-                        <p className={`font-semibold mono ${evento.saldo > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                        <p className={`font-semibold${evento.saldo > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
                           {formatCurrency(evento.saldo)}
                         </p>
                       </div>
@@ -4151,11 +4180,11 @@ export default function App() {
                             <span className="text-sm text-slate-400">{formatDate(pago.fecha)}</span>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span className={`font-medium mono ${pago.concepto === 'ajuste_ipc' ? 'text-amber-400' : 'text-emerald-400'}`}>
+                            <span className={`font-medium${pago.concepto === 'ajuste_ipc' ? 'text-amber-400' : 'text-emerald-400'}`}>
                               {pago.concepto === 'ajuste_ipc' ? '+' : ''}
                               {pago.moneda === 'USD' ? (
                                 <>
-                                  <span className="text-green-400">US$ {(pago.monto_original || pago.monto).toLocaleString('es-AR')}</span>
+                                  <span className="text-green-400">US$ {(pago.monto_original || pago.monto).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span>
                                   <span className="text-slate-400 text-xs ml-1">({formatCurrency(pago.monto)})</span>
                                 </>
                               ) : formatCurrency(pago.monto)}
@@ -4648,7 +4677,7 @@ export default function App() {
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-white font-medium">{registro.cliente}</span>
                           <span className="text-xs text-slate-400">
-                            {new Date(registro.created_at).toLocaleString('es-AR')}
+                            {new Date(registro.created_at).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
                           </span>
                         </div>
                         <div className="text-sm text-slate-300 space-y-1">
@@ -4682,7 +4711,7 @@ export default function App() {
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-white font-medium">{registro.cliente}</span>
                           <span className="text-xs text-slate-400">
-                            {new Date(registro.created_at).toLocaleString('es-AR')}
+                            {new Date(registro.created_at).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
                           </span>
                         </div>
                         <div className="text-sm text-slate-300 space-y-1">
@@ -4717,7 +4746,7 @@ export default function App() {
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-white font-medium">{registro.cliente}</span>
                           <span className="text-xs text-slate-400">
-                            {new Date(registro.created_at).toLocaleString('es-AR')}
+                            {new Date(registro.created_at).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
                           </span>
                         </div>
                         <div className="text-sm text-slate-300 space-y-1">
@@ -4819,15 +4848,15 @@ export default function App() {
               <div className="grid grid-cols-5 gap-4 text-center">
                 <div>
                   <p className="text-xs text-slate-400">Ingresos</p>
-                  <p className="text-lg font-bold text-green-400">${cajaMovimientos.filter(m => m.tipo === 'ingreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toLocaleString()}</p>
+                  <p className="text-lg font-bold text-green-400">${cajaMovimientos.filter(m => m.tipo === 'ingreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-400">Egresos</p>
-                  <p className="text-lg font-bold text-red-400">${cajaMovimientos.filter(m => m.tipo === 'egreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toLocaleString()}</p>
+                  <p className="text-lg font-bold text-red-400">${cajaMovimientos.filter(m => m.tipo === 'egreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-400">Retiros Socios</p>
-                  <p className="text-lg font-bold text-yellow-400">${cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toLocaleString()}</p>
+                  <p className="text-lg font-bold text-yellow-400">${cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-400">Saldo Caja $</p>
@@ -4835,13 +4864,13 @@ export default function App() {
                     const ingresos = cajaMovimientos.filter(m => m.tipo === 'ingreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
                     const egresos = cajaMovimientos.filter(m => m.tipo === 'egreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
                     const saldo = ingresos - egresos;
-                    return <p className={`text-lg font-bold ${saldo >= 0 ? 'text-green-400' : 'text-red-400'}`}>${saldo.toLocaleString()}</p>;
+                    return <p className={`text-lg font-bold ${saldo >= 0 ? 'text-green-400' : 'text-red-400'}`}>${saldo.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</p>;
                   })()}
                 </div>
                 <div>
                   <p className="text-xs text-slate-400">Pagos en USD (ref.)</p>
                   <p className="text-lg font-bold text-blue-400">
-                    {cajaMovimientos.filter(m => m.tipo === 'ingreso' && m.monto_dolares > 0).reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toLocaleString()}
+                    {cajaMovimientos.filter(m => m.tipo === 'ingreso' && m.monto_dolares > 0).reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
                   </p>
                 </div>
               </div>
@@ -4862,7 +4891,7 @@ export default function App() {
                         <div key={caja} className="bg-white/5 rounded-lg px-3 py-2 min-w-[100px] text-center">
                           <p className="text-xs text-slate-400">{caja}</p>
                           <p className={`text-sm font-bold ${saldo >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            ${saldo.toLocaleString()}
+                            ${saldo.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
                           </p>
                         </div>
                       );
@@ -5257,8 +5286,8 @@ export default function App() {
                             <td className="py-2 px-3 text-purple-400 font-medium">{cliente || '-'}</td>
                             <td className="py-2 px-3 text-slate-400 text-xs">{observacion || '-'}</td>
                             <td className="py-2 px-3 text-slate-400">{item.persona}</td>
-                            <td className="py-2 px-3 text-right text-green-400">${(item.monto_pesos || 0).toLocaleString()}</td>
-                            <td className="py-2 px-3 text-right text-blue-400">{item.monto_dolares ? item.monto_dolares.toLocaleString() : '-'}</td>
+                            <td className="py-2 px-3 text-right text-green-400">${(item.monto_pesos || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</td>
+                            <td className="py-2 px-3 text-right text-blue-400">{item.monto_dolares ? item.monto_dolares.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '-'}</td>
                             <td className="py-2 px-3 flex gap-1">
                               {esDeEvento ? (
                                 <span className="text-xs text-slate-500 italic" title="Gestionar desde Eventos">Desde eventos</span>
@@ -5296,8 +5325,8 @@ export default function App() {
                   </table>
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/10 flex justify-end gap-6 text-sm">
-                  <span className="text-slate-400">Total $: <span className="text-green-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'ingreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toLocaleString()}</span></span>
-                  <span className="text-slate-400">Total USD: <span className="text-blue-400 font-bold">{cajaMovimientos.filter(m => m.tipo === 'ingreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toLocaleString()}</span></span>
+                  <span className="text-slate-400">Total $: <span className="text-green-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'ingreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span></span>
+                  <span className="text-slate-400">Total USD: <span className="text-blue-400 font-bold">{cajaMovimientos.filter(m => m.tipo === 'ingreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span></span>
                 </div>
               </div>
             )}
@@ -5501,7 +5530,7 @@ export default function App() {
                     </div>
                     {cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) && (cajaEgresoForm.monto_pesos || cajaEgresoForm.monto_dolares) && (
                       <div className="text-xs text-blue-400 bg-blue-500/10 rounded-lg p-2">
-                        Total: ${((parseFloat(cajaEgresoForm.monto_pesos) || 0) + ((parseFloat(cajaEgresoForm.monto_dolares) || 0) * (parseFloat(cajaEgresoForm.cotizacion) || tipoCambio))).toLocaleString()}
+                        Total: ${((parseFloat(cajaEgresoForm.monto_pesos) || 0) + ((parseFloat(cajaEgresoForm.monto_dolares) || 0) * (parseFloat(cajaEgresoForm.cotizacion) || tipoCambio))).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
                         {' '}≈ USD {(((parseFloat(cajaEgresoForm.monto_pesos) || 0) + ((parseFloat(cajaEgresoForm.monto_dolares) || 0) * (parseFloat(cajaEgresoForm.cotizacion) || tipoCambio))) / (parseFloat(cajaEgresoForm.cotizacion) || tipoCambio)).toFixed(2)}
                       </div>
                     )}
@@ -5547,8 +5576,8 @@ export default function App() {
                           <td className="py-2 px-3 text-slate-400">{item.aportante || '-'}</td>
                           <td className="py-2 px-3 font-medium">{item.concepto}</td>
                           <td className="py-2 px-3 text-slate-400">{item.persona || '-'}</td>
-                          <td className="py-2 px-3 text-right text-red-400">${(item.monto_pesos || 0).toLocaleString()}</td>
-                          <td className="py-2 px-3 text-right text-blue-400">{item.monto_dolares ? item.monto_dolares.toLocaleString() : '-'}</td>
+                          <td className="py-2 px-3 text-right text-red-400">${(item.monto_pesos || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</td>
+                          <td className="py-2 px-3 text-right text-blue-400">{item.monto_dolares ? item.monto_dolares.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '-'}</td>
                           <td className="py-2 px-3 flex gap-1">
                             <button onClick={() => {
                               setEditingCajaEgreso(item.id);
@@ -5579,8 +5608,8 @@ export default function App() {
                   </table>
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/10 flex justify-end gap-6 text-sm">
-                  <span className="text-slate-400">Total $: <span className="text-red-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'egreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toLocaleString()}</span></span>
-                  <span className="text-slate-400">Total USD: <span className="text-blue-400 font-bold">{cajaMovimientos.filter(m => m.tipo === 'egreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toLocaleString()}</span></span>
+                  <span className="text-slate-400">Total $: <span className="text-red-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'egreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span></span>
+                  <span className="text-slate-400">Total USD: <span className="text-blue-400 font-bold">{cajaMovimientos.filter(m => m.tipo === 'egreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span></span>
                 </div>
               </div>
             )}
@@ -5627,7 +5656,7 @@ export default function App() {
                               <td className="py-2 px-3">{item.fecha}</td>
                               <td className="py-2 px-3 text-red-400">{item.aportante || '-'}</td>
                               <td className="py-2 px-3 text-green-400">{item.persona}</td>
-                              <td className="py-2 px-3 text-right text-purple-400">${(item.monto_pesos || 0).toLocaleString()}</td>
+                              <td className="py-2 px-3 text-right text-purple-400">${(item.monto_pesos || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</td>
                               <td className="py-2 px-3 text-slate-400">{observacion}</td>
                               <td className="py-2 px-3 text-center flex gap-1 justify-center">
                                 <button
@@ -5690,7 +5719,7 @@ export default function App() {
                   </table>
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/10 flex justify-end gap-6 text-sm">
-                  <span className="text-slate-400">Total Transferido: <span className="text-purple-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'ingreso' && m.concepto && m.concepto.startsWith('Transferencia interna')).reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toLocaleString()}</span></span>
+                  <span className="text-slate-400">Total Transferido: <span className="text-purple-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'ingreso' && m.concepto && m.concepto.startsWith('Transferencia interna')).reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span></span>
                 </div>
               </div>
             )}
@@ -5715,7 +5744,7 @@ export default function App() {
                         <div className="space-y-2">
                           <div className="flex justify-between text-sm">
                             <span className="text-slate-400">Pesos:</span>
-                            <span className="text-white font-medium">${totalPesos.toLocaleString()}</span>
+                            <span className="text-white font-medium">${totalPesos.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span className="text-slate-400">USD:</span>
@@ -5751,7 +5780,7 @@ export default function App() {
                           <td className="py-2 px-3 text-slate-400">{item.fecha}</td>
                           <td className="py-2 px-3 font-medium text-yellow-400">{item.persona}</td>
                           <td className="py-2 px-3 text-slate-400">{item.concepto}</td>
-                          <td className="py-2 px-3 text-right text-white">${(item.monto_pesos || 0).toLocaleString()}</td>
+                          <td className="py-2 px-3 text-right text-white">${(item.monto_pesos || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</td>
                           <td className="py-2 px-3 text-right text-blue-400">{item.monto_dolares ? item.monto_dolares.toFixed(2) : '-'}</td>
                           <td className="py-2 px-3 text-right text-slate-400">{item.cotizacion || '-'}</td>
                           <td className="py-2 px-3">
@@ -5768,7 +5797,7 @@ export default function App() {
                   </table>
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/10 flex justify-end gap-6 text-sm">
-                  <span className="text-slate-400">Total $: <span className="text-yellow-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toLocaleString()}</span></span>
+                  <span className="text-slate-400">Total $: <span className="text-yellow-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span></span>
                   <span className="text-slate-400">Total USD: <span className="text-blue-400 font-bold">{cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toFixed(2)}</span></span>
                 </div>
               </div>
