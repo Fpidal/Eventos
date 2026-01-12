@@ -1179,10 +1179,10 @@ export default function App() {
       format: 'a4'
     });
 
-    // ============ COLORES (RGB) ============
-    const VERDE_TERO = [31, 122, 99];       // #1F7A63
-    const VERDE_SUAVE = [234, 244, 241];    // #EAF4F1
-    const VERDE_OSCURO = [21, 94, 75];      // #155E4B
+    // ============ COLORES (RGB) - Verde Oliva ============
+    const VERDE_TERO = [85, 107, 47];       // #556B2F - verde oliva oscuro
+    const VERDE_SUAVE = [245, 245, 235];    // #F5F5EB - verde oliva muy claro
+    const VERDE_OSCURO = [107, 142, 35];    // #6B8E23 - olive drab
     const NEGRO = [17, 24, 39];             // #111827
     const GRIS_TEXTO = [55, 65, 81];        // #374151
     const GRIS_SEC = [107, 114, 128];       // #6B7280
@@ -1248,18 +1248,22 @@ export default function App() {
       y += 20;
     }
 
-    // --- TÍTULO COTIZACIÓN (centrado) ---
-    doc.setFontSize(16);
+    // --- TÍTULO COTIZACIÓN (centrado manualmente) ---
+    doc.setFontSize(14);
     doc.setTextColor(...NEGRO);
-    doc.setFont('helvetica', 'normal');
-    doc.setCharSpace(2);
-    doc.text('COTIZACIÓN DE EVENTO', centerX, y, { align: 'center' });
-    doc.setCharSpace(0);
+    doc.setFont('helvetica', 'bold');
+    const tituloCot = 'COTIZACIÓN DE EVENTO';
+    const tituloWidth = doc.getStringUnitWidth(tituloCot) * 14 / doc.internal.scaleFactor;
+    const tituloX = (pageWidth - tituloWidth) / 2;
+    doc.text(tituloCot, tituloX, y);
 
-    y += 4;
+    y += 5;
+    // Línea centrada debajo del título
+    const lineaWidth = tituloWidth + 10;
+    const lineaX = (pageWidth - lineaWidth) / 2;
     doc.setDrawColor(...VERDE_TERO);
     doc.setLineWidth(0.8);
-    doc.line(centerX - 35, y, centerX + 35, y);
+    doc.line(lineaX, y, lineaX + lineaWidth, y);
 
     y += 10;
 
