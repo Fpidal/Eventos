@@ -4816,6 +4816,16 @@ export default function App() {
                   {auditoriaEventos.length}
                 </span>
               </button>
+              <button
+                onClick={() => setInformeActivo('estadisticas')}
+                className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                  informeActivo === 'estadisticas'
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                }`}
+              >
+                Estadísticas
+              </button>
             </div>
 
             {/* Pagos Eliminados */}
@@ -4925,6 +4935,274 @@ export default function App() {
                 )}
               </div>
             )}
+
+            {/* Estadísticas */}
+            {informeActivo === 'estadisticas' && (() => {
+              // Calcular estadísticas
+              const eventosRealizados = eventos.filter(e => e.estado === 'realizado' || new Date(e.fecha) < new Date());
+              const eventosFuturos = eventos.filter(e => e.estado !== 'realizado' && new Date(e.fecha) >= new Date());
+
+              const totalAdultos = eventos.reduce((sum, e) => sum + (e.adultos || 0), 0);
+              const totalMenores = eventos.reduce((sum, e) => sum + (e.menores || 0), 0);
+              const totalComensales = totalAdultos + totalMenores;
+              const promedioComensales = eventos.length > 0 ? Math.round(totalComensales / eventos.length) : 0;
+
+              // Tipos de evento
+              const tiposEvento = {};
+              eventos.forEach(e => {
+                const tipo = e.tipo_evento || 'Sin especificar';
+                tiposEvento[tipo] = (tiposEvento[tipo] || 0) + 1;
+              });
+              const tiposOrdenados = Object.entries(tiposEvento).sort((a, b) => b[1] - a[1]);
+
+              // Tipos de menú
+              const tiposMenu = {};
+              eventos.forEach(e => {
+                const menu = e.menu || 'Sin especificar';
+                tiposMenu[menu] = (tiposMenu[menu] || 0) + 1;
+              });
+              const menusOrdenados = Object.entries(tiposMenu).sort((a, b) => b[1] - a[1]);
+
+              // Salones
+              const salones = {};
+              eventos.forEach(e => {
+                const salon = e.salon || 'Sin especificar';
+                salones[salon] = (salones[salon] || 0) + 1;
+              });
+              const salonesOrdenados = Object.entries(salones).sort((a, b) => b[1] - a[1]);
+
+              // Vendedores
+              const vendedores = {};
+              eventos.forEach(e => {
+                const vendedor = e.vendedor || 'Sin especificar';
+                vendedores[vendedor] = (vendedores[vendedor] || 0) + 1;
+              });
+              const vendedoresOrdenados = Object.entries(vendedores).sort((a, b) => b[1] - a[1]);
+
+              // Turnos
+              const turnos = {};
+              eventos.forEach(e => {
+                const turno = e.turno || 'Sin especificar';
+                turnos[turno] = (turnos[turno] || 0) + 1;
+              });
+              const turnosOrdenados = Object.entries(turnos).sort((a, b) => b[1] - a[1]);
+
+              // Facturación
+              const facturacionTotal = eventos.reduce((sum, e) => sum + (e.total_evento || 0), 0);
+              const facturacionPromedio = eventos.length > 0 ? facturacionTotal / eventos.length : 0;
+
+              // Eventos por mes (últimos 12 meses)
+              const eventosPorMes = {};
+              const ahora = new Date();
+              for (let i = 11; i >= 0; i--) {
+                const fecha = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
+                const key = fecha.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' });
+                eventosPorMes[key] = 0;
+              }
+              eventos.forEach(e => {
+                const fecha = new Date(e.fecha);
+                const key = fecha.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' });
+                if (eventosPorMes[key] !== undefined) {
+                  eventosPorMes[key]++;
+                }
+              });
+
+              // Precio promedio por persona
+              const preciosAdulto = eventos.filter(e => e.precio_adulto > 0).map(e => e.precio_adulto);
+              const precioPromedioAdulto = preciosAdulto.length > 0
+                ? preciosAdulto.reduce((a, b) => a + b, 0) / preciosAdulto.length
+                : 0;
+
+              return (
+                <div className="space-y-6">
+                  {/* Resumen General */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="glass rounded-xl p-4 text-center">
+                      <p className="text-3xl font-bold text-emerald-400">{eventos.length}</p>
+                      <p className="text-sm text-slate-400">Total Eventos</p>
+                    </div>
+                    <div className="glass rounded-xl p-4 text-center">
+                      <p className="text-3xl font-bold text-blue-400">{formatNumber(totalComensales)}</p>
+                      <p className="text-sm text-slate-400">Total Comensales</p>
+                    </div>
+                    <div className="glass rounded-xl p-4 text-center">
+                      <p className="text-3xl font-bold text-purple-400">{promedioComensales}</p>
+                      <p className="text-sm text-slate-400">Promedio x Evento</p>
+                    </div>
+                    <div className="glass rounded-xl p-4 text-center">
+                      <p className="text-3xl font-bold text-amber-400">{formatCurrency(facturacionTotal)}</p>
+                      <p className="text-sm text-slate-400">Facturación Total</p>
+                    </div>
+                  </div>
+
+                  {/* Detalle Comensales */}
+                  <div className="glass rounded-2xl p-5">
+                    <h3 className="text-lg font-semibold mb-4 text-emerald-400">Detalle de Comensales</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="bg-white/5 rounded-xl p-4">
+                        <p className="text-2xl font-bold text-white">{formatNumber(totalAdultos)}</p>
+                        <p className="text-sm text-slate-400">Adultos</p>
+                      </div>
+                      <div className="bg-white/5 rounded-xl p-4">
+                        <p className="text-2xl font-bold text-white">{formatNumber(totalMenores)}</p>
+                        <p className="text-sm text-slate-400">Menores</p>
+                      </div>
+                      <div className="bg-white/5 rounded-xl p-4">
+                        <p className="text-2xl font-bold text-white">{formatCurrency(precioPromedioAdulto)}</p>
+                        <p className="text-sm text-slate-400">Precio Prom. Adulto</p>
+                      </div>
+                      <div className="bg-white/5 rounded-xl p-4">
+                        <p className="text-2xl font-bold text-white">{formatCurrency(facturacionPromedio)}</p>
+                        <p className="text-sm text-slate-400">Facturación Prom.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Tipos de Evento */}
+                    <div className="glass rounded-2xl p-5">
+                      <h3 className="text-lg font-semibold mb-4 text-blue-400">Tipos de Evento</h3>
+                      <div className="space-y-3">
+                        {tiposOrdenados.map(([tipo, cantidad]) => (
+                          <div key={tipo} className="flex items-center justify-between">
+                            <span className="text-slate-300">{tipo}</span>
+                            <div className="flex items-center gap-3">
+                              <div className="w-32 bg-white/10 rounded-full h-2">
+                                <div
+                                  className="bg-blue-500 h-2 rounded-full"
+                                  style={{ width: `${(cantidad / eventos.length) * 100}%` }}
+                                />
+                              </div>
+                              <span className="text-white font-medium w-8 text-right">{cantidad}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Tipos de Menú */}
+                    <div className="glass rounded-2xl p-5">
+                      <h3 className="text-lg font-semibold mb-4 text-purple-400">Tipos de Menú</h3>
+                      <div className="space-y-3">
+                        {menusOrdenados.map(([menu, cantidad]) => (
+                          <div key={menu} className="flex items-center justify-between">
+                            <span className="text-slate-300">{menu}</span>
+                            <div className="flex items-center gap-3">
+                              <div className="w-32 bg-white/10 rounded-full h-2">
+                                <div
+                                  className="bg-purple-500 h-2 rounded-full"
+                                  style={{ width: `${(cantidad / eventos.length) * 100}%` }}
+                                />
+                              </div>
+                              <span className="text-white font-medium w-8 text-right">{cantidad}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Salones */}
+                    <div className="glass rounded-2xl p-5">
+                      <h3 className="text-lg font-semibold mb-4 text-amber-400">Salones</h3>
+                      <div className="space-y-3">
+                        {salonesOrdenados.map(([salon, cantidad]) => (
+                          <div key={salon} className="flex items-center justify-between">
+                            <span className="text-slate-300">{salon}</span>
+                            <div className="flex items-center gap-3">
+                              <div className="w-32 bg-white/10 rounded-full h-2">
+                                <div
+                                  className="bg-amber-500 h-2 rounded-full"
+                                  style={{ width: `${(cantidad / eventos.length) * 100}%` }}
+                                />
+                              </div>
+                              <span className="text-white font-medium w-8 text-right">{cantidad}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Turnos */}
+                    <div className="glass rounded-2xl p-5">
+                      <h3 className="text-lg font-semibold mb-4 text-rose-400">Turnos</h3>
+                      <div className="space-y-3">
+                        {turnosOrdenados.map(([turno, cantidad]) => (
+                          <div key={turno} className="flex items-center justify-between">
+                            <span className="text-slate-300">{turno}</span>
+                            <div className="flex items-center gap-3">
+                              <div className="w-32 bg-white/10 rounded-full h-2">
+                                <div
+                                  className="bg-rose-500 h-2 rounded-full"
+                                  style={{ width: `${(cantidad / eventos.length) * 100}%` }}
+                                />
+                              </div>
+                              <span className="text-white font-medium w-8 text-right">{cantidad}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Vendedores */}
+                  <div className="glass rounded-2xl p-5">
+                    <h3 className="text-lg font-semibold mb-4 text-cyan-400">Eventos por Vendedor</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {vendedoresOrdenados.map(([vendedor, cantidad]) => (
+                        <div key={vendedor} className="bg-white/5 rounded-xl p-4 text-center">
+                          <p className="text-2xl font-bold text-cyan-400">{cantidad}</p>
+                          <p className="text-sm text-slate-400">{vendedor}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Eventos por Mes */}
+                  <div className="glass rounded-2xl p-5">
+                    <h3 className="text-lg font-semibold mb-4 text-indigo-400">Eventos por Mes (últimos 12 meses)</h3>
+                    <div className="flex items-end justify-between gap-2 h-40">
+                      {Object.entries(eventosPorMes).map(([mes, cantidad]) => {
+                        const maxCantidad = Math.max(...Object.values(eventosPorMes), 1);
+                        const altura = (cantidad / maxCantidad) * 100;
+                        return (
+                          <div key={mes} className="flex-1 flex flex-col items-center gap-1">
+                            <span className="text-xs text-white font-medium">{cantidad}</span>
+                            <div
+                              className="w-full bg-indigo-500 rounded-t-lg transition-all"
+                              style={{ height: `${Math.max(altura, 5)}%` }}
+                            />
+                            <span className="text-xs text-slate-500 rotate-45 origin-left">{mes}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Estado de Eventos */}
+                  <div className="glass rounded-2xl p-5">
+                    <h3 className="text-lg font-semibold mb-4 text-teal-400">Estado de Eventos</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 text-center">
+                        <p className="text-2xl font-bold text-emerald-400">{eventosRealizados.length}</p>
+                        <p className="text-sm text-slate-400">Realizados</p>
+                      </div>
+                      <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 text-center">
+                        <p className="text-2xl font-bold text-blue-400">{eventosFuturos.length}</p>
+                        <p className="text-sm text-slate-400">Próximos</p>
+                      </div>
+                      <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-center">
+                        <p className="text-2xl font-bold text-amber-400">{eventos.filter(e => e.estado === 'pendiente').length}</p>
+                        <p className="text-sm text-slate-400">Pendientes Pago</p>
+                      </div>
+                      <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-center">
+                        <p className="text-2xl font-bold text-red-400">{auditoriaEventos.length}</p>
+                        <p className="text-sm text-slate-400">Anulados</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
