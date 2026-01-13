@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed, ClipboardList, XCircle, Banknote, ArrowLeftRight, BookUser } from 'lucide-react';
+import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed, ClipboardList, XCircle, Banknote, ArrowLeftRight, Contact } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar } from 'recharts';
 import { supabase } from './supabase';
 import { jsPDF } from 'jspdf';
@@ -3297,7 +3297,7 @@ export default function App() {
             { id: 'cobranzas', label: 'Cobranzas', icon: Wallet },
             { id: 'menus', label: 'Menús', icon: UtensilsCrossed },
             { id: 'informes', label: 'Informes', icon: ClipboardList },
-            { id: 'agenda', label: 'Agenda', icon: BookUser },
+            { id: 'agenda', label: 'Agenda', icon: Contact },
             ...(userRole === 'admin' ? [{ id: 'usuarios', label: 'Usuarios', icon: Users }] : []),
             { id: 'caja', label: 'Caja', icon: Banknote },
           ].map(tab => (
@@ -5263,7 +5263,7 @@ export default function App() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold flex items-center gap-3">
-                  <BookUser className="w-6 h-6 text-emerald-400" />
+                  <Contact className="w-6 h-6 text-emerald-400" />
                   Agenda de Contactos
                 </h2>
                 <span className="text-slate-400">{contactos.length} contactos</span>
