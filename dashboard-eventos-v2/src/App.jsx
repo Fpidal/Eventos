@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed, ClipboardList, XCircle, Banknote, ArrowLeftRight } from 'lucide-react';
+import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed, ClipboardList, XCircle, Banknote, ArrowLeftRight, BookUser } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar } from 'recharts';
 import { supabase } from './supabase';
 import { jsPDF } from 'jspdf';
@@ -252,6 +252,7 @@ export default function App() {
   const [auditoriaEventos, setAuditoriaEventos] = useState([]);
   const [informeActivo, setInformeActivo] = useState('eliminados');
   const [motivoModificacion, setMotivoModificacion] = useState('');
+  const [busquedaContacto, setBusquedaContacto] = useState('');
 
   // Estados para gestión de usuarios
   const [usuarios, setUsuarios] = useState([]);
@@ -3296,6 +3297,7 @@ export default function App() {
             { id: 'cobranzas', label: 'Cobranzas', icon: Wallet },
             { id: 'menus', label: 'Menús', icon: UtensilsCrossed },
             { id: 'informes', label: 'Informes', icon: ClipboardList },
+            { id: 'agenda', label: 'Agenda', icon: BookUser },
             ...(userRole === 'admin' ? [{ id: 'usuarios', label: 'Usuarios', icon: Users }] : []),
             { id: 'caja', label: 'Caja', icon: Banknote },
           ].map(tab => (
@@ -5205,6 +5207,171 @@ export default function App() {
             })()}
           </div>
         )}
+
+        {/* Agenda de Contactos */}
+        {activeTab === 'agenda' && (() => {
+          // Extraer contactos únicos de los eventos
+          const contactosMap = new Map();
+          eventos.forEach(evento => {
+            const key = evento.cliente?.toLowerCase().trim();
+            if (key && !contactosMap.has(key)) {
+              contactosMap.set(key, {
+                nombre: evento.cliente,
+                telefono: evento.telefono || '',
+                email: evento.email || '',
+                ultimoEvento: evento.fecha,
+                tipoEvento: evento.tipo_evento,
+                cantidadEventos: 1
+              });
+            } else if (key) {
+              const existing = contactosMap.get(key);
+              existing.cantidadEventos++;
+              if (evento.fecha > existing.ultimoEvento) {
+                existing.ultimoEvento = evento.fecha;
+                existing.tipoEvento = evento.tipo_evento;
+              }
+              if (!existing.telefono && evento.telefono) {
+                existing.telefono = evento.telefono;
+              }
+              if (!existing.email && evento.email) {
+                existing.email = evento.email;
+              }
+            }
+          });
+
+          const contactos = Array.from(contactosMap.values()).sort((a, b) =>
+            a.nombre.localeCompare(b.nombre)
+          );
+
+          const contactosFiltrados = contactos.filter(c =>
+            c.nombre.toLowerCase().includes(busquedaContacto.toLowerCase()) ||
+            c.telefono?.includes(busquedaContacto) ||
+            c.email?.toLowerCase().includes(busquedaContacto.toLowerCase())
+          );
+
+          // Agrupar por letra inicial
+          const contactosPorLetra = {};
+          contactosFiltrados.forEach(c => {
+            const letra = c.nombre.charAt(0).toUpperCase();
+            if (!contactosPorLetra[letra]) {
+              contactosPorLetra[letra] = [];
+            }
+            contactosPorLetra[letra].push(c);
+          });
+
+          return (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold flex items-center gap-3">
+                  <BookUser className="w-6 h-6 text-emerald-400" />
+                  Agenda de Contactos
+                </h2>
+                <span className="text-slate-400">{contactos.length} contactos</span>
+              </div>
+
+              {/* Buscador */}
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar por nombre, teléfono o email..."
+                  value={busquedaContacto}
+                  onChange={(e) => setBusquedaContacto(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50"
+                />
+              </div>
+
+              {/* Lista de contactos */}
+              <div className="glass rounded-2xl p-5 max-h-[600px] overflow-y-auto scrollbar-thin">
+                {Object.keys(contactosPorLetra).length === 0 ? (
+                  <p className="text-center text-slate-500 py-8">No se encontraron contactos</p>
+                ) : (
+                  Object.keys(contactosPorLetra).sort().map(letra => (
+                    <div key={letra} className="mb-6">
+                      <div className="sticky top-0 bg-slate-900/90 backdrop-blur-sm py-2 mb-3">
+                        <span className="text-lg font-bold text-emerald-400">{letra}</span>
+                      </div>
+                      <div className="space-y-2">
+                        {contactosPorLetra[letra].map((contacto, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all border border-white/5"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-lg">
+                                {contacto.nombre.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="font-medium text-white">{contacto.nombre}</p>
+                                <div className="flex items-center gap-4 mt-1">
+                                  {contacto.telefono && (
+                                    <a
+                                      href={`tel:${contacto.telefono}`}
+                                      className="flex items-center gap-1 text-sm text-slate-400 hover:text-emerald-400 transition-colors"
+                                    >
+                                      <Phone className="w-3.5 h-3.5" />
+                                      {contacto.telefono}
+                                    </a>
+                                  )}
+                                  {contacto.email && (
+                                    <a
+                                      href={`mailto:${contacto.email}`}
+                                      className="flex items-center gap-1 text-sm text-slate-400 hover:text-emerald-400 transition-colors"
+                                    >
+                                      <Mail className="w-3.5 h-3.5" />
+                                      {contacto.email}
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className="inline-block px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-medium">
+                                {contacto.cantidadEventos} {contacto.cantidadEventos === 1 ? 'evento' : 'eventos'}
+                              </span>
+                              <p className="text-xs text-slate-500 mt-1">
+                                Último: {formatDate(contacto.ultimoEvento)}
+                              </p>
+                              {contacto.tipoEvento && (
+                                <p className="text-xs text-slate-500">{contacto.tipoEvento}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Acciones rápidas */}
+              <div className="glass rounded-2xl p-5">
+                <h3 className="text-sm font-medium text-slate-400 mb-3">Acciones rápidas</h3>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      const csv = ['Nombre,Teléfono,Email,Cantidad Eventos,Último Evento']
+                        .concat(contactos.map(c =>
+                          `"${c.nombre}","${c.telefono}","${c.email}",${c.cantidadEventos},"${c.ultimoEvento}"`
+                        ))
+                        .join('\n');
+                      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                      const url = URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = 'contactos_tero.csv';
+                      link.click();
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 text-slate-300 hover:bg-white/10 transition-all"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Exportar CSV
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Usuarios (solo admin) */}
         {activeTab === 'usuarios' && userRole === 'admin' && (
