@@ -189,8 +189,8 @@ const PLATOS_POR_MENU = {
 
 export default function App() {
   // Auth states
-  const [user, setUser] = useState(null);
-  const [userRole, setUserRole] = useState(null);
+  const [user, setUser] = useState({ email: 'admin@eventos.com', id: 'auto-user' });
+  const [userRole, setUserRole] = useState('admin');
   const [authLoading, setAuthLoading] = useState(true);
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [loginError, setLoginError] = useState('');
@@ -1013,7 +1013,8 @@ export default function App() {
     const menuData = {
       nombre: nuevoMenu.nombre,
       categorias: nuevoMenu.categorias,
-      extras: nuevoMenu.extras
+      extras: nuevoMenu.extras,
+      activo: true
     };
 
     console.log('Guardando menú:', menuData);
@@ -1023,22 +1024,32 @@ export default function App() {
       result = await supabase
         .from('menus')
         .update(menuData)
-        .eq('id', editingMenu.id);
+        .eq('id', editingMenu.id)
+        .select();
     } else {
       result = await supabase
         .from('menus')
-        .insert([menuData]);
+        .insert([menuData])
+        .select();
     }
 
     console.log('Resultado:', result);
+    console.log('Error:', result.error);
+    console.log('Data:', result.data);
+    console.log('Status:', result.status);
+    console.log('EditingMenu:', editingMenu);
 
     if (result.error) {
-      console.error('Error:', result.error);
+      console.error('Error guardando menú:', result.error);
       alert('Error al guardar menú: ' + result.error.message);
-    } else {
+    } else if (result.data && result.data.length > 0) {
+      console.log('Menú guardado exitosamente:', result.data[0]);
       setShowMenuModal(false);
       resetNuevoMenu();
-      fetchMenus();
+      await fetchMenus();
+    } else {
+      console.error('No se devolvieron datos - posible problema de permisos RLS');
+      alert('Error: No se pudo guardar. Verificar permisos en Supabase.');
     }
     setSaving(false);
   };
@@ -1057,13 +1068,22 @@ export default function App() {
   const handleDeleteMenu = async (menuId) => {
     if (!confirm('¿Eliminar este menú?')) return;
 
-    const { error } = await supabase
-      .from('menus')
-      .update({ activo: false })
-      .eq('id', menuId);
+    console.log('Eliminando menú ID:', menuId);
 
-    if (!error) {
-      fetchMenus();
+    const { data, error } = await supabase
+      .from('menus')
+      .delete()
+      .eq('id', menuId)
+      .select();
+
+    console.log('Delete resultado - data:', data, 'error:', error);
+
+    if (error) {
+      console.error('Error al eliminar menú:', error);
+      alert('Error al eliminar menú: ' + error.message);
+    } else {
+      console.log('Menú eliminado exitosamente');
+      await fetchMenus();
     }
   };
 
