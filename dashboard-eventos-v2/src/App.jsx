@@ -254,6 +254,19 @@ export default function App() {
   const [motivoModificacion, setMotivoModificacion] = useState('');
   const [busquedaContacto, setBusquedaContacto] = useState('');
 
+  // Estados para agenda de contactos
+  const [contactosEditados, setContactosEditados] = useState(() => {
+    const saved = localStorage.getItem('contactos_editados');
+    return saved ? JSON.parse(saved) : {};
+  });
+  const [editingContacto, setEditingContacto] = useState(null);
+  const [showContactoModal, setShowContactoModal] = useState(false);
+
+  // Guardar contactos editados en localStorage
+  useEffect(() => {
+    localStorage.setItem('contactos_editados', JSON.stringify(contactosEditados));
+  }, [contactosEditados]);
+
   // Estados para gestión de usuarios
   const [usuarios, setUsuarios] = useState([]);
   const [showUserModal, setShowUserModal] = useState(false);
@@ -5210,15 +5223,19 @@ export default function App() {
 
         {/* Agenda de Contactos */}
         {activeTab === 'agenda' && (() => {
-          // Extraer contactos únicos de los eventos
+          // Extraer contactos únicos de los eventos y mergear con editados
           const contactosMap = new Map();
           eventos.forEach(evento => {
             const key = evento.cliente?.toLowerCase().trim();
             if (key && !contactosMap.has(key)) {
+              const editado = contactosEditados[key] || {};
               contactosMap.set(key, {
-                nombre: evento.cliente,
-                telefono: evento.telefono || '',
-                email: evento.email || '',
+                id: key,
+                nombre: editado.nombre || evento.cliente,
+                telefono: editado.telefono || evento.telefono || '',
+                email: editado.email || evento.email || '',
+                observacion1: editado.observacion1 || '',
+                observacion2: editado.observacion2 || '',
                 ultimoEvento: evento.fecha,
                 tipoEvento: evento.tipo_evento,
                 cantidadEventos: 1
@@ -5246,7 +5263,9 @@ export default function App() {
           const contactosFiltrados = contactos.filter(c =>
             c.nombre.toLowerCase().includes(busquedaContacto.toLowerCase()) ||
             c.telefono?.includes(busquedaContacto) ||
-            c.email?.toLowerCase().includes(busquedaContacto.toLowerCase())
+            c.email?.toLowerCase().includes(busquedaContacto.toLowerCase()) ||
+            c.observacion1?.toLowerCase().includes(busquedaContacto.toLowerCase()) ||
+            c.observacion2?.toLowerCase().includes(busquedaContacto.toLowerCase())
           );
 
           // Agrupar por letra inicial
@@ -5258,6 +5277,23 @@ export default function App() {
             }
             contactosPorLetra[letra].push(c);
           });
+
+          const handleGuardarContacto = () => {
+            if (editingContacto) {
+              setContactosEditados(prev => ({
+                ...prev,
+                [editingContacto.id]: {
+                  nombre: editingContacto.nombre,
+                  telefono: editingContacto.telefono,
+                  email: editingContacto.email,
+                  observacion1: editingContacto.observacion1,
+                  observacion2: editingContacto.observacion2
+                }
+              }));
+              setShowContactoModal(false);
+              setEditingContacto(null);
+            }
+          };
 
           return (
             <div className="space-y-6">
@@ -5274,7 +5310,7 @@ export default function App() {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Buscar por nombre, teléfono o email..."
+                  placeholder="Buscar por nombre, teléfono, email u observaciones..."
                   value={busquedaContacto}
                   onChange={(e) => setBusquedaContacto(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50"
@@ -5297,13 +5333,13 @@ export default function App() {
                             key={idx}
                             className="flex items-center justify-between p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all border border-white/5"
                           >
-                            <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-lg">
+                            <div className="flex items-center gap-4 flex-1">
+                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
                                 {contacto.nombre.charAt(0).toUpperCase()}
                               </div>
-                              <div>
+                              <div className="flex-1 min-w-0">
                                 <p className="font-medium text-white">{contacto.nombre}</p>
-                                <div className="flex items-center gap-4 mt-1">
+                                <div className="flex items-center gap-4 mt-1 flex-wrap">
                                   {contacto.telefono && (
                                     <a
                                       href={`tel:${contacto.telefono}`}
@@ -5323,18 +5359,40 @@ export default function App() {
                                     </a>
                                   )}
                                 </div>
+                                {(contacto.observacion1 || contacto.observacion2) && (
+                                  <div className="mt-2 space-y-1">
+                                    {contacto.observacion1 && (
+                                      <p className="text-xs text-amber-400/80 bg-amber-500/10 px-2 py-1 rounded inline-block mr-2">
+                                        {contacto.observacion1}
+                                      </p>
+                                    )}
+                                    {contacto.observacion2 && (
+                                      <p className="text-xs text-blue-400/80 bg-blue-500/10 px-2 py-1 rounded inline-block">
+                                        {contacto.observacion2}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             </div>
-                            <div className="text-right">
-                              <span className="inline-block px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-medium">
-                                {contacto.cantidadEventos} {contacto.cantidadEventos === 1 ? 'evento' : 'eventos'}
-                              </span>
-                              <p className="text-xs text-slate-500 mt-1">
-                                Último: {formatDate(contacto.ultimoEvento)}
-                              </p>
-                              {contacto.tipoEvento && (
-                                <p className="text-xs text-slate-500">{contacto.tipoEvento}</p>
-                              )}
+                            <div className="flex items-center gap-3">
+                              <div className="text-right">
+                                <span className="inline-block px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-medium">
+                                  {contacto.cantidadEventos} {contacto.cantidadEventos === 1 ? 'evento' : 'eventos'}
+                                </span>
+                                <p className="text-xs text-slate-500 mt-1">
+                                  Último: {formatDate(contacto.ultimoEvento)}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setEditingContacto({ ...contacto });
+                                  setShowContactoModal(true);
+                                }}
+                                className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-emerald-400 transition-all"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
                             </div>
                           </div>
                         ))}
@@ -5350,9 +5408,9 @@ export default function App() {
                 <div className="flex gap-3">
                   <button
                     onClick={() => {
-                      const csv = ['Nombre,Teléfono,Email,Cantidad Eventos,Último Evento']
+                      const csv = ['Nombre,Teléfono,Email,Observación 1,Observación 2,Cantidad Eventos,Último Evento']
                         .concat(contactos.map(c =>
-                          `"${c.nombre}","${c.telefono}","${c.email}",${c.cantidadEventos},"${c.ultimoEvento}"`
+                          `"${c.nombre}","${c.telefono}","${c.email}","${c.observacion1 || ''}","${c.observacion2 || ''}",${c.cantidadEventos},"${c.ultimoEvento}"`
                         ))
                         .join('\n');
                       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -5369,6 +5427,98 @@ export default function App() {
                   </button>
                 </div>
               </div>
+
+              {/* Modal de edición de contacto */}
+              {showContactoModal && editingContacto && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                  <div className="glass rounded-2xl w-full max-w-md p-6 space-y-5">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-bold">Editar Contacto</h3>
+                      <button
+                        onClick={() => {
+                          setShowContactoModal(false);
+                          setEditingContacto(null);
+                        }}
+                        className="p-2 rounded-lg hover:bg-white/10 transition-all"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm text-slate-400 mb-1">Nombre</label>
+                        <input
+                          type="text"
+                          value={editingContacto.nombre}
+                          onChange={(e) => setEditingContacto({ ...editingContacto, nombre: e.target.value })}
+                          className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-emerald-500/50"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm text-slate-400 mb-1">Teléfono</label>
+                        <input
+                          type="tel"
+                          value={editingContacto.telefono}
+                          onChange={(e) => setEditingContacto({ ...editingContacto, telefono: e.target.value })}
+                          className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-emerald-500/50"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm text-slate-400 mb-1">Email</label>
+                        <input
+                          type="email"
+                          value={editingContacto.email}
+                          onChange={(e) => setEditingContacto({ ...editingContacto, email: e.target.value })}
+                          className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-emerald-500/50"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm text-slate-400 mb-1">Observación 1</label>
+                        <textarea
+                          value={editingContacto.observacion1 || ''}
+                          onChange={(e) => setEditingContacto({ ...editingContacto, observacion1: e.target.value })}
+                          rows={2}
+                          placeholder="Ej: Cliente VIP, prefiere salón terraza..."
+                          className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500/50 resize-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm text-slate-400 mb-1">Observación 2</label>
+                        <textarea
+                          value={editingContacto.observacion2 || ''}
+                          onChange={(e) => setEditingContacto({ ...editingContacto, observacion2: e.target.value })}
+                          rows={2}
+                          placeholder="Ej: Alérgico a mariscos, pagador puntual..."
+                          className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500/50 resize-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        onClick={() => {
+                          setShowContactoModal(false);
+                          setEditingContacto(null);
+                        }}
+                        className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 text-slate-300 hover:bg-white/10 transition-all"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={handleGuardarContacto}
+                        className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all font-medium"
+                      >
+                        Guardar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })()}
