@@ -1683,8 +1683,8 @@ export default function App() {
       y += 5;
     }
 
-    // --- CONDICIONES ---
-    if (y > 240) {
+    // --- FORMAS DE PAGO ---
+    if (y > 220) {
       doc.addPage();
       y = 25;
     }
@@ -1692,23 +1692,50 @@ export default function App() {
     doc.setFontSize(11);
     doc.setTextColor(...NEGRO);
     doc.setFont('helvetica', 'bold');
-    doc.text('CONDICIONES', marginLeft, y);
+    doc.text('FORMAS DE PAGO:', marginLeft, y);
     y += 6;
 
-    const condiciones = [
-      'Seña del 50% para confirmar el evento',
-      'El saldo se ajustará por IPC al momento del pago',
-      'Cancelación: hasta 7 días antes del evento',
-      'Cotización válida por 15 días'
+    const formasPago = [
+      'Los valores son sin IVA.',
+      'Anticipo del 50%',
+      'Saldos se ajustan por IPC',
+      'Cancelación 15 días antes del evento.'
     ];
 
     doc.setFontSize(9.5);
     doc.setTextColor(...GRIS_SEC);
     doc.setFont('helvetica', 'normal');
-    condiciones.forEach(cond => {
-      doc.text('• ' + cond, marginLeft, y);
+    formasPago.forEach(item => {
+      doc.text('• ' + item, marginLeft, y);
       y += 5;
     });
+
+    y += 4;
+
+    // --- CANCELACION ---
+    doc.setFontSize(11);
+    doc.setTextColor(...NEGRO);
+    doc.setFont('helvetica', 'bold');
+    doc.text('CANCELACIÓN', marginLeft, y);
+    y += 6;
+
+    doc.setFontSize(9.5);
+    doc.setTextColor(...GRIS_SEC);
+    doc.setFont('helvetica', 'normal');
+
+    doc.text('• En caso de posponer por causas ajenas a la empresa, se verá otra fecha disponible.', marginLeft, y);
+    y += 5;
+
+    const cancelText1 = 'En caso de cancelar por causas ajenas a la empresa, la seña sobre el 30% de la seña';
+    const cancelText2 = 'será tomada cuando la cancelación es mayor a 2 meses de anticipación, y en caso que';
+    const cancelText3 = 'la cancelación sea con menos de 2 meses de anticipación quedará tomada en su totalidad.';
+
+    doc.text('• ' + cancelText1, marginLeft, y);
+    y += 4.5;
+    doc.text('  ' + cancelText2, marginLeft, y);
+    y += 4.5;
+    doc.text('  ' + cancelText3, marginLeft, y);
+    y += 5;
 
     // --- FOOTER en todas las páginas ---
     const totalPages = doc.internal.getNumberOfPages();
