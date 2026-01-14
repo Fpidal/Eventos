@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed, ClipboardList, XCircle, Banknote, ArrowLeftRight, Contact, RefreshCw } from 'lucide-react';
+import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed, ClipboardList, XCircle, Banknote, ArrowLeftRight, Contact, RefreshCw, Monitor } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar } from 'recharts';
 import { supabase } from './supabase';
 import { jsPDF } from 'jspdf';
@@ -232,6 +232,11 @@ export default function App() {
   // Filtros de cobranzas
   const [filterCobranzasMes, setFilterCobranzasMes] = useState('todos');
   const [filterCobranzasEstado, setFilterCobranzasEstado] = useState('todos');
+  const [filterCobranzasCliente, setFilterCobranzasCliente] = useState('');
+
+  // Filtros de solapas Próximos y A Confirmar
+  const [filterMesProximos, setFilterMesProximos] = useState('todos');
+  const [filterMesAConfirmar, setFilterMesAConfirmar] = useState('todos');
   const [vistaCobranzas, setVistaCobranzas] = useState('estado'); // 'estado' o 'detalle'
   const [selectedDate, setSelectedDate] = useState(null);
   const [calendarDate, setCalendarDate] = useState(new Date());
@@ -315,8 +320,12 @@ export default function App() {
     menu: 'Tapas',
     salon: 'Tero',
     tecnica: false,
-    dj: '',
     tecnica_superior: false,
+    ceremonia: false,
+    dj: '',
+    celiacos: '',
+    vegetarianos: '',
+    veganos: '',
     otros: '',
     adultos: '',
     precio_adulto: '',
@@ -1225,157 +1234,599 @@ export default function App() {
     }
   };
 
-  // Generar PDF del evento
-  const generarPDF = (evento) => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    let y = 20;
+  // Abrir ventana con detalle del evento (vista web)
+  const abrirDetalle = (evento) => {
+    // Buscar ID del cliente
+    const clienteEncontrado = clientes.find(c => c.nombre?.toLowerCase() === evento.cliente?.toLowerCase());
+    const clienteId = clienteEncontrado?.id ? clienteEncontrado.id.substring(0, 8).toUpperCase() : '-';
 
-    // Título
-    doc.setFontSize(22);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Confirmación de Evento', pageWidth / 2, y, { align: 'center' });
-    y += 15;
-
-    // Estado
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'normal');
-    const estado = evento.confirmado ? 'CONFIRMADO' : 'A CONFIRMAR';
-    doc.setTextColor(evento.confirmado ? 34 : 180, evento.confirmado ? 139 : 130, evento.confirmado ? 34 : 0);
-    doc.text(estado, pageWidth / 2, y, { align: 'center' });
-    doc.setTextColor(0, 0, 0);
-    y += 20;
-
-    // Línea separadora
-    doc.setDrawColor(200, 200, 200);
-    doc.line(20, y, pageWidth - 20, y);
-    y += 15;
-
-    // Datos del cliente
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Datos del Cliente', 20, y);
-    y += 10;
-
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Cliente: ${evento.cliente}`, 20, y);
-    y += 7;
-    if (evento.telefono) {
-      doc.text(`Teléfono: ${evento.telefono}`, 20, y);
-      y += 7;
+    // Obtener clima
+    const climaEvento = climaData[evento.fecha];
+    let climaHTML = '';
+    if (climaEvento) {
+      const iconosClima = {
+        0: '☀️ Despejado', 1: '🌤️ Mayormente despejado', 2: '⛅ Parcialmente nublado', 3: '☁️ Nublado',
+        45: '🌫️ Niebla', 48: '🌫️ Niebla', 51: '🌧️ Llovizna', 53: '🌧️ Llovizna', 55: '🌧️ Llovizna',
+        61: '🌧️ Lluvia', 63: '🌧️ Lluvia moderada', 65: '🌧️ Lluvia fuerte',
+        80: '🌦️ Chubascos', 81: '🌦️ Chubascos moderados', 82: '🌦️ Chubascos fuertes',
+        95: '⛈️ Tormenta', 96: '⛈️ Tormenta con granizo', 99: '⛈️ Tormenta con granizo'
+      };
+      const descripcionClima = iconosClima[climaEvento.codigo] || '🌡️ Variable';
+      climaHTML = `
+        <div class="section clima">
+          <div class="section-title">🌤️ CLIMA ESPERADO</div>
+          <div class="clima-content">
+            <span class="temp">${climaEvento.tempMin}°C - ${climaEvento.tempMax}°C</span>
+            <span class="desc">${descripcionClima}</span>
+            <span class="lluvia">💧 ${climaEvento.precipitacion}% prob. lluvia</span>
+          </div>
+        </div>
+      `;
     }
-    y += 8;
 
-    // Datos del evento
-    doc.setFontSize(14);
+    // Dietas especiales
+    let dietasHTML = '';
+    if ((evento.celiacos > 0) || (evento.vegetarianos > 0) || (evento.veganos > 0)) {
+      const dietas = [];
+      if (evento.celiacos > 0) dietas.push(`<span class="dieta celiaco">🌾 Celíacos: ${evento.celiacos}</span>`);
+      if (evento.vegetarianos > 0) dietas.push(`<span class="dieta vegetariano">🥬 Vegetarianos: ${evento.vegetarianos}</span>`);
+      if (evento.veganos > 0) dietas.push(`<span class="dieta vegano">🌱 Veganos: ${evento.veganos}</span>`);
+      dietasHTML = `
+        <div class="section dietas">
+          <div class="section-title">🍽️ DIETAS ESPECIALES</div>
+          <div class="dietas-content">${dietas.join('')}</div>
+        </div>
+      `;
+    }
+
+    // Servicios técnicos
+    let serviciosHTML = '';
+    if (evento.tecnica || evento.tecnica_superior || evento.ceremonia || evento.dj) {
+      const servicios = [];
+      if (evento.tecnica) servicios.push('<span class="servicio">🎵 Técnica</span>');
+      if (evento.tecnica_superior) servicios.push('<span class="servicio">🎚️ Técnica Superior</span>');
+      if (evento.ceremonia) servicios.push('<span class="servicio">💒 Ceremonia</span>');
+      if (evento.dj) servicios.push(`<span class="servicio">🎧 DJ: ${evento.dj}</span>`);
+      serviciosHTML = `
+        <div class="section servicios">
+          <div class="section-title">🔊 SERVICIOS</div>
+          <div class="servicios-content">${servicios.join('')}</div>
+        </div>
+      `;
+    }
+
+    // Extras
+    let extrasHTML = '';
+    const extras = [];
+    if (evento.extra1_desc) extras.push(evento.extra1_desc);
+    if (evento.extra2_desc) extras.push(evento.extra2_desc);
+    if (evento.extra3_desc) extras.push(evento.extra3_desc);
+    if (extras.length > 0) {
+      extrasHTML = `
+        <div class="section extras">
+          <div class="section-title">➕ EXTRAS</div>
+          <div class="extras-content">${extras.map(e => `<span class="extra">• ${e}</span>`).join('')}</div>
+        </div>
+      `;
+    }
+
+    // Observaciones
+    let obsHTML = '';
+    if (evento.otros) {
+      obsHTML = `
+        <div class="section observaciones">
+          <div class="section-title">📝 OBSERVACIONES</div>
+          <div class="obs-content">${evento.otros}</div>
+        </div>
+      `;
+    }
+
+    const fechaEvento = new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+
+    const horario = evento.hora_inicio && evento.hora_fin
+      ? `${evento.hora_inicio} a ${evento.hora_fin} hs`
+      : evento.hora_inicio ? `Desde ${evento.hora_inicio} hs` : evento.turno;
+
+    const totalPersonas = (evento.adultos || 0) + (evento.menores || 0);
+
+    const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detalle - ${evento.cliente}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #fff;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: rgba(255,255,255,0.05);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 25px;
+      text-align: center;
+    }
+    .header h1 { font-size: 24px; margin-bottom: 5px; }
+    .header .fecha { font-size: 16px; opacity: 0.9; text-transform: uppercase; }
+    .header .emision { font-size: 12px; opacity: 0.7; margin-top: 10px; }
+
+    .cliente-box {
+      background: rgba(255,255,255,0.1);
+      margin: 15px;
+      padding: 15px;
+      border-radius: 12px;
+      border-left: 4px solid #667eea;
+    }
+    .cliente-box .nombre { font-size: 20px; font-weight: bold; }
+    .cliente-box .info { display: flex; gap: 15px; margin-top: 8px; font-size: 14px; color: #aaa; flex-wrap: wrap; }
+    .cliente-box .info span { display: flex; align-items: center; gap: 5px; }
+
+    .evento-info {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin: 15px;
+    }
+    .info-item {
+      background: rgba(255,255,255,0.05);
+      padding: 12px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    .info-item .label { font-size: 11px; color: #888; text-transform: uppercase; }
+    .info-item .value { font-size: 16px; font-weight: 600; margin-top: 4px; }
+
+    .personas {
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      margin: 15px;
+      padding: 20px;
+      border-radius: 12px;
+      display: flex;
+      justify-content: space-around;
+      text-align: center;
+    }
+    .personas .item .num { font-size: 28px; font-weight: bold; }
+    .personas .item .label { font-size: 12px; opacity: 0.9; }
+
+    .section {
+      margin: 15px;
+      padding: 15px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+    }
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #888;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      letter-spacing: 1px;
+    }
+
+    .clima-content {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      align-items: center;
+    }
+    .clima-content .temp { font-size: 20px; font-weight: bold; }
+    .clima-content .desc { color: #aaa; }
+    .clima-content .lluvia { color: #64b5f6; }
+
+    .dietas-content, .servicios-content, .extras-content {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .dieta, .servicio, .extra {
+      background: rgba(255,255,255,0.1);
+      padding: 8px 12px;
+      border-radius: 20px;
+      font-size: 14px;
+    }
+    .celiaco { background: rgba(245,158,11,0.2); color: #fbbf24; }
+    .vegetariano { background: rgba(34,197,94,0.2); color: #22c55e; }
+    .vegano { background: rgba(16,185,129,0.2); color: #10b981; }
+
+    .observaciones { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); }
+    .obs-content { color: #fbbf24; line-height: 1.5; }
+
+    .footer {
+      text-align: center;
+      padding: 15px;
+      font-size: 12px;
+      color: #666;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    @media print {
+      body { background: white; color: black; }
+      .container { box-shadow: none; }
+      .header { background: #333; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .personas { background: #11998e; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>DETALLE DEL EVENTO</h1>
+      <div class="fecha">${fechaEvento}</div>
+      <div class="emision">Generado: ${new Date().toLocaleDateString('es-AR')} ${new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</div>
+    </div>
+
+    <div class="cliente-box">
+      <div class="nombre">${evento.cliente}</div>
+      <div class="info">
+        <span>🆔 ${clienteId}</span>
+        <span>📱 ${evento.telefono || '-'}</span>
+        <span>👤 ${evento.vendedor}</span>
+      </div>
+    </div>
+
+    <div class="evento-info">
+      <div class="info-item">
+        <div class="label">Tipo de Evento</div>
+        <div class="value">${evento.tipo_evento}</div>
+      </div>
+      <div class="info-item">
+        <div class="label">Salón</div>
+        <div class="value">${evento.salon || 'Tero'}</div>
+      </div>
+      <div class="info-item">
+        <div class="label">Horario</div>
+        <div class="value">${horario}</div>
+      </div>
+      <div class="info-item">
+        <div class="label">Menú</div>
+        <div class="value">${evento.menu || '-'}</div>
+      </div>
+    </div>
+
+    <div class="personas">
+      <div class="item">
+        <div class="num">${evento.adultos || 0}</div>
+        <div class="label">Adultos</div>
+      </div>
+      <div class="item">
+        <div class="num">${evento.menores || 0}</div>
+        <div class="label">Menores</div>
+      </div>
+      <div class="item">
+        <div class="num">${totalPersonas}</div>
+        <div class="label">Total</div>
+      </div>
+    </div>
+
+    ${dietasHTML}
+    ${climaHTML}
+    ${serviciosHTML}
+    ${extrasHTML}
+    ${obsHTML}
+
+    <div class="footer">
+      Tero Restó - Sistema de Gestión de Eventos
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    const ventana = window.open('', '_blank', 'width=650,height=800');
+    ventana.document.write(html);
+    ventana.document.close();
+  };
+
+  // Generar PDF Resumen Operativo (para encargados y cocina) - Blanco y Negro
+  const generarPDF = (evento) => {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    // ============ COLORES (Blanco y Negro) ============
+    const NEGRO = [0, 0, 0];
+    const GRIS_OSCURO = [50, 50, 50];
+    const GRIS_MEDIO = [100, 100, 100];
+    const GRIS_CLARO = [200, 200, 200];
+    const GRIS_FONDO = [245, 245, 245];
+    const BLANCO = [255, 255, 255];
+
+    // ============ MEDIDAS ============
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const marginLeft = 15;
+    const marginRight = 15;
+    const contentWidth = pageWidth - marginLeft - marginRight;
+    const centerX = pageWidth / 2;
+
+    let y = 15;
+
+    // ============ HELPERS ============
+    const drawBox = (x, yPos, w, h, fill = false) => {
+      doc.setDrawColor(...NEGRO);
+      doc.setLineWidth(0.5);
+      if (fill) {
+        doc.setFillColor(...GRIS_FONDO);
+        doc.rect(x, yPos, w, h, 'FD');
+      } else {
+        doc.rect(x, yPos, w, h, 'S');
+      }
+    };
+
+    const drawHeaderBox = (x, yPos, w, h, title) => {
+      doc.setFillColor(...NEGRO);
+      doc.rect(x, yPos, w, 7, 'F');
+      doc.setFontSize(10);
+      doc.setTextColor(...BLANCO);
+      doc.setFont('helvetica', 'bold');
+      doc.text(title, x + w/2, yPos + 5, { align: 'center' });
+      doc.setDrawColor(...NEGRO);
+      doc.setLineWidth(0.5);
+      doc.rect(x, yPos, w, h, 'S');
+      doc.setTextColor(...NEGRO);
+    };
+
+    // Buscar ID del cliente
+    const clienteEncontrado = clientes.find(c => c.nombre?.toLowerCase() === evento.cliente?.toLowerCase());
+    const clienteId = clienteEncontrado?.id ? clienteEncontrado.id.substring(0, 8).toUpperCase() : '-';
+
+    // ============ ENCABEZADO ============
+    doc.setFillColor(...NEGRO);
+    doc.rect(marginLeft, y, contentWidth, 12, 'F');
+
+    doc.setFontSize(16);
+    doc.setTextColor(...BLANCO);
     doc.setFont('helvetica', 'bold');
-    doc.text('Detalles del Evento', 20, y);
-    y += 10;
+    doc.text('RESUMEN OPERATIVO', centerX, y + 8, { align: 'center' });
 
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
+    y += 16;
 
-    const fechaFormateada = new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR', {
+    // ============ FECHAS ============
+    const fechaHoy = new Date().toLocaleDateString('es-AR');
+    const fechaEvento = new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
       year: 'numeric'
     });
-    doc.text(`Fecha: ${fechaFormateada}`, 20, y);
-    y += 7;
 
-    doc.text(`Turno: ${evento.turno}`, 20, y);
-    y += 7;
+    doc.setFontSize(9);
+    doc.setTextColor(...GRIS_MEDIO);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Fecha de emisión: ${fechaHoy}`, marginLeft, y);
 
-    if (evento.hora_inicio || evento.hora_fin) {
-      const horario = `${evento.hora_inicio || ''} - ${evento.hora_fin || ''}`.trim();
-      if (horario !== '-') {
-        doc.text(`Horario: ${horario}`, 20, y);
-        y += 7;
-      }
-    }
-
-    doc.text(`Tipo de Evento: ${evento.tipo_evento}`, 20, y);
-    y += 7;
-
-    doc.text(`Menú: ${evento.menu}`, 20, y);
-    y += 7;
-
-    doc.text(`Salón: ${evento.salon}`, 20, y);
-    y += 12;
-
-    // Cantidad de personas
-    doc.setFontSize(14);
+    y += 6;
+    doc.setFontSize(12);
+    doc.setTextColor(...NEGRO);
     doc.setFont('helvetica', 'bold');
-    doc.text('Cantidad de Personas', 20, y);
-    y += 10;
+    doc.text(`FECHA DEL EVENTO: ${fechaEvento.toUpperCase()}`, centerX, y, { align: 'center' });
+
+    y += 8;
+
+    // ============ DATOS DEL CLIENTE ============
+    const clienteBoxY = y;
+    const clienteBoxH = 14;
+    drawBox(marginLeft, clienteBoxY, contentWidth, clienteBoxH, true);
+
+    y += 5;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...GRIS_OSCURO);
+    doc.text('CLIENTE:', marginLeft + 5, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...NEGRO);
+    doc.text(evento.cliente || '-', marginLeft + 28, y);
+
+    y += 6;
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...GRIS_OSCURO);
+    doc.text('ID:', marginLeft + 5, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...NEGRO);
+    doc.text(clienteId, marginLeft + 15, y);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...GRIS_OSCURO);
+    doc.text('TEL:', marginLeft + 50, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...NEGRO);
+    doc.text(evento.telefono || '-', marginLeft + 62, y);
+
+    y = clienteBoxY + clienteBoxH + 5;
+
+    // ============ INFORMACIÓN DEL EVENTO ============
+    const infoBoxY = y;
+    const infoBoxH = 21;
+    drawBox(marginLeft, infoBoxY, contentWidth, infoBoxH, true);
+
+    y += 7;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...GRIS_OSCURO);
+    doc.text('EVENTO:', marginLeft + 5, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...NEGRO);
+    doc.text(evento.tipo_evento || '-', marginLeft + 28, y);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...GRIS_OSCURO);
+    doc.text('SALÓN:', centerX + 10, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...NEGRO);
+    doc.text(evento.salon || '-', centerX + 28, y);
+
+    y += 7;
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...GRIS_OSCURO);
+    doc.text('HORARIO:', marginLeft + 5, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...NEGRO);
+    const horario = evento.hora_inicio && evento.hora_fin
+      ? `${evento.hora_inicio} a ${evento.hora_fin} hs`
+      : evento.hora_inicio ? `Desde ${evento.hora_inicio} hs` : evento.turno;
+    doc.text(horario, marginLeft + 28, y);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...GRIS_OSCURO);
+    doc.text('MENÚ:', centerX + 10, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...NEGRO);
+    doc.text(evento.menu || '-', centerX + 28, y);
+
+    y = infoBoxY + infoBoxH + 5;
+
+    // ============ CANTIDAD DE PERSONAS ============
+    const persBoxY = y;
+    const persBoxH = 18;
+    drawHeaderBox(marginLeft, persBoxY, contentWidth, persBoxH, 'CANTIDAD DE PERSONAS');
+
+    y += 12;
+    const totalPersonas = (evento.adultos || 0) + (evento.menores || 0);
+    const colWidth = contentWidth / 3;
 
     doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Adultos: ${evento.adultos}`, 20, y);
-    y += 7;
-    doc.text(`Menores: ${evento.menores}`, 20, y);
-    y += 7;
-    doc.text(`Total: ${(evento.adultos || 0) + (evento.menores || 0)} personas`, 20, y);
-    y += 12;
+    doc.setFont('helvetica', 'bold');
+    doc.text(`ADULTOS: ${evento.adultos || 0}`, marginLeft + colWidth/2, y, { align: 'center' });
+    doc.text(`MENORES: ${evento.menores || 0}`, marginLeft + colWidth + colWidth/2, y, { align: 'center' });
+    doc.text(`TOTAL: ${totalPersonas}`, marginLeft + colWidth*2 + colWidth/2, y, { align: 'center' });
 
-    // Extras
+    y = persBoxY + persBoxH + 5;
+
+    // ============ DIETAS ESPECIALES ============
+    const tieneDietas = (evento.celiacos > 0) || (evento.vegetarianos > 0) || (evento.veganos > 0);
+    if (tieneDietas) {
+      const dietaBoxY = y;
+      const dietaBoxH = 16;
+      drawHeaderBox(marginLeft, dietaBoxY, contentWidth, dietaBoxH, 'DIETAS ESPECIALES');
+
+      y += 12;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      const dietas = [];
+      if (evento.celiacos > 0) dietas.push(`CELÍACOS: ${evento.celiacos}`);
+      if (evento.vegetarianos > 0) dietas.push(`VEGETARIANOS: ${evento.vegetarianos}`);
+      if (evento.veganos > 0) dietas.push(`VEGANOS: ${evento.veganos}`);
+      doc.text(dietas.join('     |     '), centerX, y, { align: 'center' });
+
+      y = dietaBoxY + dietaBoxH + 5;
+    }
+
+    // ============ CLIMA ============
+    const climaEvento = climaData[evento.fecha];
+    if (climaEvento) {
+      const climaBoxY = y;
+      const climaBoxH = 14;
+      drawHeaderBox(marginLeft, climaBoxY, contentWidth, climaBoxH, 'CLIMA ESPERADO');
+
+      y += 12;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+
+      const iconosClima = {
+        0: 'Despejado', 1: 'Mayormente despejado', 2: 'Parcialmente nublado', 3: 'Nublado',
+        45: 'Niebla', 48: 'Niebla', 51: 'Llovizna', 53: 'Llovizna', 55: 'Llovizna',
+        61: 'Lluvia', 63: 'Lluvia moderada', 65: 'Lluvia fuerte',
+        80: 'Chubascos', 81: 'Chubascos moderados', 82: 'Chubascos fuertes',
+        95: 'Tormenta', 96: 'Tormenta con granizo', 99: 'Tormenta con granizo'
+      };
+      const descripcionClima = iconosClima[climaEvento.codigo] || 'Variable';
+
+      doc.text(`${climaEvento.tempMin}°C - ${climaEvento.tempMax}°C  |  ${descripcionClima}  |  Prob. lluvia: ${climaEvento.precipitacion}%`, centerX, y, { align: 'center' });
+
+      y = climaBoxY + climaBoxH + 5;
+    }
+
+    // ============ SERVICIOS TÉCNICOS ============
+    const tieneServicios = evento.tecnica || evento.tecnica_superior || evento.ceremonia || evento.dj;
+    if (tieneServicios) {
+      const servBoxY = y;
+      const servBoxH = 12;
+      drawBox(marginLeft, servBoxY, contentWidth, servBoxH, true);
+
+      y += 4;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...GRIS_OSCURO);
+      doc.text('SERVICIOS:', marginLeft + 5, y + 3);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...NEGRO);
+      const servicios = [];
+      if (evento.tecnica) servicios.push('Técnica');
+      if (evento.tecnica_superior) servicios.push('Técnica Superior');
+      if (evento.ceremonia) servicios.push('Ceremonia');
+      if (evento.dj) servicios.push(`DJ: ${evento.dj}`);
+      doc.text(servicios.join('  •  '), marginLeft + 30, y + 3);
+
+      y = servBoxY + servBoxH + 5;
+    }
+
+    // ============ EXTRAS ============
     const extras = [];
     if (evento.extra1_desc) extras.push(evento.extra1_desc);
     if (evento.extra2_desc) extras.push(evento.extra2_desc);
     if (evento.extra3_desc) extras.push(evento.extra3_desc);
 
     if (extras.length > 0) {
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Extras Incluidos', 20, y);
-      y += 10;
+      const extrasBoxY = y;
+      const extrasBoxH = 8 + (extras.length * 5);
+      drawBox(marginLeft, extrasBoxY, contentWidth, extrasBoxH, true);
 
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'normal');
-      extras.forEach(extra => {
-        doc.text(`• ${extra}`, 25, y);
-        y += 7;
-      });
       y += 5;
-    }
-
-    // Servicios técnicos
-    if (evento.tecnica || evento.tecnica_superior || evento.dj) {
-      doc.setFontSize(14);
+      doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
-      doc.text('Servicios Técnicos', 20, y);
-      y += 10;
+      doc.setTextColor(...GRIS_OSCURO);
+      doc.text('EXTRAS:', marginLeft + 5, y);
 
-      doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');
-      if (evento.tecnica) {
-        doc.text(`• Técnica: Sí`, 25, y);
-        y += 7;
-      }
-      if (evento.tecnica_superior) {
-        doc.text(`• Técnica Superior: Sí`, 25, y);
-        y += 7;
-      }
-      if (evento.dj) {
-        doc.text(`• DJ: ${evento.dj}`, 25, y);
-        y += 7;
-      }
+      doc.setTextColor(...NEGRO);
+      extras.forEach((extra, i) => {
+        doc.text('• ' + extra, marginLeft + 25, y + (i * 5));
+      });
+
+      y = extrasBoxY + extrasBoxH + 5;
     }
 
-    // Vendedor
-    y += 10;
-    doc.setFontSize(10);
-    doc.setTextColor(128, 128, 128);
-    doc.text(`Vendedor: ${evento.vendedor}`, 20, y);
+    // ============ OBSERVACIONES ============
+    if (evento.otros) {
+      const obsLines = doc.splitTextToSize(evento.otros, contentWidth - 10);
+      const obsBoxY = y;
+      const obsBoxH = 10 + (obsLines.length * 4);
 
-    // Fecha de generación
-    y += 7;
-    doc.text(`Documento generado: ${new Date().toLocaleDateString('es-AR')}`, 20, y);
+      drawHeaderBox(marginLeft, obsBoxY, contentWidth, obsBoxH, 'OBSERVACIONES');
+
+      y = obsBoxY + 12;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...NEGRO);
+      doc.text(obsLines, marginLeft + 5, y);
+
+      y = obsBoxY + obsBoxH + 5;
+    }
+
+    // ============ PIE DE PÁGINA ============
+    doc.setFontSize(8);
+    doc.setTextColor(...GRIS_MEDIO);
+    doc.text(`Vendedor: ${evento.vendedor}  |  Generado: ${new Date().toLocaleDateString('es-AR')} ${new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`, centerX, pageHeight - 10, { align: 'center' });
 
     // Descargar
-    const fileName = `Evento_${evento.cliente.replace(/\s+/g, '_')}_${evento.fecha}.pdf`;
+    const fileName = `Resumen_${evento.cliente.replace(/\s+/g, '_')}_${evento.fecha}.pdf`;
     doc.save(fileName);
   };
 
@@ -1946,13 +2397,17 @@ export default function App() {
         menu: nuevoEvento.menu,
         salon: nuevoEvento.salon,
         tecnica: nuevoEvento.tecnica,
-        dj: nuevoEvento.dj,
         tecnica_superior: nuevoEvento.tecnica_superior,
+        ceremonia: nuevoEvento.ceremonia,
+        dj: nuevoEvento.dj,
         otros: nuevoEvento.otros,
         adultos: parseInt(nuevoEvento.adultos) || 0,
         precio_adulto: parseFloat(nuevoEvento.precio_adulto) || 0,
         menores: parseInt(nuevoEvento.menores) || 0,
         precio_menor: parseFloat(nuevoEvento.precio_menor) || 0,
+        celiacos: parseInt(nuevoEvento.celiacos) || 0,
+        vegetarianos: parseInt(nuevoEvento.vegetarianos) || 0,
+        veganos: parseInt(nuevoEvento.veganos) || 0,
         extra1_desc: nuevoEvento.extra1_desc,
         extra1_valor: parseFloat(nuevoEvento.extra1_valor) || 0,
         extra1_tipo: nuevoEvento.extra1_tipo,
@@ -1984,8 +2439,12 @@ export default function App() {
         menu: 'Tapas',
         salon: 'Tero',
         tecnica: false,
-        dj: '',
         tecnica_superior: false,
+        ceremonia: false,
+        dj: '',
+        celiacos: '',
+        vegetarianos: '',
+        veganos: '',
         otros: '',
         adultos: '',
         precio_adulto: '',
@@ -2022,8 +2481,12 @@ export default function App() {
       menu: evento.menu,
       salon: evento.salon || 'Tero',
       tecnica: evento.tecnica || false,
-      dj: evento.dj || '',
       tecnica_superior: evento.tecnica_superior || false,
+      ceremonia: evento.ceremonia || false,
+      dj: evento.dj || '',
+      celiacos: evento.celiacos?.toString() || '',
+      vegetarianos: evento.vegetarianos?.toString() || '',
+      veganos: evento.veganos?.toString() || '',
       otros: evento.otros || '',
       adultos: evento.adultos?.toString() || '',
       precio_adulto: evento.precio_adulto?.toString() || '',
@@ -2082,13 +2545,17 @@ export default function App() {
         menu: eventoEdit.menu,
         salon: eventoEdit.salon,
         tecnica: eventoEdit.tecnica,
-        dj: eventoEdit.dj,
         tecnica_superior: eventoEdit.tecnica_superior,
+        ceremonia: eventoEdit.ceremonia,
+        dj: eventoEdit.dj,
         otros: eventoEdit.otros,
         adultos: parseInt(eventoEdit.adultos) || 0,
         precio_adulto: parseFloat(eventoEdit.precio_adulto) || 0,
         menores: parseInt(eventoEdit.menores) || 0,
         precio_menor: parseFloat(eventoEdit.precio_menor) || 0,
+        celiacos: parseInt(eventoEdit.celiacos) || 0,
+        vegetarianos: parseInt(eventoEdit.vegetarianos) || 0,
+        veganos: parseInt(eventoEdit.veganos) || 0,
         extra1_desc: eventoEdit.extra1_desc,
         extra1_valor: parseFloat(eventoEdit.extra1_valor) || 0,
         extra1_tipo: eventoEdit.extra1_tipo,
@@ -2281,18 +2748,28 @@ export default function App() {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
     return eventosDelAño
-      .filter(e => new Date(e.fecha + 'T12:00:00') >= hoy && e.confirmado === true && !e.anulado)
+      .filter(e => {
+        const fechaEvento = new Date(e.fecha + 'T12:00:00');
+        const matchFecha = fechaEvento >= hoy && e.confirmado === true && !e.anulado;
+        const matchMes = filterMesProximos === 'todos' || e.mes === filterMesProximos;
+        return matchFecha && matchMes;
+      })
       .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-  }, [eventosDelAño]);
+  }, [eventosDelAño, filterMesProximos]);
 
   // Eventos a confirmar (no confirmados, desde hoy en adelante, del año seleccionado)
   const eventosAConfirmar = useMemo(() => {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
     return eventosDelAño
-      .filter(e => new Date(e.fecha + 'T12:00:00') >= hoy && !e.confirmado && !e.anulado)
+      .filter(e => {
+        const fechaEvento = new Date(e.fecha + 'T12:00:00');
+        const matchFecha = fechaEvento >= hoy && !e.confirmado && !e.anulado;
+        const matchMes = filterMesAConfirmar === 'todos' || e.mes === filterMesAConfirmar;
+        return matchFecha && matchMes;
+      })
       .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-  }, [eventosDelAño]);
+  }, [eventosDelAño, filterMesAConfirmar]);
 
   // Eventos realizados (anteriores a hoy, del año seleccionado, no anulados)
   const eventosRealizados = useMemo(() => {
@@ -2656,8 +3133,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Técnica, DJ, Técnica Superior */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Técnica, Técnica Superior, Ceremonia, DJ */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="flex items-center gap-2 p-2 rounded-lg border border-white/10 bg-white/5">
                   <input
                     type="checkbox"
@@ -2682,6 +3159,19 @@ export default function App() {
                   <label htmlFor="tecnica_superior" className="flex items-center gap-1 text-xs cursor-pointer">
                     <Mic className="w-3 h-3 text-amber-400" />
                     Téc. Superior
+                  </label>
+                </div>
+                <div className="flex items-center gap-2 p-2 rounded-lg border border-white/10 bg-white/5">
+                  <input
+                    type="checkbox"
+                    id="ceremonia"
+                    checked={nuevoEvento.ceremonia}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, ceremonia: e.target.checked})}
+                    className="w-4 h-4 rounded accent-purple-500"
+                  />
+                  <label htmlFor="ceremonia" className="flex items-center gap-1 text-xs cursor-pointer">
+                    <Music className="w-3 h-3 text-pink-400" />
+                    Ceremonia
                   </label>
                 </div>
                 <div>
@@ -2741,6 +3231,43 @@ export default function App() {
                     value={formatNumberInput(nuevoEvento.precio_menor)}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, precio_menor: parseNumberInput(e.target.value)})}
                     className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+              </div>
+
+              {/* Dietas especiales (informativo) */}
+              <div className="grid grid-cols-3 gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <div>
+                  <label className="block text-xs text-amber-400/80 mb-1">Celíacos</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={nuevoEvento.celiacos}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, celiacos: e.target.value})}
+                    className="w-full px-2 py-1.5 rounded-lg border border-amber-500/20 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-amber-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-amber-400/80 mb-1">Vegetarianos</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={nuevoEvento.vegetarianos}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, vegetarianos: e.target.value})}
+                    className="w-full px-2 py-1.5 rounded-lg border border-amber-500/20 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-amber-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-amber-400/80 mb-1">Veganos</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={nuevoEvento.veganos}
+                    onChange={(e) => setNuevoEvento({...nuevoEvento, veganos: e.target.value})}
+                    className="w-full px-2 py-1.5 rounded-lg border border-amber-500/20 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-amber-500/50"
                   />
                 </div>
               </div>
@@ -2839,7 +3366,7 @@ export default function App() {
                 className="px-3 py-2 rounded-lg bg-emerald-500/20 text-emerald-400 text-sm font-medium hover:bg-emerald-500/30 transition-all border border-emerald-500/30 flex items-center gap-1"
               >
                 <FileText className="w-3 h-3" />
-                PDF
+                Resumen
               </button>
             </div>
 
@@ -3165,41 +3692,54 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Técnica, DJ, Técnica Superior */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/5">
+              {/* Técnica, Técnica Superior, Ceremonia, DJ */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="flex items-center gap-2 p-2 rounded-lg border border-white/10 bg-white/5">
                   <input
                     type="checkbox"
                     id="tecnica_edit"
                     checked={eventoEdit.tecnica}
                     onChange={(e) => setEventoEdit({...eventoEdit, tecnica: e.target.checked})}
-                    className="w-5 h-5 rounded accent-purple-500"
+                    className="w-4 h-4 rounded accent-purple-500"
                   />
-                  <label htmlFor="tecnica_edit" className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Mic className="w-4 h-4 text-purple-400" />
+                  <label htmlFor="tecnica_edit" className="flex items-center gap-1 text-xs cursor-pointer">
+                    <Mic className="w-3 h-3 text-purple-400" />
                     Técnica
                   </label>
                 </div>
-                <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/5">
+                <div className="flex items-center gap-2 p-2 rounded-lg border border-white/10 bg-white/5">
                   <input
                     type="checkbox"
                     id="tecnica_superior_edit"
                     checked={eventoEdit.tecnica_superior}
                     onChange={(e) => setEventoEdit({...eventoEdit, tecnica_superior: e.target.checked})}
-                    className="w-5 h-5 rounded accent-purple-500"
+                    className="w-4 h-4 rounded accent-purple-500"
                   />
-                  <label htmlFor="tecnica_superior_edit" className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Mic className="w-4 h-4 text-amber-400" />
-                    Técnica Superior
+                  <label htmlFor="tecnica_superior_edit" className="flex items-center gap-1 text-xs cursor-pointer">
+                    <Mic className="w-3 h-3 text-amber-400" />
+                    Téc. Superior
+                  </label>
+                </div>
+                <div className="flex items-center gap-2 p-2 rounded-lg border border-white/10 bg-white/5">
+                  <input
+                    type="checkbox"
+                    id="ceremonia_edit"
+                    checked={eventoEdit.ceremonia}
+                    onChange={(e) => setEventoEdit({...eventoEdit, ceremonia: e.target.checked})}
+                    className="w-4 h-4 rounded accent-purple-500"
+                  />
+                  <label htmlFor="ceremonia_edit" className="flex items-center gap-1 text-xs cursor-pointer">
+                    <Music className="w-3 h-3 text-pink-400" />
+                    Ceremonia
                   </label>
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">DJ</label>
+                  <label className="block text-xs text-slate-400 mb-1">DJ</label>
                   <input
                     type="text"
                     value={eventoEdit.dj}
                     onChange={(e) => setEventoEdit({...eventoEdit, dj: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
               </div>
@@ -3245,6 +3785,43 @@ export default function App() {
                     value={formatNumberInput(eventoEdit.precio_menor)}
                     onChange={(e) => setEventoEdit({...eventoEdit, precio_menor: parseNumberInput(e.target.value)})}
                     className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+              </div>
+
+              {/* Dietas especiales (informativo) */}
+              <div className="grid grid-cols-3 gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                <div>
+                  <label className="block text-sm text-amber-400/80 mb-1">Celíacos</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={eventoEdit.celiacos}
+                    onChange={(e) => setEventoEdit({...eventoEdit, celiacos: e.target.value})}
+                    className="w-full px-3 py-2 rounded-lg border border-amber-500/20 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-amber-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-amber-400/80 mb-1">Vegetarianos</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={eventoEdit.vegetarianos}
+                    onChange={(e) => setEventoEdit({...eventoEdit, vegetarianos: e.target.value})}
+                    className="w-full px-3 py-2 rounded-lg border border-amber-500/20 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-amber-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-amber-400/80 mb-1">Veganos</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={eventoEdit.veganos}
+                    onChange={(e) => setEventoEdit({...eventoEdit, veganos: e.target.value})}
+                    className="w-full px-3 py-2 rounded-lg border border-amber-500/20 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-amber-500/50"
                   />
                 </div>
               </div>
@@ -3690,36 +4267,33 @@ export default function App() {
                           return (
                             <div
                               key={evento.id}
-                              className="flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 cursor-pointer transition-all border border-white/5"
-                              onClick={() => setSelectedEvento(evento)}
+                              className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all border border-white/5"
                             >
-                              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-600 to-indigo-600 flex flex-col items-center justify-center flex-shrink-0">
-                                <span className="text-lg font-bold">{new Date(evento.fecha + 'T12:00:00').getDate()}</span>
-                                <span className="text-[10px] uppercase">{new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate">{evento.cliente}</p>
-                                <p className="text-slate-400 text-xs">{evento.tipo_evento} • {evento.turno}</p>
-                              </div>
-                              {clima && (
-                                <div className="flex items-center gap-2 px-2 py-1 rounded-lg bg-white/5 flex-shrink-0" title={climaInfo?.desc}>
-                                  <span className="text-xl">{climaInfo?.icono}</span>
-                                  <div className="text-xs">
-                                    <p className="text-white font-medium">{clima.tempMax}°</p>
-                                    <p className="text-slate-400">{clima.tempMin}°</p>
-                                  </div>
-                                  {clima.precipitacion > 30 && (
-                                    <span className="text-blue-400 text-xs">💧{clima.precipitacion}%</span>
-                                  )}
+                              <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-600 to-indigo-600 flex flex-col items-center justify-center flex-shrink-0 cursor-pointer" onClick={() => setSelectedEvento(evento)}>
+                                  <span className="text-lg font-bold">{new Date(evento.fecha + 'T12:00:00').getDate()}</span>
+                                  <span className="text-[10px] uppercase">{new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
                                 </div>
-                              )}
-                              <div className="text-right flex-shrink-0">
-                                {evento.confirmado ? (
-                                  <span className="inline-block px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs">Confirmado</span>
-                                ) : (
-                                  <span className="inline-block px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs">Pendiente</span>
-                                )}
-                                <p className="text-slate-500 text-xs mt-1">{evento.adultos} pers.</p>
+                                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedEvento(evento)}>
+                                  <p className="font-medium truncate">{evento.cliente}</p>
+                                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                                    <span>{evento.tipo_evento}</span>
+                                    <span>•</span>
+                                    <span>{evento.adultos} pers.</span>
+                                    {clima && <span title={climaInfo?.desc}>{climaInfo?.icono} {clima.tempMax}°</span>}
+                                  </div>
+                                </div>
+                                <div className="flex gap-1 flex-shrink-0">
+                                  <button onClick={(e) => { e.stopPropagation(); abrirDetalle(evento); }} className="p-1.5 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30" title="Detalle">
+                                    <Monitor className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button onClick={(e) => { e.stopPropagation(); generarCotizacion(evento); }} className="p-1.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30" title="Cotización">
+                                    <FileText className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button onClick={(e) => { e.stopPropagation(); generarPDF(evento); }} className="p-1.5 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30" title="Resumen">
+                                    <FileText className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           );
@@ -3746,32 +4320,36 @@ export default function App() {
                           return (
                             <div
                               key={evento.id}
-                              className="flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 cursor-pointer transition-all border border-amber-500/20"
-                              onClick={() => setSelectedEvento(evento)}
+                              className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all border border-amber-500/20"
                             >
-                              <div className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center flex-shrink-0 ${
-                                diasRestantes <= 7 ? 'bg-gradient-to-br from-red-600 to-orange-600' : 'bg-gradient-to-br from-amber-600 to-orange-600'
-                              }`}>
-                                <span className="text-lg font-bold">{new Date(evento.fecha + 'T12:00:00').getDate()}</span>
-                                <span className="text-[10px] uppercase">{new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate">{evento.cliente}</p>
-                                <p className="text-slate-400 text-xs">{evento.tipo_evento} • {evento.salon || 'Tero'}</p>
-                              </div>
-                              {clima && (
-                                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 flex-shrink-0" title={climaInfo?.desc}>
-                                  <span className="text-lg">{climaInfo?.icono}</span>
-                                  <span className="text-xs text-white">{clima.tempMax}°</span>
+                              <div className="flex items-center gap-3">
+                                <div className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center flex-shrink-0 cursor-pointer ${
+                                  diasRestantes <= 7 ? 'bg-gradient-to-br from-red-600 to-orange-600' : 'bg-gradient-to-br from-amber-600 to-orange-600'
+                                }`} onClick={() => setSelectedEvento(evento)}>
+                                  <span className="text-lg font-bold">{new Date(evento.fecha + 'T12:00:00').getDate()}</span>
+                                  <span className="text-[10px] uppercase">{new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
                                 </div>
-                              )}
-                              <div className="text-right flex-shrink-0">
-                                <span className={`inline-block px-2 py-0.5 rounded-full text-xs ${
-                                  diasRestantes <= 7 ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
-                                }`}>
-                                  {diasRestantes === 0 ? 'HOY' : diasRestantes === 1 ? 'Mañana' : `${diasRestantes} días`}
-                                </span>
-                                <p className="text-emerald-400 text-xs mt-1 font-medium">{formatCurrency(evento.total || evento.totalEvento)}</p>
+                                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedEvento(evento)}>
+                                  <p className="font-medium truncate">{evento.cliente}</p>
+                                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                                    <span>{evento.tipo_evento}</span>
+                                    <span className={diasRestantes <= 7 ? 'text-red-400' : 'text-amber-400'}>
+                                      {diasRestantes === 0 ? 'HOY' : diasRestantes === 1 ? 'Mañana' : `${diasRestantes}d`}
+                                    </span>
+                                    {clima && <span>{climaInfo?.icono} {clima.tempMax}°</span>}
+                                  </div>
+                                </div>
+                                <div className="flex gap-1 flex-shrink-0">
+                                  <button onClick={(e) => { e.stopPropagation(); abrirDetalle(evento); }} className="p-1.5 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30" title="Detalle">
+                                    <Monitor className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button onClick={(e) => { e.stopPropagation(); generarCotizacion(evento); }} className="p-1.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30" title="Cotización">
+                                    <FileText className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button onClick={(e) => { e.stopPropagation(); generarPDF(evento); }} className="p-1.5 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30" title="Resumen">
+                                    <FileText className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           );
@@ -3939,11 +4517,20 @@ export default function App() {
         {/* Próximos Eventos */}
         {activeTab === 'proximos' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
                 <h2 className="text-2xl font-bold">Próximos Eventos</h2>
                 <p className="text-slate-400">{proximosEventos.length} eventos programados</p>
               </div>
+              <select
+                value={filterMesProximos}
+                onChange={(e) => setFilterMesProximos(e.target.value)}
+                className="px-4 py-2 rounded-xl border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5"
+              >
+                {meses.map(m => (
+                  <option key={m} value={m}>{m === 'todos' ? 'Todos los meses' : m.charAt(0).toUpperCase() + m.slice(1)}</option>
+                ))}
+              </select>
             </div>
 
             {proximosEventos.length === 0 ? (
@@ -3962,10 +4549,9 @@ export default function App() {
                 {proximosEventos.map((e, i) => (
                   <div
                     key={e.id || i}
-                    onClick={() => setSelectedEvento(e)}
-                    className="glass rounded-2xl p-5 glow cursor-pointer hover:border-purple-500/30 border border-transparent transition-all"
+                    className="glass rounded-2xl p-5 glow hover:border-purple-500/30 border border-transparent transition-all"
                   >
-                    <div className="flex flex-col md:flex-row md:items-center gap-4">
+                    <div className="flex flex-col md:flex-row md:items-center gap-4 cursor-pointer" onClick={() => setSelectedEvento(e)}>
                       {/* Fecha destacada */}
                       <div className="flex-shrink-0 w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 flex flex-col items-center justify-center">
                         <span className="text-2xl font-bold">{new Date(e.fecha + 'T12:00:00').getDate()}</span>
@@ -4038,10 +4624,35 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* Total */}
-                      <div className="flex-shrink-0 text-right">
-                        <p className="text-xs text-slate-400">Total</p>
-                        <p className="text-xl font-bold text-emerald-400">{formatCurrency(e.totalEvento)}</p>
+                      {/* Total y botones integrados */}
+                      <div className="flex-shrink-0 flex flex-col items-end gap-2">
+                        <div className="text-right">
+                          <p className="text-xs text-slate-400">Total</p>
+                          <p className="text-xl font-bold text-emerald-400">{formatCurrency(e.totalEvento)}</p>
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={(ev) => { ev.stopPropagation(); abrirDetalle(e); }}
+                            className="p-1.5 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-all"
+                            title="Detalle"
+                          >
+                            <Monitor className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={(ev) => { ev.stopPropagation(); generarCotizacion(e); }}
+                            className="p-1.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-all"
+                            title="Cotización"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={(ev) => { ev.stopPropagation(); generarPDF(e); }}
+                            className="p-1.5 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-all"
+                            title="Resumen"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -4161,11 +4772,20 @@ export default function App() {
         {/* A Confirmar */}
         {activeTab === 'aconfirmar' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
                 <h2 className="text-2xl font-bold">Cotizaciones a Confirmar</h2>
                 <p className="text-slate-400">{eventosAConfirmar.length} pendientes de confirmación</p>
               </div>
+              <select
+                value={filterMesAConfirmar}
+                onChange={(e) => setFilterMesAConfirmar(e.target.value)}
+                className="px-4 py-2 rounded-xl border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5"
+              >
+                {meses.map(m => (
+                  <option key={m} value={m}>{m === 'todos' ? 'Todos los meses' : m.charAt(0).toUpperCase() + m.slice(1)}</option>
+                ))}
+              </select>
             </div>
 
             {eventosAConfirmar.length === 0 ? (
@@ -4179,10 +4799,9 @@ export default function App() {
                 {eventosAConfirmar.map((e, i) => (
                   <div
                     key={e.id || i}
-                    onClick={() => setSelectedEvento(e)}
-                    className="glass rounded-2xl p-5 glow cursor-pointer hover:border-amber-500/30 border border-amber-500/20 transition-all"
+                    className="glass rounded-2xl p-5 glow hover:border-amber-500/30 border border-amber-500/20 transition-all"
                   >
-                    <div className="flex flex-col md:flex-row md:items-center gap-4">
+                    <div className="flex flex-col md:flex-row md:items-center gap-4 cursor-pointer" onClick={() => setSelectedEvento(e)}>
                       {/* Fecha destacada */}
                       <div className="flex-shrink-0 w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-600 to-orange-600 flex flex-col items-center justify-center">
                         <span className="text-2xl font-bold">{new Date(e.fecha + 'T12:00:00').getDate()}</span>
@@ -4232,10 +4851,35 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* Total */}
-                      <div className="flex-shrink-0 text-right">
-                        <p className="text-xs text-slate-400">Total</p>
-                        <p className="text-xl font-bold text-emerald-400">{formatCurrency(e.totalEvento)}</p>
+                      {/* Total y botones integrados */}
+                      <div className="flex-shrink-0 flex flex-col items-end gap-2">
+                        <div className="text-right">
+                          <p className="text-xs text-slate-400">Total</p>
+                          <p className="text-xl font-bold text-emerald-400">{formatCurrency(e.totalEvento)}</p>
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={(ev) => { ev.stopPropagation(); abrirDetalle(e); }}
+                            className="p-1.5 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-all"
+                            title="Detalle"
+                          >
+                            <Monitor className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={(ev) => { ev.stopPropagation(); generarCotizacion(e); }}
+                            className="p-1.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-all"
+                            title="Cotización"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={(ev) => { ev.stopPropagation(); generarPDF(e); }}
+                            className="p-1.5 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-all"
+                            title="Resumen"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -4740,9 +5384,24 @@ export default function App() {
             {/* Vista: Detalle de pagos */}
             {vistaCobranzas === 'detalle' && (
               <div className="glass rounded-2xl p-6 glow">
-                <h3 className="text-lg font-semibold mb-4">Detalle de pagos</h3>
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
+                  <h3 className="text-lg font-semibold">Detalle de pagos</h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-400">Cliente:</span>
+                    <select
+                      value={filterCobranzasCliente}
+                      onChange={(e) => setFilterCobranzasCliente(e.target.value)}
+                      className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                    >
+                      <option value="">Todos los clientes</option>
+                      {[...new Set(cobranzasData.filter(e => e.pagos.length > 0).map(e => e.cliente))].sort().map(cliente => (
+                        <option key={cliente} value={cliente}>{cliente}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               <div className="space-y-4">
-                {cobranzasData.filter(e => e.pagos.length > 0).map(evento => (
+                {cobranzasData.filter(e => e.pagos.length > 0 && (filterCobranzasCliente === '' || e.cliente === filterCobranzasCliente)).map(evento => (
                   <div key={evento.id} className="p-4 rounded-xl bg-white/5 border border-white/10">
                     <div className="flex items-center justify-between mb-3">
                       <div>
