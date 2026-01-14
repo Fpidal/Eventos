@@ -693,6 +693,43 @@ export default function App() {
       console.error('Error:', error);
       alert('Error al eliminar el pago');
     } else {
+      // Eliminar también el movimiento de caja correspondiente
+      if (evento?.id && pago?.fecha) {
+        console.log('Buscando movimiento de caja:', { evento_id: evento.id, fecha: pago.fecha, monto: pago.monto });
+
+        // Primero buscar el registro para confirmar que existe
+        const { data: movimientos } = await supabase
+          .from('caja_movimientos')
+          .select('*')
+          .eq('evento_id', evento.id)
+          .eq('tipo', 'ingreso');
+
+        console.log('Movimientos encontrados para este evento:', movimientos);
+
+        // Buscar el movimiento que coincida con la fecha y monto aproximado
+        const movimientoAEliminar = movimientos?.find(m =>
+          m.fecha === pago.fecha && Math.abs(m.monto_pesos - pago.monto) < 1
+        );
+
+        if (movimientoAEliminar) {
+          const { error: cajaError } = await supabase
+            .from('caja_movimientos')
+            .delete()
+            .eq('id', movimientoAEliminar.id);
+
+          if (cajaError) {
+            console.error('Error eliminando de caja:', cajaError);
+            alert('Error al eliminar de caja: ' + cajaError.message);
+          } else {
+            console.log('Movimiento de caja eliminado:', movimientoAEliminar.id);
+          }
+        } else {
+          console.log('No se encontró movimiento de caja correspondiente');
+        }
+
+        fetchCajaMovimientos();
+      }
+
       fetchPagos();
       // Guardar auditoría
       const auditData = {
@@ -2782,7 +2819,7 @@ export default function App() {
   // IPC se suma al saldo (cargo adicional), pagos y señas restan del saldo
   // Solo eventos confirmados (los pendientes no van a cobranzas)
   const cobranzasData = useMemo(() => {
-    return eventosDelAño.filter(evento => evento.confirmado).map(evento => {
+    return eventosDelAño.filter(evento => evento.confirmado && !evento.anulado).map(evento => {
       const pagosEvento = pagos.filter(p => p.evento_id === evento.id);
       // Pagos y señas (lo que se pagó del evento, sin IPC)
       const pagosYSenas = pagosEvento
@@ -7134,7 +7171,7 @@ export default function App() {
                                   }} className="p-1 text-blue-400 hover:text-blue-300">
                                     <Edit3 className="w-4 h-4" />
                                   </button>
-                                  <button onClick={async () => { if (confirm('¿Eliminar?')) { await supabase.from('caja_movimientos').delete().eq('id', item.id); fetchCajaMovimientos(); }}} className="p-1 text-red-400 hover:text-red-300">
+                                  <button onClick={async () => { if (confirm('¿Eliminar?')) { const { error } = await supabase.from('caja_movimientos').delete().eq('id', item.id); if (error) { alert('Error al eliminar: ' + error.message); console.error(error); } else { fetchCajaMovimientos(); } }}} className="p-1 text-red-400 hover:text-red-300">
                                     <Trash2 className="w-4 h-4" />
                                   </button>
                                 </>
@@ -7420,7 +7457,7 @@ export default function App() {
                             }} className="p-1 text-blue-400 hover:text-blue-300">
                               <Edit3 className="w-4 h-4" />
                             </button>
-                            <button onClick={async () => { if (confirm('¿Eliminar?')) { await supabase.from('caja_movimientos').delete().eq('id', item.id); fetchCajaMovimientos(); }}} className="p-1 text-red-400 hover:text-red-300">
+                            <button onClick={async () => { if (confirm('¿Eliminar?')) { const { error } = await supabase.from('caja_movimientos').delete().eq('id', item.id); if (error) { alert('Error al eliminar: ' + error.message); console.error(error); } else { fetchCajaMovimientos(); } }}} className="p-1 text-red-400 hover:text-red-300">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </td>
@@ -7609,7 +7646,7 @@ export default function App() {
                           <td className="py-2 px-3 text-right text-blue-400">{item.monto_dolares ? item.monto_dolares.toFixed(2) : '-'}</td>
                           <td className="py-2 px-3 text-right text-slate-400">{item.cotizacion || '-'}</td>
                           <td className="py-2 px-3">
-                            <button onClick={async () => { if (confirm('¿Eliminar?')) { await supabase.from('caja_movimientos').delete().eq('id', item.id); fetchCajaMovimientos(); }}} className="p-1 text-red-400 hover:text-red-300">
+                            <button onClick={async () => { if (confirm('¿Eliminar?')) { const { error } = await supabase.from('caja_movimientos').delete().eq('id', item.id); if (error) { alert('Error al eliminar: ' + error.message); console.error(error); } else { fetchCajaMovimientos(); } }}} className="p-1 text-red-400 hover:text-red-300">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </td>
