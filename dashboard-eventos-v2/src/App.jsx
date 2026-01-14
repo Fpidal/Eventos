@@ -7171,7 +7171,31 @@ export default function App() {
                                   }} className="p-1 text-blue-400 hover:text-blue-300">
                                     <Edit3 className="w-4 h-4" />
                                   </button>
-                                  <button onClick={async () => { if (confirm('¿Eliminar?')) { const { error } = await supabase.from('caja_movimientos').delete().eq('id', item.id); if (error) { alert('Error al eliminar: ' + error.message); console.error(error); } else { fetchCajaMovimientos(); } }}} className="p-1 text-red-400 hover:text-red-300">
+                                  <button onClick={async () => {
+                                    const esAporte = item.concepto && item.concepto.startsWith('Aporte de ');
+                                    const msg = esAporte ? '¿Eliminar ingreso? Se eliminará también el egreso correspondiente.' : '¿Eliminar?';
+                                    if (confirm(msg)) {
+                                      const { error } = await supabase.from('caja_movimientos').delete().eq('id', item.id);
+                                      if (error) {
+                                        alert('Error al eliminar: ' + error.message);
+                                        console.error(error);
+                                      } else {
+                                        // Si es un aporte, eliminar también el egreso correspondiente
+                                        if (esAporte) {
+                                          const { data: egresos } = await supabase.from('caja_movimientos')
+                                            .select('*')
+                                            .eq('tipo', 'egreso')
+                                            .eq('fecha', item.fecha)
+                                            .eq('monto_pesos', item.monto_pesos)
+                                            .ilike('concepto', `Aporte a ${item.persona}%`);
+                                          if (egresos && egresos.length > 0) {
+                                            await supabase.from('caja_movimientos').delete().eq('id', egresos[0].id);
+                                          }
+                                        }
+                                        fetchCajaMovimientos();
+                                      }
+                                    }
+                                  }} className="p-1 text-red-400 hover:text-red-300">
                                     <Trash2 className="w-4 h-4" />
                                   </button>
                                 </>
@@ -7457,7 +7481,45 @@ export default function App() {
                             }} className="p-1 text-blue-400 hover:text-blue-300">
                               <Edit3 className="w-4 h-4" />
                             </button>
-                            <button onClick={async () => { if (confirm('¿Eliminar?')) { const { error } = await supabase.from('caja_movimientos').delete().eq('id', item.id); if (error) { alert('Error al eliminar: ' + error.message); console.error(error); } else { fetchCajaMovimientos(); } }}} className="p-1 text-red-400 hover:text-red-300">
+                            <button onClick={async () => {
+                              const esAporte = item.concepto && item.concepto.startsWith('Aporte a ');
+                              const esRetiroSocios = item.concepto && item.concepto.startsWith('R. Socios a ');
+                              const msg = (esAporte || esRetiroSocios) ? '¿Eliminar egreso? Se eliminará también el movimiento correspondiente.' : '¿Eliminar?';
+                              if (confirm(msg)) {
+                                const { error } = await supabase.from('caja_movimientos').delete().eq('id', item.id);
+                                if (error) {
+                                  alert('Error al eliminar: ' + error.message);
+                                  console.error(error);
+                                } else {
+                                  // Si es un aporte, eliminar también el ingreso correspondiente
+                                  if (esAporte) {
+                                    const { data: ingresos } = await supabase.from('caja_movimientos')
+                                      .select('*')
+                                      .eq('tipo', 'ingreso')
+                                      .eq('fecha', item.fecha)
+                                      .eq('monto_pesos', item.monto_pesos)
+                                      .ilike('concepto', `Aporte de ${item.aportante}%`);
+                                    if (ingresos && ingresos.length > 0) {
+                                      await supabase.from('caja_movimientos').delete().eq('id', ingresos[0].id);
+                                    }
+                                  }
+                                  // Si es R. Socios, eliminar también el retiro correspondiente
+                                  if (esRetiroSocios) {
+                                    const receptor = item.concepto.replace('R. Socios a ', '').split(' | ')[0];
+                                    const { data: retiros } = await supabase.from('caja_movimientos')
+                                      .select('*')
+                                      .eq('tipo', 'retiro')
+                                      .eq('fecha', item.fecha)
+                                      .eq('monto_pesos', item.monto_pesos)
+                                      .eq('persona', receptor);
+                                    if (retiros && retiros.length > 0) {
+                                      await supabase.from('caja_movimientos').delete().eq('id', retiros[0].id);
+                                    }
+                                  }
+                                  fetchCajaMovimientos();
+                                }
+                              }
+                            }} className="p-1 text-red-400 hover:text-red-300">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </td>
@@ -7646,7 +7708,28 @@ export default function App() {
                           <td className="py-2 px-3 text-right text-blue-400">{item.monto_dolares ? item.monto_dolares.toFixed(2) : '-'}</td>
                           <td className="py-2 px-3 text-right text-slate-400">{item.cotizacion || '-'}</td>
                           <td className="py-2 px-3">
-                            <button onClick={async () => { if (confirm('¿Eliminar?')) { const { error } = await supabase.from('caja_movimientos').delete().eq('id', item.id); if (error) { alert('Error al eliminar: ' + error.message); console.error(error); } else { fetchCajaMovimientos(); } }}} className="p-1 text-red-400 hover:text-red-300">
+                            <button onClick={async () => {
+                              if (confirm('¿Eliminar retiro? Se eliminará también el egreso correspondiente.')) {
+                                // Eliminar el retiro
+                                const { error } = await supabase.from('caja_movimientos').delete().eq('id', item.id);
+                                if (error) {
+                                  alert('Error al eliminar: ' + error.message);
+                                  console.error(error);
+                                } else {
+                                  // Buscar y eliminar el egreso correspondiente (R. Socios)
+                                  const { data: egresos } = await supabase.from('caja_movimientos')
+                                    .select('*')
+                                    .eq('tipo', 'egreso')
+                                    .eq('fecha', item.fecha)
+                                    .eq('monto_pesos', item.monto_pesos)
+                                    .ilike('concepto', `R. Socios a ${item.persona}%`);
+                                  if (egresos && egresos.length > 0) {
+                                    await supabase.from('caja_movimientos').delete().eq('id', egresos[0].id);
+                                  }
+                                  fetchCajaMovimientos();
+                                }
+                              }
+                            }} className="p-1 text-red-400 hover:text-red-300">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </td>
