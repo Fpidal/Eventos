@@ -2033,7 +2033,7 @@ export default function App() {
     doc.setFont('helvetica', 'normal');
     y += detalleBlockH + 8;
 
-    // --- MENÚ (encuadrado con líneas) ---
+    // --- MENÚ (ancho completo) ---
     const menuDetalle = evento.menu_detalle;
     const menuTitulo = (menuDetalle?.nombre || evento.menu || 'Menu 3 Pasos').toUpperCase();
 
@@ -2052,12 +2052,10 @@ export default function App() {
 
     y = menuBoxY + menuHeaderH + 4;
 
-    // Items del menú desde menu_detalle - 2 columnas reales
+    // Items del menú desde menu_detalle - 2 columnas
     if (menuDetalle && menuDetalle.categorias) {
       const menuColLeft = marginLeft + menuPadding;
       const menuColRight = centerX + 5;
-      // Ancho máximo para cada columna (para truncar texto largo)
-      const colMaxWidth = centerX - marginLeft - menuPadding - 5;
 
       // Filtrar categorías con items
       const categoriasConItems = menuDetalle.categorias.filter(c => c.items && c.items.length > 0);
@@ -2124,7 +2122,7 @@ export default function App() {
       y = Math.max(yLeft, yRight) + 2;
     }
 
-    // Dibujar recuadro alrededor del menú (sin el header que ya tiene fondo)
+    // Dibujar recuadro alrededor del menú
     const menuBoxH = y - menuBoxY + 2;
     doc.setDrawColor(...VERDE_TERO);
     doc.setLineWidth(0.5);
