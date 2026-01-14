@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed, ClipboardList, XCircle, Banknote, ArrowLeftRight, Contact } from 'lucide-react';
+import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed, ClipboardList, XCircle, Banknote, ArrowLeftRight, Contact, RefreshCw } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar } from 'recharts';
 import { supabase } from './supabase';
 import { jsPDF } from 'jspdf';
@@ -254,18 +254,10 @@ export default function App() {
   const [motivoModificacion, setMotivoModificacion] = useState('');
   const [busquedaContacto, setBusquedaContacto] = useState('');
 
-  // Estados para agenda de contactos
-  const [contactosEditados, setContactosEditados] = useState(() => {
-    const saved = localStorage.getItem('contactos_editados');
-    return saved ? JSON.parse(saved) : {};
-  });
+  // Estados para agenda de contactos (ahora desde Supabase)
+  const [clientes, setClientes] = useState([]);
   const [editingContacto, setEditingContacto] = useState(null);
   const [showContactoModal, setShowContactoModal] = useState(false);
-
-  // Guardar contactos editados en localStorage
-  useEffect(() => {
-    localStorage.setItem('contactos_editados', JSON.stringify(contactosEditados));
-  }, [contactosEditados]);
 
   // Estados para gestión de usuarios
   const [usuarios, setUsuarios] = useState([]);
@@ -430,6 +422,7 @@ export default function App() {
       fetchEventos();
       fetchPagos();
       fetchMenus();
+      fetchClientes();
       fetchAuditoriaPagos();
       fetchAuditoriaEventos();
       fetchCajaMovimientos();
@@ -957,6 +950,97 @@ export default function App() {
 
     if (!error && data) {
       setMenus(data);
+    }
+  };
+
+  // Fetch clientes desde Supabase
+  const fetchClientes = async () => {
+    const { data, error } = await supabase
+      .from('clientes')
+      .select('*')
+      .order('nombre', { ascending: true });
+
+    if (!error && data) {
+      setClientes(data);
+    }
+  };
+
+  // Guardar o actualizar cliente en Supabase
+  const handleGuardarCliente = async (clienteData) => {
+    if (clienteData.id) {
+      // Actualizar existente
+      const { error } = await supabase
+        .from('clientes')
+        .update({
+          nombre: clienteData.nombre,
+          telefono: clienteData.telefono,
+          email: clienteData.email,
+          observacion1: clienteData.observacion1,
+          observacion2: clienteData.observacion2,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', clienteData.id);
+
+      if (error) {
+        console.error('Error actualizando cliente:', error);
+        alert('Error al actualizar cliente');
+      } else {
+        await fetchClientes();
+      }
+    } else {
+      // Crear nuevo
+      const { error } = await supabase
+        .from('clientes')
+        .insert([{
+          nombre: clienteData.nombre,
+          telefono: clienteData.telefono,
+          email: clienteData.email,
+          observacion1: clienteData.observacion1,
+          observacion2: clienteData.observacion2
+        }]);
+
+      if (error) {
+        console.error('Error creando cliente:', error);
+        alert('Error al crear cliente');
+      } else {
+        await fetchClientes();
+      }
+    }
+  };
+
+  // Sincronizar contactos de eventos a tabla clientes
+  const sincronizarContactos = async () => {
+    const contactosExistentes = new Set(clientes.map(c => c.nombre?.toLowerCase().trim()));
+    const nuevosContactos = [];
+
+    eventos.forEach(evento => {
+      const nombre = evento.cliente?.trim();
+      if (nombre && !contactosExistentes.has(nombre.toLowerCase())) {
+        contactosExistentes.add(nombre.toLowerCase());
+        nuevosContactos.push({
+          nombre: nombre,
+          telefono: evento.telefono || '',
+          email: evento.email || '',
+          observacion1: '',
+          observacion2: ''
+        });
+      }
+    });
+
+    if (nuevosContactos.length > 0) {
+      const { error } = await supabase
+        .from('clientes')
+        .insert(nuevosContactos);
+
+      if (error) {
+        console.error('Error sincronizando contactos:', error);
+        alert('Error al sincronizar contactos');
+      } else {
+        await fetchClientes();
+        alert(`Se importaron ${nuevosContactos.length} contactos nuevos`);
+      }
+    } else {
+      alert('No hay contactos nuevos para importar');
     }
   };
 
@@ -5270,45 +5354,24 @@ export default function App() {
 
         {/* Agenda de Contactos */}
         {activeTab === 'agenda' && (() => {
-          // Extraer contactos únicos de los eventos y mergear con editados
-          const contactosMap = new Map();
-          eventos.forEach(evento => {
-            const key = evento.cliente?.toLowerCase().trim();
-            if (key && !contactosMap.has(key)) {
-              const editado = contactosEditados[key] || {};
-              contactosMap.set(key, {
-                id: key,
-                nombre: editado.nombre || evento.cliente,
-                telefono: editado.telefono || evento.telefono || '',
-                email: editado.email || evento.email || '',
-                observacion1: editado.observacion1 || '',
-                observacion2: editado.observacion2 || '',
-                ultimoEvento: evento.fecha,
-                tipoEvento: evento.tipo_evento,
-                cantidadEventos: 1
-              });
-            } else if (key) {
-              const existing = contactosMap.get(key);
-              existing.cantidadEventos++;
-              if (evento.fecha > existing.ultimoEvento) {
-                existing.ultimoEvento = evento.fecha;
-                existing.tipoEvento = evento.tipo_evento;
-              }
-              if (!existing.telefono && evento.telefono) {
-                existing.telefono = evento.telefono;
-              }
-              if (!existing.email && evento.email) {
-                existing.email = evento.email;
-              }
-            }
+          // Enriquecer clientes con estadísticas de eventos
+          const contactosEnriquecidos = clientes.map(cliente => {
+            const eventosCliente = eventos.filter(e =>
+              e.cliente?.toLowerCase().trim() === cliente.nombre?.toLowerCase().trim()
+            );
+            const ultimoEvento = eventosCliente.length > 0
+              ? eventosCliente.sort((a, b) => b.fecha?.localeCompare(a.fecha))[0]
+              : null;
+            return {
+              ...cliente,
+              cantidadEventos: eventosCliente.length,
+              ultimoEvento: ultimoEvento?.fecha || null,
+              tipoEvento: ultimoEvento?.tipo_evento || null
+            };
           });
 
-          const contactos = Array.from(contactosMap.values()).sort((a, b) =>
-            a.nombre.localeCompare(b.nombre)
-          );
-
-          const contactosFiltrados = contactos.filter(c =>
-            c.nombre.toLowerCase().includes(busquedaContacto.toLowerCase()) ||
+          const contactosFiltrados = contactosEnriquecidos.filter(c =>
+            c.nombre?.toLowerCase().includes(busquedaContacto.toLowerCase()) ||
             c.telefono?.includes(busquedaContacto) ||
             c.email?.toLowerCase().includes(busquedaContacto.toLowerCase()) ||
             c.observacion1?.toLowerCase().includes(busquedaContacto.toLowerCase()) ||
@@ -5318,25 +5381,16 @@ export default function App() {
           // Agrupar por letra inicial
           const contactosPorLetra = {};
           contactosFiltrados.forEach(c => {
-            const letra = c.nombre.charAt(0).toUpperCase();
+            const letra = c.nombre?.charAt(0).toUpperCase() || '#';
             if (!contactosPorLetra[letra]) {
               contactosPorLetra[letra] = [];
             }
             contactosPorLetra[letra].push(c);
           });
 
-          const handleGuardarContacto = () => {
+          const handleGuardarContactoLocal = async () => {
             if (editingContacto) {
-              setContactosEditados(prev => ({
-                ...prev,
-                [editingContacto.id]: {
-                  nombre: editingContacto.nombre,
-                  telefono: editingContacto.telefono,
-                  email: editingContacto.email,
-                  observacion1: editingContacto.observacion1,
-                  observacion2: editingContacto.observacion2
-                }
-              }));
+              await handleGuardarCliente(editingContacto);
               setShowContactoModal(false);
               setEditingContacto(null);
             }
@@ -5349,7 +5403,19 @@ export default function App() {
                   <Contact className="w-6 h-6 text-emerald-400" />
                   Agenda de Contactos
                 </h2>
-                <span className="text-slate-400">{contactos.length} contactos</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-slate-400">{clientes.length} contactos</span>
+                  <button
+                    onClick={() => {
+                      setEditingContacto({ nombre: '', telefono: '', email: '', observacion1: '', observacion2: '' });
+                      setShowContactoModal(true);
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm hover:bg-emerald-700 transition-all"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Nuevo
+                  </button>
+                </div>
               </div>
 
               {/* Buscador */}
@@ -5424,11 +5490,20 @@ export default function App() {
                             </div>
                             <div className="flex items-center gap-3">
                               <div className="text-right">
-                                <span className="inline-block px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-medium">
-                                  {contacto.cantidadEventos} {contacto.cantidadEventos === 1 ? 'evento' : 'eventos'}
-                                </span>
-                                <p className="text-xs text-slate-500 mt-1">
-                                  Último: {formatDate(contacto.ultimoEvento)}
+                                {contacto.cantidadEventos > 0 && (
+                                  <>
+                                    <span className="inline-block px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-medium">
+                                      {contacto.cantidadEventos} {contacto.cantidadEventos === 1 ? 'evento' : 'eventos'}
+                                    </span>
+                                    {contacto.ultimoEvento && (
+                                      <p className="text-xs text-slate-500 mt-1">
+                                        Último: {formatDate(contacto.ultimoEvento)}
+                                      </p>
+                                    )}
+                                  </>
+                                )}
+                                <p className="text-xs text-cyan-400/70 mt-1 font-mono">
+                                  ID: {contacto.id?.slice(0, 8)}
                                 </p>
                               </div>
                               <button
@@ -5452,12 +5527,12 @@ export default function App() {
               {/* Acciones rápidas */}
               <div className="glass rounded-2xl p-5">
                 <h3 className="text-sm font-medium text-slate-400 mb-3">Acciones rápidas</h3>
-                <div className="flex gap-3">
+                <div className="flex gap-3 flex-wrap">
                   <button
                     onClick={() => {
-                      const csv = ['Nombre,Teléfono,Email,Observación 1,Observación 2,Cantidad Eventos,Último Evento']
-                        .concat(contactos.map(c =>
-                          `"${c.nombre}","${c.telefono}","${c.email}","${c.observacion1 || ''}","${c.observacion2 || ''}",${c.cantidadEventos},"${c.ultimoEvento}"`
+                      const csv = ['ID,Nombre,Teléfono,Email,Observación 1,Observación 2,Cantidad Eventos,Último Evento']
+                        .concat(contactosEnriquecidos.map(c =>
+                          `"${c.id}","${c.nombre}","${c.telefono || ''}","${c.email || ''}","${c.observacion1 || ''}","${c.observacion2 || ''}",${c.cantidadEventos},"${c.ultimoEvento || ''}"`
                         ))
                         .join('\n');
                       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -5471,6 +5546,13 @@ export default function App() {
                   >
                     <FileText className="w-4 h-4" />
                     Exportar CSV
+                  </button>
+                  <button
+                    onClick={sincronizarContactos}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 transition-all"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Importar de Eventos
                   </button>
                 </div>
               </div>
@@ -5557,7 +5639,7 @@ export default function App() {
                         Cancelar
                       </button>
                       <button
-                        onClick={handleGuardarContacto}
+                        onClick={handleGuardarContactoLocal}
                         className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all font-medium"
                       >
                         Guardar
