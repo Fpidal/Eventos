@@ -4197,6 +4197,47 @@ export default function App() {
                 <option value="confirmados">Confirmados</option>
                 <option value="aconfirmar">A confirmar</option>
               </select>
+              <button
+                onClick={() => {
+                  const headers = ['ID', 'Fecha', 'Cliente', 'Teléfono', 'Email', 'Tipo Evento', 'Menú', 'Salón', 'Turno', 'Vendedor', 'Adultos', 'Niños', 'Adolescentes', 'Precio Adulto', 'Precio Niño', 'Precio Adolescente', 'Total', 'Seña', 'Confirmado', 'Anulado', 'Observaciones', 'Menu Detalle'];
+                  const csv = [headers.join(',')]
+                    .concat(eventosFiltrados.map(e => [
+                      `"${e.id || ''}"`,
+                      `"${e.fecha || ''}"`,
+                      `"${(e.cliente || '').replace(/"/g, '""')}"`,
+                      `"${e.telefono || ''}"`,
+                      `"${e.email || ''}"`,
+                      `"${e.tipo_evento || ''}"`,
+                      `"${e.menu || ''}"`,
+                      `"${e.salon || ''}"`,
+                      `"${e.turno || ''}"`,
+                      `"${e.vendedor || ''}"`,
+                      e.adultos || 0,
+                      e.ninos || 0,
+                      e.adolescentes || 0,
+                      e.precio_adulto || 0,
+                      e.precio_nino || 0,
+                      e.precio_adolescente || 0,
+                      e.total || 0,
+                      e.sena || 0,
+                      e.confirmado ? 'Sí' : 'No',
+                      e.anulado ? 'Sí' : 'No',
+                      `"${(e.observaciones || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
+                      `"${(e.menu_detalle || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`
+                    ].join(',')))
+                    .join('\n');
+                  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `eventos_tero_${new Date().toISOString().slice(0,10)}.csv`;
+                  link.click();
+                }}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-all"
+              >
+                <FileText className="w-4 h-4" />
+                Exportar
+              </button>
             </div>
 
             <div className="glass rounded-2xl overflow-hidden glow">
