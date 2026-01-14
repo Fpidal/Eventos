@@ -259,6 +259,9 @@ export default function App() {
   const [editingContacto, setEditingContacto] = useState(null);
   const [showContactoModal, setShowContactoModal] = useState(false);
 
+  // Estado para clima
+  const [climaData, setClimaData] = useState({});
+
   // Estados para gestión de usuarios
   const [usuarios, setUsuarios] = useState([]);
   const [showUserModal, setShowUserModal] = useState(false);
@@ -423,6 +426,7 @@ export default function App() {
       fetchPagos();
       fetchMenus();
       fetchClientes();
+      fetchClima();
       fetchAuditoriaPagos();
       fetchAuditoriaEventos();
       fetchCajaMovimientos();
@@ -1042,6 +1046,56 @@ export default function App() {
     } else {
       alert('No hay contactos nuevos para importar');
     }
+  };
+
+  // Fetch clima desde Open-Meteo (16 días de pronóstico)
+  const fetchClima = async () => {
+    try {
+      const response = await fetch(
+        'https://api.open-meteo.com/v1/forecast?latitude=-34.392067&longitude=-58.662472&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&timezone=America/Argentina/Buenos_Aires&forecast_days=16'
+      );
+      const data = await response.json();
+
+      if (data.daily) {
+        const climaPorFecha = {};
+        data.daily.time.forEach((fecha, i) => {
+          climaPorFecha[fecha] = {
+            tempMax: Math.round(data.daily.temperature_2m_max[i]),
+            tempMin: Math.round(data.daily.temperature_2m_min[i]),
+            precipitacion: data.daily.precipitation_probability_max[i],
+            codigo: data.daily.weathercode[i]
+          };
+        });
+        setClimaData(climaPorFecha);
+      }
+    } catch (error) {
+      console.error('Error fetching clima:', error);
+    }
+  };
+
+  // Helper para obtener icono y descripción del clima
+  const getClimaInfo = (codigo) => {
+    const climas = {
+      0: { icono: '☀️', desc: 'Despejado' },
+      1: { icono: '🌤️', desc: 'Mayormente despejado' },
+      2: { icono: '⛅', desc: 'Parcialmente nublado' },
+      3: { icono: '☁️', desc: 'Nublado' },
+      45: { icono: '🌫️', desc: 'Neblina' },
+      48: { icono: '🌫️', desc: 'Neblina' },
+      51: { icono: '🌧️', desc: 'Llovizna leve' },
+      53: { icono: '🌧️', desc: 'Llovizna' },
+      55: { icono: '🌧️', desc: 'Llovizna intensa' },
+      61: { icono: '🌧️', desc: 'Lluvia leve' },
+      63: { icono: '🌧️', desc: 'Lluvia' },
+      65: { icono: '🌧️', desc: 'Lluvia intensa' },
+      80: { icono: '🌦️', desc: 'Chubascos' },
+      81: { icono: '🌦️', desc: 'Chubascos' },
+      82: { icono: '⛈️', desc: 'Chubascos intensos' },
+      95: { icono: '⛈️', desc: 'Tormenta' },
+      96: { icono: '⛈️', desc: 'Tormenta con granizo' },
+      99: { icono: '⛈️', desc: 'Tormenta fuerte' }
+    };
+    return climas[codigo] || { icono: '❓', desc: 'Desconocido' };
   };
 
   const resetNuevoMenu = () => {
@@ -2414,114 +2468,160 @@ export default function App() {
       {/* Modal Nuevo Evento */}
       {showModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="glass rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
+          <div className="glass rounded-2xl p-5 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold">Nuevo Evento</h2>
               <button onClick={() => setShowModal(false)} className="p-2 hover:bg-white/10 rounded-xl">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
-            <form onSubmit={handleSubmit} className="space-y-4">
+
+            <form onSubmit={handleSubmit} className="space-y-3">
               {/* Fecha y Cliente */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Fecha *</label>
+                  <label className="block text-xs text-slate-400 mb-1">Fecha *</label>
                   <input
                     type="date"
                     required
                     value={nuevoEvento.fecha}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, fecha: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
+                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Cliente *</label>
+                  <label className="block text-xs text-slate-400 mb-1">Cliente *</label>
                   <input
                     type="text"
                     required
                     placeholder="Nombre del cliente"
                     value={nuevoEvento.cliente}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, cliente: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
               </div>
 
               {/* Teléfono y Vendedor */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Teléfono</label>
+                  <label className="block text-xs text-slate-400 mb-1">Teléfono</label>
                   <input
                     type="tel"
                     placeholder="Número de teléfono"
                     value={nuevoEvento.telefono}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, telefono: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Vendedor</label>
+                  <label className="block text-xs text-slate-400 mb-1">Vendedor</label>
                   <select
                     value={nuevoEvento.vendedor}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, vendedor: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
                   >
                     {VENDEDORES.map(v => <option key={v} value={v}>{v}</option>)}
                   </select>
                 </div>
               </div>
-              
+
               {/* Turno y Horarios */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Turno</label>
+                  <label className="block text-xs text-slate-400 mb-1">Turno</label>
                   <select
                     value={nuevoEvento.turno}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, turno: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
                   >
                     {TURNOS.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Hora Inicio</label>
-                  <input
-                    type="time"
-                    value={nuevoEvento.hora_inicio}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, hora_inicio: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/20 bg-white/10 text-white focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
-                  />
+                  <label className="block text-xs text-slate-400 mb-1">Hora Inicio</label>
+                  <div className="flex gap-1">
+                    <select
+                      value={nuevoEvento.hora_inicio?.split(':')[0] || ''}
+                      onChange={(e) => {
+                        const mins = nuevoEvento.hora_inicio?.split(':')[1] || '00';
+                        setNuevoEvento({...nuevoEvento, hora_inicio: e.target.value ? `${e.target.value}:${mins}` : ''});
+                      }}
+                      className="flex-1 px-2 py-2 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                    >
+                      <option value="">--</option>
+                      {Array.from({length: 24}, (_, i) => i.toString().padStart(2, '0')).map(h => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                    <span className="text-white self-center text-sm">:</span>
+                    <select
+                      value={nuevoEvento.hora_inicio?.split(':')[1] || ''}
+                      onChange={(e) => {
+                        const hrs = nuevoEvento.hora_inicio?.split(':')[0] || '12';
+                        setNuevoEvento({...nuevoEvento, hora_inicio: `${hrs}:${e.target.value}`});
+                      }}
+                      className="flex-1 px-2 py-2 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                    >
+                      <option value="00">00</option>
+                      <option value="15">15</option>
+                      <option value="30">30</option>
+                      <option value="45">45</option>
+                    </select>
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Hora Fin</label>
-                  <input
-                    type="time"
-                    value={nuevoEvento.hora_fin}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, hora_fin: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/20 bg-white/10 text-white focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
-                  />
+                  <label className="block text-xs text-slate-400 mb-1">Hora Fin</label>
+                  <div className="flex gap-1">
+                    <select
+                      value={nuevoEvento.hora_fin?.split(':')[0] || ''}
+                      onChange={(e) => {
+                        const mins = nuevoEvento.hora_fin?.split(':')[1] || '00';
+                        setNuevoEvento({...nuevoEvento, hora_fin: e.target.value ? `${e.target.value}:${mins}` : ''});
+                      }}
+                      className="flex-1 px-2 py-2 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                    >
+                      <option value="">--</option>
+                      {Array.from({length: 24}, (_, i) => i.toString().padStart(2, '0')).map(h => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                    <span className="text-white self-center text-sm">:</span>
+                    <select
+                      value={nuevoEvento.hora_fin?.split(':')[1] || ''}
+                      onChange={(e) => {
+                        const hrs = nuevoEvento.hora_fin?.split(':')[0] || '12';
+                        setNuevoEvento({...nuevoEvento, hora_fin: `${hrs}:${e.target.value}`});
+                      }}
+                      className="flex-1 px-2 py-2 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                    >
+                      <option value="00">00</option>
+                      <option value="15">15</option>
+                      <option value="30">30</option>
+                      <option value="45">45</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
               {/* Tipo de Evento y Salón */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Tipo de Evento</label>
+                  <label className="block text-xs text-slate-400 mb-1">Tipo de Evento</label>
                   <select
                     value={nuevoEvento.tipo_evento}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, tipo_evento: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
                   >
                     {TIPOS_EVENTO.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Salón</label>
+                  <label className="block text-xs text-slate-400 mb-1">Salón</label>
                   <select
                     value={nuevoEvento.salon}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, salon: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
                   >
                     {SALONES.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
@@ -2529,26 +2629,26 @@ export default function App() {
               </div>
 
               {/* Menú Base y Menú Detallado */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Menú Base</label>
+                  <label className="block text-xs text-slate-400 mb-1">Menú Base</label>
                   <select
                     value={nuevoEvento.menu}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, menu: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
                   >
                     {MENUS.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Menú Detallado (para cotización)</label>
+                  <label className="block text-xs text-slate-400 mb-1">Menú Detallado</label>
                   <select
                     value={nuevoEvento.menu_detalle?.id || ''}
                     onChange={(e) => {
                       const selectedMenu = menus.find(m => m.id === e.target.value);
                       setNuevoEvento({...nuevoEvento, menu_detalle: selectedMenu || null});
                     }}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
                   >
                     <option value="">Sin menú detallado</option>
                     {menus.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
@@ -2557,106 +2657,106 @@ export default function App() {
               </div>
 
               {/* Técnica, DJ, Técnica Superior */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="flex items-center gap-2 p-2 rounded-lg border border-white/10 bg-white/5">
                   <input
                     type="checkbox"
                     id="tecnica"
                     checked={nuevoEvento.tecnica}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica: e.target.checked})}
-                    className="w-5 h-5 rounded accent-purple-500"
+                    className="w-4 h-4 rounded accent-purple-500"
                   />
-                  <label htmlFor="tecnica" className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Mic className="w-4 h-4 text-purple-400" />
+                  <label htmlFor="tecnica" className="flex items-center gap-1 text-xs cursor-pointer">
+                    <Mic className="w-3 h-3 text-purple-400" />
                     Técnica
                   </label>
                 </div>
-                <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/5">
+                <div className="flex items-center gap-2 p-2 rounded-lg border border-white/10 bg-white/5">
                   <input
                     type="checkbox"
                     id="tecnica_superior"
                     checked={nuevoEvento.tecnica_superior}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica_superior: e.target.checked})}
-                    className="w-5 h-5 rounded accent-purple-500"
+                    className="w-4 h-4 rounded accent-purple-500"
                   />
-                  <label htmlFor="tecnica_superior" className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Mic className="w-4 h-4 text-amber-400" />
-                    Técnica Superior
+                  <label htmlFor="tecnica_superior" className="flex items-center gap-1 text-xs cursor-pointer">
+                    <Mic className="w-3 h-3 text-amber-400" />
+                    Téc. Superior
                   </label>
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">DJ</label>
+                  <label className="block text-xs text-slate-400 mb-1">DJ</label>
                   <input
                     type="text"
                     placeholder="Nombre del DJ"
                     value={nuevoEvento.dj}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, dj: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
               </div>
 
               {/* Adultos y Menores */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Adultos *</label>
+                  <label className="block text-xs text-slate-400 mb-1">Adultos *</label>
                   <input
                     type="number"
                     required
                     min="0"
-                    placeholder="Cantidad"
+                    placeholder="Cant."
                     value={nuevoEvento.adultos}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, adultos: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Precio Adulto $</label>
+                  <label className="block text-xs text-slate-400 mb-1">Precio Adulto $</label>
                   <input
                     type="text"
                     inputMode="numeric"
                     placeholder="Precio"
                     value={formatNumberInput(nuevoEvento.precio_adulto)}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, precio_adulto: parseNumberInput(e.target.value)})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Menores</label>
+                  <label className="block text-xs text-slate-400 mb-1">Menores</label>
                   <input
                     type="number"
                     min="0"
-                    placeholder="Cantidad"
+                    placeholder="Cant."
                     value={nuevoEvento.menores}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, menores: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Precio Menor $</label>
+                  <label className="block text-xs text-slate-400 mb-1">Precio Menor $</label>
                   <input
                     type="text"
                     inputMode="numeric"
                     placeholder="Precio"
                     value={formatNumberInput(nuevoEvento.precio_menor)}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, precio_menor: parseNumberInput(e.target.value)})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
               </div>
 
               {/* Extras */}
-              <div className="space-y-3">
-                <label className="block text-sm text-slate-400">Extras</label>
+              <div className="space-y-2">
+                <label className="block text-xs text-slate-400">Extras</label>
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="grid grid-cols-1 md:grid-cols-12 gap-2 p-3 rounded-xl bg-white/5 border border-white/10">
+                  <div key={i} className="grid grid-cols-1 md:grid-cols-12 gap-2 p-2 rounded-lg bg-white/5 border border-white/10">
                     <div className="md:col-span-5">
                       <input
                         type="text"
-                        placeholder={`Descripción extra ${i}`}
+                        placeholder={`Extra ${i}`}
                         value={nuevoEvento[`extra${i}_desc`]}
                         onChange={(e) => setNuevoEvento({...nuevoEvento, [`extra${i}_desc`]: e.target.value})}
-                        className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 text-sm"
+                        className="w-full px-2 py-1.5 rounded border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 text-xs"
                       />
                     </div>
                     <div className="md:col-span-3">
@@ -2666,17 +2766,17 @@ export default function App() {
                         placeholder="Valor $"
                         value={formatNumberInput(nuevoEvento[`extra${i}_valor`])}
                         onChange={(e) => setNuevoEvento({...nuevoEvento, [`extra${i}_valor`]: parseNumberInput(e.target.value)})}
-                        className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 text-sm"
+                        className="w-full px-2 py-1.5 rounded border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 text-xs"
                       />
                     </div>
                     <div className="md:col-span-4">
                       <select
                         value={nuevoEvento[`extra${i}_tipo`]}
                         onChange={(e) => setNuevoEvento({...nuevoEvento, [`extra${i}_tipo`]: e.target.value})}
-                        className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50 text-sm"
+                        className="w-full px-2 py-1.5 rounded border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50 text-xs"
                       >
-                        <option value="total">Valor Total</option>
-                        <option value="por_persona">Por Persona</option>
+                        <option value="total">Total</option>
+                        <option value="por_persona">x Persona</option>
                       </select>
                     </div>
                   </div>
@@ -2684,29 +2784,29 @@ export default function App() {
               </div>
 
               {/* Total calculado */}
-              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-                <p className="text-sm text-slate-400">Total Evento</p>
-                <p className="text-2xl font-bold text-emerald-400">{formatCurrency(calcularTotal())}</p>
+              <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
+                <p className="text-xs text-slate-400">Total Evento</p>
+                <p className="text-xl font-bold text-emerald-400">{formatCurrency(calcularTotal())}</p>
               </div>
 
               {/* Otros */}
               <div>
-                <label className="block text-sm text-slate-400 mb-1">Otros / Aclaraciones</label>
+                <label className="block text-xs text-slate-400 mb-1">Otros / Aclaraciones</label>
                 <textarea
                   placeholder="Notas adicionales..."
                   value={nuevoEvento.otros}
                   onChange={(e) => setNuevoEvento({...nuevoEvento, otros: e.target.value})}
-                  rows={3}
-                  className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 resize-none"
+                  rows={2}
+                  className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50 resize-none"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full py-2.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                 {saving ? 'Guardando...' : 'Agregar Evento'}
               </button>
             </form>
@@ -2949,21 +3049,67 @@ export default function App() {
                 </div>
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Hora Inicio</label>
-                  <input
-                    type="time"
-                    value={eventoEdit.hora_inicio}
-                    onChange={(e) => setEventoEdit({...eventoEdit, hora_inicio: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/20 bg-white/10 text-white focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
-                  />
+                  <div className="flex gap-2">
+                    <select
+                      value={eventoEdit.hora_inicio?.split(':')[0] || ''}
+                      onChange={(e) => {
+                        const mins = eventoEdit.hora_inicio?.split(':')[1] || '00';
+                        setEventoEdit({...eventoEdit, hora_inicio: e.target.value ? `${e.target.value}:${mins}` : ''});
+                      }}
+                      className="flex-1 px-3 py-2.5 rounded-xl border border-white/20 bg-white/10 text-white focus:outline-none focus:border-purple-500/50"
+                    >
+                      <option value="">--</option>
+                      {Array.from({length: 24}, (_, i) => i.toString().padStart(2, '0')).map(h => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                    <span className="text-white self-center">:</span>
+                    <select
+                      value={eventoEdit.hora_inicio?.split(':')[1] || ''}
+                      onChange={(e) => {
+                        const hrs = eventoEdit.hora_inicio?.split(':')[0] || '12';
+                        setEventoEdit({...eventoEdit, hora_inicio: `${hrs}:${e.target.value}`});
+                      }}
+                      className="flex-1 px-3 py-2.5 rounded-xl border border-white/20 bg-white/10 text-white focus:outline-none focus:border-purple-500/50"
+                    >
+                      <option value="00">00</option>
+                      <option value="15">15</option>
+                      <option value="30">30</option>
+                      <option value="45">45</option>
+                    </select>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Hora Fin</label>
-                  <input
-                    type="time"
-                    value={eventoEdit.hora_fin}
-                    onChange={(e) => setEventoEdit({...eventoEdit, hora_fin: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/20 bg-white/10 text-white focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
-                  />
+                  <div className="flex gap-2">
+                    <select
+                      value={eventoEdit.hora_fin?.split(':')[0] || ''}
+                      onChange={(e) => {
+                        const mins = eventoEdit.hora_fin?.split(':')[1] || '00';
+                        setEventoEdit({...eventoEdit, hora_fin: e.target.value ? `${e.target.value}:${mins}` : ''});
+                      }}
+                      className="flex-1 px-3 py-2.5 rounded-xl border border-white/20 bg-white/10 text-white focus:outline-none focus:border-purple-500/50"
+                    >
+                      <option value="">--</option>
+                      {Array.from({length: 24}, (_, i) => i.toString().padStart(2, '0')).map(h => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                    <span className="text-white self-center">:</span>
+                    <select
+                      value={eventoEdit.hora_fin?.split(':')[1] || ''}
+                      onChange={(e) => {
+                        const hrs = eventoEdit.hora_fin?.split(':')[0] || '12';
+                        setEventoEdit({...eventoEdit, hora_fin: `${hrs}:${e.target.value}`});
+                      }}
+                      className="flex-1 px-3 py-2.5 rounded-xl border border-white/20 bg-white/10 text-white focus:outline-none focus:border-purple-500/50"
+                    >
+                      <option value="00">00</option>
+                      <option value="15">15</option>
+                      <option value="30">30</option>
+                      <option value="45">45</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -3506,33 +3652,136 @@ export default function App() {
               ))}
             </div>
 
-            {/* Próximo Evento */}
-            {proximosEventos.length > 0 && (
-              <div
-                className="glass rounded-2xl p-5 glow cursor-pointer hover:border-purple-500/30 border border-transparent transition-all"
-                onClick={() => setSelectedEvento(proximosEventos[0])}
-              >
-                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-purple-400" />
-                  Próximo Evento
-                </h3>
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 flex flex-col items-center justify-center">
-                    <span className="text-2xl font-bold">{new Date(proximosEventos[0].fecha + 'T12:00:00').getDate()}</span>
-                    <span className="text-xs uppercase">{new Date(proximosEventos[0].fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
+            {/* Próximos Eventos (15 días) y Pendientes */}
+            {(() => {
+              const hoy = new Date();
+              hoy.setHours(0, 0, 0, 0);
+              const en15Dias = new Date(hoy);
+              en15Dias.setDate(en15Dias.getDate() + 15);
+
+              const eventosProximos15 = eventos
+                .filter(e => {
+                  if (e.anulado) return false;
+                  const fechaEvento = new Date(e.fecha + 'T12:00:00');
+                  return fechaEvento >= hoy && fechaEvento <= en15Dias;
+                })
+                .sort((a, b) => a.fecha.localeCompare(b.fecha));
+
+              const eventosPendientes = eventos
+                .filter(e => !e.anulado && !e.confirmado && new Date(e.fecha + 'T12:00:00') >= hoy)
+                .sort((a, b) => a.fecha.localeCompare(b.fecha));
+
+              return (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Próximos 15 días */}
+                  <div className="glass rounded-2xl p-5 glow">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-purple-400" />
+                      Próximos 15 días
+                      <span className="ml-auto text-sm font-normal text-slate-400">{eventosProximos15.length} eventos</span>
+                    </h3>
+                    {eventosProximos15.length === 0 ? (
+                      <p className="text-slate-500 text-center py-4">No hay eventos en los próximos 15 días</p>
+                    ) : (
+                      <div className="space-y-3 max-h-[300px] overflow-y-auto scrollbar-thin">
+                        {eventosProximos15.map(evento => {
+                          const clima = climaData[evento.fecha];
+                          const climaInfo = clima ? getClimaInfo(clima.codigo) : null;
+                          return (
+                            <div
+                              key={evento.id}
+                              className="flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 cursor-pointer transition-all border border-white/5"
+                              onClick={() => setSelectedEvento(evento)}
+                            >
+                              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-600 to-indigo-600 flex flex-col items-center justify-center flex-shrink-0">
+                                <span className="text-lg font-bold">{new Date(evento.fecha + 'T12:00:00').getDate()}</span>
+                                <span className="text-[10px] uppercase">{new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate">{evento.cliente}</p>
+                                <p className="text-slate-400 text-xs">{evento.tipo_evento} • {evento.turno}</p>
+                              </div>
+                              {clima && (
+                                <div className="flex items-center gap-2 px-2 py-1 rounded-lg bg-white/5 flex-shrink-0" title={climaInfo?.desc}>
+                                  <span className="text-xl">{climaInfo?.icono}</span>
+                                  <div className="text-xs">
+                                    <p className="text-white font-medium">{clima.tempMax}°</p>
+                                    <p className="text-slate-400">{clima.tempMin}°</p>
+                                  </div>
+                                  {clima.precipitacion > 30 && (
+                                    <span className="text-blue-400 text-xs">💧{clima.precipitacion}%</span>
+                                  )}
+                                </div>
+                              )}
+                              <div className="text-right flex-shrink-0">
+                                {evento.confirmado ? (
+                                  <span className="inline-block px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs">Confirmado</span>
+                                ) : (
+                                  <span className="inline-block px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs">Pendiente</span>
+                                )}
+                                <p className="text-slate-500 text-xs mt-1">{evento.adultos} pers.</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex-1">
-                    <p className="text-lg font-semibold">{proximosEventos[0].cliente}</p>
-                    <p className="text-slate-400 text-sm">{proximosEventos[0].tipoEvento} - {proximosEventos[0].turno}</p>
-                    <p className="text-slate-500 text-sm">{proximosEventos[0].adultos} adultos • {proximosEventos[0].salon || 'Tero'}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-emerald-400 font-bold">{formatCurrency(proximosEventos[0].totalEvento)}</p>
-                    <p className="text-slate-500 text-xs">{proximosEventos[0].vendedor}</p>
+
+                  {/* Pendientes por confirmar */}
+                  <div className="glass rounded-2xl p-5 glow">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <AlertCircle className="w-5 h-5 text-amber-400" />
+                      Pendientes por Confirmar
+                      <span className="ml-auto text-sm font-normal text-amber-400">{eventosPendientes.length} eventos</span>
+                    </h3>
+                    {eventosPendientes.length === 0 ? (
+                      <p className="text-slate-500 text-center py-4">No hay eventos pendientes de confirmar</p>
+                    ) : (
+                      <div className="space-y-3 max-h-[300px] overflow-y-auto scrollbar-thin">
+                        {eventosPendientes.map(evento => {
+                          const diasRestantes = Math.ceil((new Date(evento.fecha + 'T12:00:00') - hoy) / (1000 * 60 * 60 * 24));
+                          const clima = climaData[evento.fecha];
+                          const climaInfo = clima ? getClimaInfo(clima.codigo) : null;
+                          return (
+                            <div
+                              key={evento.id}
+                              className="flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 cursor-pointer transition-all border border-amber-500/20"
+                              onClick={() => setSelectedEvento(evento)}
+                            >
+                              <div className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center flex-shrink-0 ${
+                                diasRestantes <= 7 ? 'bg-gradient-to-br from-red-600 to-orange-600' : 'bg-gradient-to-br from-amber-600 to-orange-600'
+                              }`}>
+                                <span className="text-lg font-bold">{new Date(evento.fecha + 'T12:00:00').getDate()}</span>
+                                <span className="text-[10px] uppercase">{new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate">{evento.cliente}</p>
+                                <p className="text-slate-400 text-xs">{evento.tipo_evento} • {evento.salon || 'Tero'}</p>
+                              </div>
+                              {clima && (
+                                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 flex-shrink-0" title={climaInfo?.desc}>
+                                  <span className="text-lg">{climaInfo?.icono}</span>
+                                  <span className="text-xs text-white">{clima.tempMax}°</span>
+                                </div>
+                              )}
+                              <div className="text-right flex-shrink-0">
+                                <span className={`inline-block px-2 py-0.5 rounded-full text-xs ${
+                                  diasRestantes <= 7 ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
+                                }`}>
+                                  {diasRestantes === 0 ? 'HOY' : diasRestantes === 1 ? 'Mañana' : `${diasRestantes} días`}
+                                </span>
+                                <p className="text-emerald-400 text-xs mt-1 font-medium">{formatCurrency(evento.total || evento.totalEvento)}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="glass rounded-2xl p-6 glow">
