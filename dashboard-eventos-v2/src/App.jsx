@@ -680,8 +680,16 @@ export default function App() {
   };
 
   const handleDeletePago = async (pagoId, evento, pago) => {
-    const motivo = prompt('Motivo de la anulación:');
-    if (!motivo) return;
+    const clave = prompt('Ingrese clave para eliminar:');
+    if (clave !== '1970') {
+      if (clave !== null) alert('Clave incorrecta');
+      return;
+    }
+    const motivo = prompt('Detalle por qué se elimina este pago:');
+    if (!motivo || motivo.trim() === '') {
+      alert('Debe ingresar un motivo');
+      return;
+    }
 
     const { error } = await supabase
       .from('pagos')
