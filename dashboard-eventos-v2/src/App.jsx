@@ -7288,8 +7288,8 @@ export default function App() {
                           tipo: 'egreso',
                           concepto: `R. Socios a ${cajaEgresoForm.receptor}${cajaEgresoForm.observacion ? ' | ' + cajaEgresoForm.observacion : ''}`,
                           monto_pesos: totalPesos,
-                          monto_dolares: dolares || null,
-                          cotizacion: dolares ? tc : null,
+                          monto_dolares: dolares || (totalPesos / tc),
+                          cotizacion: tc,
                           persona: cajaEgresoForm.aportante,
                           aportante: cajaEgresoForm.aportante,
                           fecha: cajaEgresoForm.fecha
@@ -7299,8 +7299,8 @@ export default function App() {
                           tipo: 'retiro',
                           concepto: cajaEgresoForm.observacion || cajaEgresoForm.concepto,
                           monto_pesos: totalPesos,
-                          monto_dolares: dolares || null,
-                          cotizacion: dolares ? tc : null,
+                          monto_dolares: dolares || (totalPesos / tc),
+                          cotizacion: tc,
                           persona: cajaEgresoForm.receptor,
                           aportante: cajaEgresoForm.aportante,
                           fecha: cajaEgresoForm.fecha
