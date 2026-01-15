@@ -5947,9 +5947,9 @@ export default function App() {
                     : 'bg-white/5 text-slate-400 hover:bg-white/10'
                 }`}
               >
-                Pagos Eliminados
+                Eliminados
                 <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-red-500/30">
-                  {auditoriaPagos.filter(r => r.tipo_accion === 'ANULADO').length}
+                  {auditoriaPagos.filter(r => r.tipo_accion === 'ANULADO').length + auditoriaEventos.length + auditoriaCaja.length}
                 </span>
               </button>
               <button
@@ -5960,35 +5960,9 @@ export default function App() {
                     : 'bg-white/5 text-slate-400 hover:bg-white/10'
                 }`}
               >
-                Pagos Modificados
+                Modificados
                 <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-amber-500/30">
                   {auditoriaPagos.filter(r => r.tipo_accion === 'MODIFICADO').length}
-                </span>
-              </button>
-              <button
-                onClick={() => setInformeActivo('eventos_anulados')}
-                className={`px-4 py-2 rounded-xl font-medium transition-all ${
-                  informeActivo === 'eventos_anulados'
-                    ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
-                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
-                }`}
-              >
-                Eventos Anulados
-                <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-purple-500/30">
-                  {auditoriaEventos.length}
-                </span>
-              </button>
-              <button
-                onClick={() => setInformeActivo('caja_eliminados')}
-                className={`px-4 py-2 rounded-xl font-medium transition-all ${
-                  informeActivo === 'caja_eliminados'
-                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50'
-                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
-                }`}
-              >
-                Caja Eliminados
-                <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-cyan-500/30">
-                  {auditoriaCaja.length}
                 </span>
               </button>
               <button
@@ -6003,33 +5977,63 @@ export default function App() {
               </button>
             </div>
 
-            {/* Pagos Eliminados */}
+            {/* Eliminados (todos) */}
             {informeActivo === 'eliminados' && (
               <div className="glass rounded-2xl p-5">
-                <h3 className="text-lg font-semibold mb-4 text-red-400">Pagos Eliminados</h3>
-                {auditoriaPagos.filter(r => r.tipo_accion === 'ANULADO').length === 0 ? (
-                  <p className="text-center text-slate-500 py-4">No hay pagos eliminados</p>
+                <h3 className="text-lg font-semibold mb-4 text-red-400">Eliminados</h3>
+                {(auditoriaPagos.filter(r => r.tipo_accion === 'ANULADO').length + auditoriaEventos.length + auditoriaCaja.length) === 0 ? (
+                  <p className="text-center text-slate-500 py-4">No hay registros eliminados</p>
                 ) : (
                   <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                    {/* Pagos eliminados */}
                     {auditoriaPagos.filter(r => r.tipo_accion === 'ANULADO').map((registro) => (
-                      <div key={registro.id} className="p-4 rounded-xl bg-red-500/10 border border-red-500/30">
+                      <div key={`pago-${registro.id}`} className="p-4 rounded-xl bg-red-500/10 border border-red-500/30">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-white font-medium">{registro.cliente}</span>
-                          <span className="text-xs text-slate-400">
-                            {new Date(registro.created_at).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
-                          </span>
+                          <span className="px-2 py-0.5 rounded text-xs bg-green-500/30 text-green-400">COBRANZAS</span>
+                          <span className="text-xs text-slate-400">{new Date(registro.created_at).toLocaleString()}</span>
                         </div>
-                        <div className="text-sm text-slate-300 space-y-1">
-                          <p>Monto: <span className="text-red-400 font-medium">{formatCurrency(registro.monto_original)}</span></p>
-                          <p>Concepto: {registro.concepto === 'seña' ? 'Seña' : registro.concepto === 'ajuste_ipc' ? 'Ajuste IPC' : 'Pago'}</p>
-                          <p>Fecha del pago: {formatDate(registro.fecha_pago)}</p>
-                          <p className="text-slate-500 mt-2">
-                            <span className="font-medium">Motivo:</span> {registro.motivo}
-                          </p>
-                          <p className="text-slate-500">
-                            <span className="font-medium">Usuario:</span> {registro.usuario}
-                          </p>
+                        <p className="text-white font-medium">{registro.cliente}</p>
+                        <p className="text-sm text-slate-300">Monto: <span className="text-red-400 font-medium">{formatCurrency(registro.monto_original)}</span></p>
+                        <p className="text-sm text-slate-500"><span className="font-medium">Motivo:</span> {registro.motivo}</p>
+                      </div>
+                    ))}
+                    {/* Eventos anulados */}
+                    {auditoriaEventos.map((registro) => (
+                      <div key={`evento-${registro.id}`} className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/30">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="px-2 py-0.5 rounded text-xs bg-purple-500/30 text-purple-400">EVENTO</span>
+                          <span className="text-xs text-slate-400">{new Date(registro.created_at).toLocaleString()}</span>
                         </div>
+                        <p className="text-white font-medium">{registro.cliente} - {formatDate(registro.fecha_evento)}</p>
+                        <p className="text-sm text-slate-300">Tipo: {registro.tipo_evento}</p>
+                        <p className="text-sm text-slate-500"><span className="font-medium">Motivo:</span> {registro.motivo}</p>
+                        <button onClick={() => handleRegenerarEvento(registro)} className="mt-2 px-2 py-1 rounded bg-emerald-500/20 text-emerald-400 text-xs">
+                          Regenerar
+                        </button>
+                      </div>
+                    ))}
+                    {/* Caja eliminados */}
+                    {auditoriaCaja.map((registro) => (
+                      <div key={`caja-${registro.id}`} className={`p-4 rounded-xl border ${
+                        registro.tipo_movimiento === 'ingreso' ? 'bg-green-500/10 border-green-500/30' :
+                        registro.tipo_movimiento === 'egreso' ? 'bg-red-500/10 border-red-500/30' :
+                        registro.tipo_movimiento === 'retiro' ? 'bg-yellow-500/10 border-yellow-500/30' :
+                        'bg-blue-500/10 border-blue-500/30'
+                      }`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className={`px-2 py-0.5 rounded text-xs ${
+                            registro.tipo_movimiento === 'ingreso' ? 'bg-green-500/30 text-green-400' :
+                            registro.tipo_movimiento === 'egreso' ? 'bg-red-500/30 text-red-400' :
+                            registro.tipo_movimiento === 'retiro' ? 'bg-yellow-500/30 text-yellow-400' :
+                            'bg-blue-500/30 text-blue-400'
+                          }`}>CAJA - {registro.tipo_movimiento.toUpperCase()}</span>
+                          <span className="text-xs text-slate-400">{new Date(registro.created_at).toLocaleString()}</span>
+                        </div>
+                        <p className="text-white font-medium">{registro.concepto}</p>
+                        <p className="text-sm text-slate-300">Monto: <span className="text-cyan-400 font-medium">${(registro.monto_pesos || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span>
+                          {registro.persona && <span className="ml-2">| {registro.persona}</span>}
+                        </p>
+                        <p className="text-sm text-slate-500"><span className="font-medium">Motivo:</span> {registro.motivo}</p>
                       </div>
                     ))}
                   </div>
@@ -6058,95 +6062,6 @@ export default function App() {
                           {registro.concepto_nuevo && (
                             <p>Concepto: {registro.concepto_nuevo}</p>
                           )}
-                          <p className="text-slate-500 mt-2">
-                            <span className="font-medium">Motivo:</span> {registro.motivo}
-                          </p>
-                          <p className="text-slate-500">
-                            <span className="font-medium">Usuario:</span> {registro.usuario}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Eventos Anulados */}
-            {informeActivo === 'eventos_anulados' && (
-              <div className="glass rounded-2xl p-5">
-                <h3 className="text-lg font-semibold mb-4 text-purple-400">Eventos Anulados</h3>
-                {auditoriaEventos.length === 0 ? (
-                  <p className="text-center text-slate-500 py-4">No hay eventos anulados</p>
-                ) : (
-                  <div className="space-y-3 max-h-[500px] overflow-y-auto">
-                    {auditoriaEventos.map((registro) => (
-                      <div key={registro.id} className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/30">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-white font-medium">{registro.cliente}</span>
-                          <span className="text-xs text-slate-400">
-                            {new Date(registro.created_at).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
-                          </span>
-                        </div>
-                        <div className="text-sm text-slate-300 space-y-1">
-                          <p>Fecha del evento: <span className="text-purple-400 font-medium">{formatDate(registro.fecha_evento)}</span></p>
-                          <p>Tipo: {registro.tipo_evento}</p>
-                          <p className="text-slate-500 mt-2">
-                            <span className="font-medium">Motivo:</span> {registro.motivo}
-                          </p>
-                          <p className="text-slate-500">
-                            <span className="font-medium">Usuario:</span> {registro.usuario}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => handleRegenerarEvento(registro)}
-                          className="mt-3 px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 text-sm font-medium hover:bg-emerald-500/30 transition-all border border-emerald-500/30"
-                        >
-                          Regenerar Evento
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Caja Eliminados */}
-            {informeActivo === 'caja_eliminados' && (
-              <div className="glass rounded-2xl p-5">
-                <h3 className="text-lg font-semibold mb-4 text-cyan-400">Movimientos de Caja Eliminados</h3>
-                {auditoriaCaja.length === 0 ? (
-                  <p className="text-center text-slate-500 py-4">No hay movimientos eliminados</p>
-                ) : (
-                  <div className="space-y-3 max-h-[500px] overflow-y-auto">
-                    {auditoriaCaja.map((registro) => (
-                      <div key={registro.id} className={`p-4 rounded-xl border ${
-                        registro.tipo_movimiento === 'ingreso' ? 'bg-green-500/10 border-green-500/30' :
-                        registro.tipo_movimiento === 'egreso' ? 'bg-red-500/10 border-red-500/30' :
-                        registro.tipo_movimiento === 'transferencia' ? 'bg-blue-500/10 border-blue-500/30' :
-                        'bg-yellow-500/10 border-yellow-500/30'
-                      }`}>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className={`font-medium px-2 py-0.5 rounded text-xs ${
-                            registro.tipo_movimiento === 'ingreso' ? 'bg-green-500/30 text-green-400' :
-                            registro.tipo_movimiento === 'egreso' ? 'bg-red-500/30 text-red-400' :
-                            registro.tipo_movimiento === 'transferencia' ? 'bg-blue-500/30 text-blue-400' :
-                            'bg-yellow-500/30 text-yellow-400'
-                          }`}>
-                            {registro.tipo_movimiento.toUpperCase()}
-                          </span>
-                          <span className="text-xs text-slate-400">
-                            {new Date(registro.created_at).toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="text-sm text-slate-300 space-y-1">
-                          <p>Concepto: <span className="text-white font-medium">{registro.concepto}</span></p>
-                          <p>Monto: <span className="text-cyan-400 font-medium">${(registro.monto_pesos || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span>
-                            {registro.monto_dolares && <span className="text-blue-400 ml-2">({registro.monto_dolares.toFixed(2)} USD @ {registro.cotizacion})</span>}
-                          </p>
-                          {registro.persona && <p>Persona: {registro.persona}</p>}
-                          {registro.aportante && <p>Aportante: {registro.aportante}</p>}
-                          <p>Fecha movimiento: {registro.fecha_movimiento}</p>
                           <p className="text-slate-500 mt-2">
                             <span className="font-medium">Motivo:</span> {registro.motivo}
                           </p>
