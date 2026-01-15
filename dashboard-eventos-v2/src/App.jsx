@@ -254,6 +254,7 @@ export default function App() {
   const [editingPagoId, setEditingPagoId] = useState(null);
   const [auditoriaPagos, setAuditoriaPagos] = useState([]);
   const [auditoriaEventos, setAuditoriaEventos] = useState([]);
+  const [auditoriaCaja, setAuditoriaCaja] = useState([]);
   const [informeActivo, setInformeActivo] = useState('eliminados');
   const [motivoModificacion, setMotivoModificacion] = useState('');
   const [busquedaContacto, setBusquedaContacto] = useState('');
@@ -437,6 +438,7 @@ export default function App() {
       fetchClima();
       fetchAuditoriaPagos();
       fetchAuditoriaEventos();
+      fetchAuditoriaCaja();
       fetchCajaMovimientos();
       fetchTipoCambio();
       if (userRole === 'admin') {
@@ -780,6 +782,21 @@ export default function App() {
 
       if (!error && data) {
         setAuditoriaEventos(data);
+      }
+    } catch (e) {
+      // Tabla no existe todavía
+    }
+  };
+
+  const fetchAuditoriaCaja = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('auditoria_caja')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        setAuditoriaCaja(data);
       }
     } catch (e) {
       // Tabla no existe todavía
@@ -5962,6 +5979,19 @@ export default function App() {
                 </span>
               </button>
               <button
+                onClick={() => setInformeActivo('caja_eliminados')}
+                className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                  informeActivo === 'caja_eliminados'
+                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50'
+                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                }`}
+              >
+                Caja Eliminados
+                <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-cyan-500/30">
+                  {auditoriaCaja.length}
+                </span>
+              </button>
+              <button
                 onClick={() => setInformeActivo('estadisticas')}
                 className={`px-4 py-2 rounded-xl font-medium transition-all ${
                   informeActivo === 'estadisticas'
@@ -6074,6 +6104,56 @@ export default function App() {
                         >
                           Regenerar Evento
                         </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Caja Eliminados */}
+            {informeActivo === 'caja_eliminados' && (
+              <div className="glass rounded-2xl p-5">
+                <h3 className="text-lg font-semibold mb-4 text-cyan-400">Movimientos de Caja Eliminados</h3>
+                {auditoriaCaja.length === 0 ? (
+                  <p className="text-center text-slate-500 py-4">No hay movimientos eliminados</p>
+                ) : (
+                  <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                    {auditoriaCaja.map((registro) => (
+                      <div key={registro.id} className={`p-4 rounded-xl border ${
+                        registro.tipo_movimiento === 'ingreso' ? 'bg-green-500/10 border-green-500/30' :
+                        registro.tipo_movimiento === 'egreso' ? 'bg-red-500/10 border-red-500/30' :
+                        registro.tipo_movimiento === 'transferencia' ? 'bg-blue-500/10 border-blue-500/30' :
+                        'bg-yellow-500/10 border-yellow-500/30'
+                      }`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className={`font-medium px-2 py-0.5 rounded text-xs ${
+                            registro.tipo_movimiento === 'ingreso' ? 'bg-green-500/30 text-green-400' :
+                            registro.tipo_movimiento === 'egreso' ? 'bg-red-500/30 text-red-400' :
+                            registro.tipo_movimiento === 'transferencia' ? 'bg-blue-500/30 text-blue-400' :
+                            'bg-yellow-500/30 text-yellow-400'
+                          }`}>
+                            {registro.tipo_movimiento.toUpperCase()}
+                          </span>
+                          <span className="text-xs text-slate-400">
+                            {new Date(registro.created_at).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="text-sm text-slate-300 space-y-1">
+                          <p>Concepto: <span className="text-white font-medium">{registro.concepto}</span></p>
+                          <p>Monto: <span className="text-cyan-400 font-medium">${(registro.monto_pesos || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span>
+                            {registro.monto_dolares && <span className="text-blue-400 ml-2">({registro.monto_dolares.toFixed(2)} USD @ {registro.cotizacion})</span>}
+                          </p>
+                          {registro.persona && <p>Persona: {registro.persona}</p>}
+                          {registro.aportante && <p>Aportante: {registro.aportante}</p>}
+                          <p>Fecha movimiento: {registro.fecha_movimiento}</p>
+                          <p className="text-slate-500 mt-2">
+                            <span className="font-medium">Motivo:</span> {registro.motivo}
+                          </p>
+                          <p className="text-slate-500">
+                            <span className="font-medium">Usuario:</span> {registro.usuario}
+                          </p>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -7196,6 +7276,19 @@ export default function App() {
                                       alert('Debe ingresar un motivo');
                                       return;
                                     }
+                                    // Guardar auditoría antes de eliminar
+                                    await supabase.from('auditoria_caja').insert({
+                                      tipo_movimiento: 'ingreso',
+                                      concepto: item.concepto,
+                                      monto_pesos: item.monto_pesos,
+                                      monto_dolares: item.monto_dolares,
+                                      cotizacion: item.cotizacion,
+                                      persona: item.persona,
+                                      aportante: item.aportante,
+                                      fecha_movimiento: item.fecha,
+                                      motivo: motivo,
+                                      usuario: user?.email || 'Sistema'
+                                    });
                                     const esAporte = item.concepto && item.concepto.startsWith('Aporte de ');
                                     const { error } = await supabase.from('caja_movimientos').delete().eq('id', item.id);
                                     if (error) {
@@ -7215,6 +7308,7 @@ export default function App() {
                                         }
                                       }
                                       fetchCajaMovimientos();
+                                      fetchAuditoriaCaja();
                                     }
                                   }} className="p-1 text-red-400 hover:text-red-300">
                                     <Trash2 className="w-4 h-4" />
@@ -7505,6 +7599,19 @@ export default function App() {
                                 alert('Debe ingresar un motivo');
                                 return;
                               }
+                              // Guardar auditoría antes de eliminar
+                              await supabase.from('auditoria_caja').insert({
+                                tipo_movimiento: 'egreso',
+                                concepto: item.concepto,
+                                monto_pesos: item.monto_pesos,
+                                monto_dolares: item.monto_dolares,
+                                cotizacion: item.cotizacion,
+                                persona: item.persona,
+                                aportante: item.aportante,
+                                fecha_movimiento: item.fecha,
+                                motivo: motivo,
+                                usuario: user?.email || 'Sistema'
+                              });
                               const esAporte = item.concepto && item.concepto.startsWith('Aporte a ');
                               const esRetiroSocios = item.concepto && item.concepto.startsWith('R. Socios a ');
                               const { error } = await supabase.from('caja_movimientos').delete().eq('id', item.id);
@@ -7538,6 +7645,7 @@ export default function App() {
                                   }
                                 }
                                 fetchCajaMovimientos();
+                                fetchAuditoriaCaja();
                               }
                             }} className="p-1 text-red-400 hover:text-red-300">
                               <Trash2 className="w-4 h-4" />
@@ -7643,6 +7751,19 @@ export default function App() {
                                       alert('Debe ingresar un motivo');
                                       return;
                                     }
+                                    // Guardar auditoría antes de eliminar
+                                    await supabase.from('auditoria_caja').insert({
+                                      tipo_movimiento: 'transferencia',
+                                      concepto: item.concepto,
+                                      monto_pesos: item.monto_pesos,
+                                      monto_dolares: item.monto_dolares,
+                                      cotizacion: item.cotizacion,
+                                      persona: item.persona,
+                                      aportante: item.aportante,
+                                      fecha_movimiento: item.fecha,
+                                      motivo: motivo,
+                                      usuario: user?.email || 'Sistema'
+                                    });
                                     // Eliminar el ingreso
                                     await supabase.from('caja_movimientos').delete().eq('id', item.id);
                                     // Buscar y eliminar el egreso correspondiente (mismo monto, fecha, y aportante como persona)
@@ -7657,6 +7778,7 @@ export default function App() {
                                       await supabase.from('caja_movimientos').delete().eq('id', egresos[0].id);
                                     }
                                     fetchCajaMovimientos();
+                                    fetchAuditoriaCaja();
                                   }}
                                   className="p-1 text-red-400 hover:bg-red-500/20 rounded"
                                 >
@@ -7750,6 +7872,19 @@ export default function App() {
                                 alert('Debe ingresar un motivo');
                                 return;
                               }
+                              // Guardar auditoría antes de eliminar
+                              await supabase.from('auditoria_caja').insert({
+                                tipo_movimiento: 'retiro',
+                                concepto: item.concepto,
+                                monto_pesos: item.monto_pesos,
+                                monto_dolares: item.monto_dolares,
+                                cotizacion: item.cotizacion,
+                                persona: item.persona,
+                                aportante: item.aportante,
+                                fecha_movimiento: item.fecha,
+                                motivo: motivo,
+                                usuario: user?.email || 'Sistema'
+                              });
                               // Eliminar el retiro
                               const { error } = await supabase.from('caja_movimientos').delete().eq('id', item.id);
                               if (error) {
@@ -7767,6 +7902,7 @@ export default function App() {
                                   await supabase.from('caja_movimientos').delete().eq('id', egresos[0].id);
                                 }
                                 fetchCajaMovimientos();
+                                fetchAuditoriaCaja();
                               }
                             }} className="p-1 text-red-400 hover:text-red-300">
                               <Trash2 className="w-4 h-4" />
