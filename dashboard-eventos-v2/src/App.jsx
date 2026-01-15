@@ -7361,28 +7361,40 @@ export default function App() {
                         <label className="block text-xs text-slate-400 mb-1">Concepto *</label>
                         <select
                           value={cajaEgresoForm.concepto}
-                          onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, concepto: e.target.value})}
+                          onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, concepto: e.target.value, receptor: ''})}
                           className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
                         >
                           <option value="">Seleccionar...</option>
                           {CONCEPTOS_EGRESO.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                       </div>
-                      {/* Solo mostrar Recibido por para R. Socios */}
-                      {cajaEgresoForm.concepto === 'R. Socios' && (
-                        <div>
-                          <label className="block text-xs text-slate-400 mb-1">Retira Socio *</label>
-                          <select
-                            value={cajaEgresoForm.receptor}
-                            onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, receptor: e.target.value})}
-                            className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
-                          >
-                            <option value="">Seleccionar...</option>
-                            {SOCIOS.map(c => <option key={c} value={c}>{c}</option>)}
-                          </select>
-                        </div>
-                      )}
                     </div>
+                    {/* Selector de socio para R. Socios */}
+                    {cajaEgresoForm.concepto === 'R. Socios' && (
+                      <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
+                        <label className="block text-xs text-yellow-400 mb-2">¿Qué socio retira? *</label>
+                        <div className="flex gap-2">
+                          {SOCIOS.map(socio => (
+                            <button
+                              key={socio}
+                              type="button"
+                              onClick={() => setCajaEgresoForm({...cajaEgresoForm, receptor: socio})}
+                              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                cajaEgresoForm.receptor === socio
+                                  ? 'bg-yellow-500 text-black'
+                                  : 'bg-white/10 text-white hover:bg-white/20'
+                              }`}
+                            >
+                              {socio}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-xs text-slate-400 mt-2">
+                          → Sale de: <span className="text-red-400">{cajaEgresoForm.aportante || '?'}</span> |
+                          Retira: <span className="text-yellow-400">{cajaEgresoForm.receptor || '?'}</span>
+                        </p>
+                      </div>
+                    )}
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Monto Pesos</label>
