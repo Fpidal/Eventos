@@ -2691,15 +2691,18 @@ export default function App() {
   }, [eventosDelAño, searchTerm, filterVendedor, filterMes, filterEstado, sortConfig]);
 
   const stats = useMemo(() => {
-    const totalEventos = eventosDelAño.length;
-    const totalFacturado = eventosDelAño.reduce((sum, e) => sum + e.totalEvento, 0);
-    const totalAdultos = eventosDelAño.reduce((sum, e) => sum + e.adultos, 0);
+    // Solo contar eventos confirmados (no anulados)
+    const eventosActivos = eventosDelAño.filter(e => e.confirmado && !e.anulado);
+    const totalEventos = eventosActivos.length;
+    const totalFacturado = eventosActivos.reduce((sum, e) => sum + e.totalEvento, 0);
+    const totalAdultos = eventosActivos.reduce((sum, e) => sum + e.adultos, 0);
     return { totalEventos, totalFacturado, totalAdultos };
   }, [eventosDelAño]);
 
   const eventosPorMes = useMemo(() => {
     const orden = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-    const grouped = eventosDelAño.reduce((acc, e) => {
+    const eventosActivos = eventosDelAño.filter(e => e.confirmado && !e.anulado);
+    const grouped = eventosActivos.reduce((acc, e) => {
       acc[e.mes] = (acc[e.mes] || 0) + e.totalEvento;
       return acc;
     }, {});
@@ -2707,7 +2710,8 @@ export default function App() {
   }, [eventosDelAño]);
 
   const eventosPorVendedor = useMemo(() => {
-    const grouped = eventosDelAño.reduce((acc, e) => {
+    const eventosActivos = eventosDelAño.filter(e => e.confirmado && !e.anulado);
+    const grouped = eventosActivos.reduce((acc, e) => {
       acc[e.vendedor] = (acc[e.vendedor] || 0) + e.totalEvento;
       return acc;
     }, {});
@@ -2715,7 +2719,8 @@ export default function App() {
   }, [eventosDelAño]);
 
   const eventosPorTipo = useMemo(() => {
-    const grouped = eventosDelAño.reduce((acc, e) => {
+    const eventosActivos = eventosDelAño.filter(e => e.confirmado && !e.anulado);
+    const grouped = eventosActivos.reduce((acc, e) => {
       acc[e.tipoEvento] = (acc[e.tipoEvento] || 0) + 1;
       return acc;
     }, {});
@@ -2723,7 +2728,8 @@ export default function App() {
   }, [eventosDelAño]);
 
   const eventosPorMenu = useMemo(() => {
-    const grouped = eventosDelAño.reduce((acc, e) => {
+    const eventosActivos = eventosDelAño.filter(e => e.confirmado && !e.anulado);
+    const grouped = eventosActivos.reduce((acc, e) => {
       const menu = e.menu || 'Sin menú';
       acc[menu] = (acc[menu] || 0) + 1;
       return acc;
@@ -2732,7 +2738,8 @@ export default function App() {
   }, [eventosDelAño]);
 
   const eventosPorSalon = useMemo(() => {
-    const grouped = eventosDelAño.reduce((acc, e) => {
+    const eventosActivos = eventosDelAño.filter(e => e.confirmado && !e.anulado);
+    const grouped = eventosActivos.reduce((acc, e) => {
       const salon = e.salon || 'Tero';
       acc[salon] = (acc[salon] || 0) + 1;
       return acc;
@@ -2742,7 +2749,8 @@ export default function App() {
 
   const comensalesPorMes = useMemo(() => {
     const orden = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-    const grouped = eventosDelAño.reduce((acc, e) => {
+    const eventosActivos = eventosDelAño.filter(e => e.confirmado && !e.anulado);
+    const grouped = eventosActivos.reduce((acc, e) => {
       const adultos = e.adultos || 0;
       const menores = e.menores || 0;
       if (!acc[e.mes]) {
