@@ -189,7 +189,7 @@ const PLATOS_POR_MENU = {
 
 export default function App() {
   // Auth states
-  const [user, setUser] = useState({ email: 'admin@eventos.com', id: 'auto-user' });
+  const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState('admin');
   const [authLoading, setAuthLoading] = useState(true);
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
