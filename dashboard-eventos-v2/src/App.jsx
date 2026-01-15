@@ -6757,13 +6757,12 @@ export default function App() {
             <div className="glass rounded-xl p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-slate-400 mb-2">Dinero por caja (ingresos - egresos - retiros)</p>
+                  <p className="text-xs text-slate-400 mb-2">Dinero por caja (ingresos - egresos)</p>
                   <div className="flex flex-wrap gap-4">
                     {CAJAS.map(caja => {
                       const ingresos = cajaMovimientos.filter(m => m.tipo === 'ingreso' && m.persona === caja).reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
                       const egresos = cajaMovimientos.filter(m => m.tipo === 'egreso' && m.persona === caja).reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
-                      const retiros = cajaMovimientos.filter(m => m.tipo === 'retiro' && m.persona === caja).reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
-                      const saldo = ingresos - egresos - retiros;
+                      const saldo = ingresos - egresos;
                       return (
                         <div key={caja} className="bg-white/5 rounded-lg px-3 py-2 min-w-[100px] text-center">
                           <p className="text-xs text-slate-400">{caja}</p>
@@ -7728,14 +7727,17 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {cajaMovimientos.filter(m => m.tipo === 'retiro').map(item => (
+                      {cajaMovimientos.filter(m => m.tipo === 'retiro').map(item => {
+                        const tc = item.cotizacion || tipoCambio;
+                        const usdEquiv = item.monto_dolares || (item.monto_pesos ? (item.monto_pesos / tc).toFixed(2) : 0);
+                        return (
                         <tr key={item.id} className="border-b border-white/5 hover:bg-white/5">
                           <td className="py-2 px-3 text-slate-400">{item.fecha}</td>
                           <td className="py-2 px-3 font-medium text-yellow-400">{item.persona}</td>
                           <td className="py-2 px-3 text-slate-400">{item.concepto}</td>
                           <td className="py-2 px-3 text-right text-white">${(item.monto_pesos || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</td>
-                          <td className="py-2 px-3 text-right text-blue-400">{item.monto_dolares ? item.monto_dolares.toFixed(2) : '-'}</td>
-                          <td className="py-2 px-3 text-right text-slate-400">{item.cotizacion || '-'}</td>
+                          <td className="py-2 px-3 text-right text-blue-400">{usdEquiv}</td>
+                          <td className="py-2 px-3 text-right text-slate-400">{formatNumberInput(tc)}</td>
                           <td className="py-2 px-3">
                             <button onClick={async () => {
                               const clave = prompt('Ingrese clave para eliminar:');
@@ -7771,7 +7773,8 @@ export default function App() {
                             </button>
                           </td>
                         </tr>
-                      ))}
+                      );
+                      })}
                       {cajaMovimientos.filter(m => m.tipo === 'retiro').length === 0 && (
                         <tr><td colSpan="7" className="py-8 text-center text-slate-500">Sin retiros registrados</td></tr>
                       )}
