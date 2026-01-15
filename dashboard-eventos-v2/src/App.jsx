@@ -5293,10 +5293,10 @@ export default function App() {
                 <div className="flex items-center gap-1">
                   <span className="text-2xl font-bold text-blue-400">$</span>
                   <input
-                    type="number"
-                    value={tipoCambio}
-                    onChange={(e) => setTipoCambio(parseFloat(e.target.value) || 0)}
-                    className="w-24 px-2 py-1 rounded border border-white/10 bg-white/5 text-blue-400 text-2xl font-bold"
+                    type="text"
+                    value={formatNumberInput(tipoCambio)}
+                    onChange={(e) => setTipoCambio(parseFloat(parseNumberInput(e.target.value)) || 0)}
+                    className="w-28 px-2 py-1 rounded border border-white/10 bg-white/5 text-blue-400 text-2xl font-bold"
                   />
                 </div>
               </div>
@@ -6785,10 +6785,10 @@ export default function App() {
                   <div className="flex items-center justify-center gap-1">
                     <span className="text-lg font-bold text-blue-400">$</span>
                     <input
-                      type="number"
-                      value={tipoCambio}
-                      onChange={(e) => setTipoCambio(parseFloat(e.target.value) || 0)}
-                      className="w-20 px-2 py-0.5 rounded border border-white/10 bg-white/5 text-blue-400 text-lg font-bold text-center"
+                      type="text"
+                      value={formatNumberInput(tipoCambio)}
+                      onChange={(e) => setTipoCambio(parseFloat(parseNumberInput(e.target.value)) || 0)}
+                      className="w-24 px-2 py-0.5 rounded border border-white/10 bg-white/5 text-blue-400 text-lg font-bold text-center"
                     />
                   </div>
                 </div>
@@ -6936,9 +6936,9 @@ export default function App() {
                   <div>
                     <label className="text-xs text-slate-400">Monto $</label>
                     <input
-                      type="number"
-                      value={transferenciaForm.monto_pesos}
-                      onChange={(e) => setTransferenciaForm({...transferenciaForm, monto_pesos: e.target.value})}
+                      type="text"
+                      value={formatNumberInput(transferenciaForm.monto_pesos)}
+                      onChange={(e) => setTransferenciaForm({...transferenciaForm, monto_pesos: parseNumberInput(e.target.value)})}
                       placeholder="0"
                       className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
                       required
@@ -7088,9 +7088,9 @@ export default function App() {
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Monto Pesos</label>
                         <input
-                          type="number"
-                          value={cajaIngresoForm.monto_pesos}
-                          onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, monto_pesos: e.target.value})}
+                          type="text"
+                          value={formatNumberInput(cajaIngresoForm.monto_pesos)}
+                          onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, monto_pesos: parseNumberInput(e.target.value)})}
                           className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
                           placeholder="0"
                         />
@@ -7098,9 +7098,9 @@ export default function App() {
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Monto USD</label>
                         <input
-                          type="number"
-                          value={cajaIngresoForm.monto_dolares}
-                          onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, monto_dolares: e.target.value})}
+                          type="text"
+                          value={formatNumberInput(cajaIngresoForm.monto_dolares)}
+                          onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, monto_dolares: parseNumberInput(e.target.value)})}
                           className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
                           placeholder="0"
                         />
@@ -7108,9 +7108,9 @@ export default function App() {
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Tipo Cambio {cajaIngresoForm.monto_dolares ? '*' : ''}</label>
                         <input
-                          type="number"
-                          value={cajaIngresoForm.cotizacion}
-                          onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, cotizacion: e.target.value})}
+                          type="text"
+                          value={formatNumberInput(cajaIngresoForm.cotizacion)}
+                          onChange={(e) => setCajaIngresoForm({...cajaIngresoForm, cotizacion: parseNumberInput(e.target.value)})}
                           className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
                           placeholder={tipoCambio.toString()}
                         />
@@ -7387,9 +7387,9 @@ export default function App() {
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Monto Pesos</label>
                         <input
-                          type="number"
-                          value={cajaEgresoForm.monto_pesos}
-                          onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, monto_pesos: e.target.value})}
+                          type="text"
+                          value={formatNumberInput(cajaEgresoForm.monto_pesos)}
+                          onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, monto_pesos: parseNumberInput(e.target.value)})}
                           className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
                           placeholder="0"
                         />
@@ -7397,9 +7397,9 @@ export default function App() {
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Monto USD</label>
                         <input
-                          type="number"
-                          value={cajaEgresoForm.monto_dolares}
-                          onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, monto_dolares: e.target.value})}
+                          type="text"
+                          value={formatNumberInput(cajaEgresoForm.monto_dolares)}
+                          onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, monto_dolares: parseNumberInput(e.target.value)})}
                           className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
                           placeholder="0"
                         />
@@ -7407,9 +7407,9 @@ export default function App() {
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Tipo Cambio {cajaEgresoForm.monto_dolares ? '*' : ''}</label>
                         <input
-                          type="number"
-                          value={cajaEgresoForm.cotizacion}
-                          onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, cotizacion: e.target.value})}
+                          type="text"
+                          value={formatNumberInput(cajaEgresoForm.cotizacion)}
+                          onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, cotizacion: parseNumberInput(e.target.value)})}
                           className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
                           placeholder={tipoCambio.toString()}
                         />
