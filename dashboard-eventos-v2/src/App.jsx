@@ -6840,7 +6840,7 @@ export default function App() {
 
             {/* Modal Formulario de Transferencia */}
             {showTransferenciaForm && (
-              <div className="fixed inset-0 bg-black/50 flex items-start justify-center pt-20 z-50" onClick={() => { setShowTransferenciaForm(false); setEditingTransferencia(null); setTransferenciaForm({ fecha: new Date().toISOString().split('T')[0], origen: '', destino: '', monto_pesos: '', observacion: '' }); }}>
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => { setShowTransferenciaForm(false); setEditingTransferencia(null); setTransferenciaForm({ fecha: new Date().toISOString().split('T')[0], origen: '', destino: '', monto_pesos: '', observacion: '' }); }}>
                 <form onClick={(e) => e.stopPropagation()} onSubmit={async (e) => {
                   e.preventDefault();
                   if (!transferenciaForm.origen || !transferenciaForm.destino || !transferenciaForm.monto_pesos) {
@@ -7001,7 +7001,7 @@ export default function App() {
 
                 {/* Modal Formulario de Ingreso */}
                 {showCajaIngresoForm && (
-                  <div className="fixed inset-0 bg-black/50 flex items-start justify-center pt-20 z-50" onClick={() => { setShowCajaIngresoForm(false); setEditingCajaIngreso(null); setCajaIngresoForm({ fecha: new Date().toISOString().split('T')[0], origen: '', observacion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' }); }}>
+                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => { setShowCajaIngresoForm(false); setEditingCajaIngreso(null); setCajaIngresoForm({ fecha: new Date().toISOString().split('T')[0], origen: '', observacion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' }); }}>
                     <form onClick={(e) => e.stopPropagation()} onSubmit={async (e) => {
                       e.preventDefault();
                       const pesos = parseFloat(cajaIngresoForm.monto_pesos) || 0;
@@ -7262,7 +7262,7 @@ export default function App() {
 
                 {/* Modal Formulario de Egreso */}
                 {showCajaEgresoForm && (
-                  <div className="fixed inset-0 bg-black/50 flex items-start justify-center pt-20 z-50" onClick={() => { setShowCajaEgresoForm(false); setEditingCajaEgreso(null); setCajaEgresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', aportante: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' }); }}>
+                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => { setShowCajaEgresoForm(false); setEditingCajaEgreso(null); setCajaEgresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', aportante: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' }); }}>
                     <form onClick={(e) => e.stopPropagation()} onSubmit={async (e) => {
                       e.preventDefault();
                       const pesos = parseFloat(cajaEgresoForm.monto_pesos) || 0;
