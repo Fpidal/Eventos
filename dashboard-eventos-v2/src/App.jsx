@@ -211,8 +211,7 @@ export default function App() {
   const [transferenciaForm, setTransferenciaForm] = useState({ fecha: new Date().toISOString().split('T')[0], origen: '', destino: '', monto_pesos: '', observacion: '' });
   const [editingTransferencia, setEditingTransferencia] = useState(null); // { ingresoId, egresoId }
   const CONCEPTOS_INGRESO = ['Evento', 'Vta directa', 'Caja', 'Banco', 'Otros'];
-  const CONCEPTOS_EGRESO = ['R. Socios', 'Pagos extras', 'Aporte', 'Otros'];
-  const RECEPTORES_EGRESO = ['Rodrigo', 'Francisco', 'Piru', 'Caja', 'Otros'];
+  const CONCEPTOS_EGRESO = ['R. Socios', 'Pagos extras', 'Otros'];
   const SOCIOS = ['Rodrigo', 'Piru', 'Francisco'];
   const CAJAS = ['Francisco', 'Rodrigo', 'Alejandro', 'Banco', 'Caja'];
 
@@ -7257,29 +7256,30 @@ export default function App() {
                       const tc = parseFloat(cajaEgresoForm.cotizacion) || tipoCambio;
                       if (pesos === 0 && dolares === 0) { alert('Ingrese un monto'); return; }
                       if (!cajaEgresoForm.concepto) { alert('Seleccione un concepto'); return; }
-                      if (!cajaEgresoForm.receptor) { alert('Seleccione quién recibe'); return; }
+                      if (!cajaEgresoForm.aportante) { alert('Seleccione de qué caja sale'); return; }
+                      // Solo validar receptor para R. Socios
+                      if (cajaEgresoForm.concepto === 'R. Socios' && !cajaEgresoForm.receptor) {
+                        alert('Seleccione qué socio retira'); return;
+                      }
 
                       // Si es retiro de socio (concepto R. Socios y receptor es socio)
                       const esRetiro = cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor);
-                      const esAporte = cajaEgresoForm.concepto === 'Aporte' && cajaEgresoForm.aportante;
                       const totalPesos = pesos + (dolares * tc);
 
                       if (esRetiro) {
                         // Retiro de socio:
                         // 1. Egreso del aportante (baja su caja)
                         // 2. Retiro para el socio (registro de retiro)
-                        if (cajaEgresoForm.aportante) {
-                          await supabase.from('caja_movimientos').insert({
-                            tipo: 'egreso',
-                            concepto: `R. Socios a ${cajaEgresoForm.receptor}${cajaEgresoForm.observacion ? ' | ' + cajaEgresoForm.observacion : ''}`,
-                            monto_pesos: totalPesos,
-                            monto_dolares: dolares || null,
-                            cotizacion: dolares ? tc : null,
-                            persona: cajaEgresoForm.aportante,
-                            aportante: cajaEgresoForm.aportante,
-                            fecha: cajaEgresoForm.fecha
-                          });
-                        }
+                        await supabase.from('caja_movimientos').insert({
+                          tipo: 'egreso',
+                          concepto: `R. Socios a ${cajaEgresoForm.receptor}${cajaEgresoForm.observacion ? ' | ' + cajaEgresoForm.observacion : ''}`,
+                          monto_pesos: totalPesos,
+                          monto_dolares: dolares || null,
+                          cotizacion: dolares ? tc : null,
+                          persona: cajaEgresoForm.aportante,
+                          aportante: cajaEgresoForm.aportante,
+                          fecha: cajaEgresoForm.fecha
+                        });
                         // Registro de retiro para el socio
                         await supabase.from('caja_movimientos').insert({
                           tipo: 'retiro',
@@ -7288,43 +7288,20 @@ export default function App() {
                           monto_dolares: dolares || null,
                           cotizacion: dolares ? tc : null,
                           persona: cajaEgresoForm.receptor,
-                          aportante: cajaEgresoForm.aportante || null,
-                          fecha: cajaEgresoForm.fecha
-                        });
-                      } else if (esAporte) {
-                        // Aporte: el aportante da dinero (egreso) y el receptor lo recibe (ingreso)
-                        // Egreso del aportante
-                        await supabase.from('caja_movimientos').insert({
-                          tipo: 'egreso',
-                          concepto: `Aporte a ${cajaEgresoForm.receptor}${cajaEgresoForm.observacion ? ' | ' + cajaEgresoForm.observacion : ''}`,
-                          monto_pesos: totalPesos,
-                          monto_dolares: dolares || null,
-                          cotizacion: dolares ? tc : null,
-                          persona: cajaEgresoForm.aportante,
-                          aportante: cajaEgresoForm.aportante,
-                          fecha: cajaEgresoForm.fecha
-                        });
-                        // Ingreso al receptor
-                        await supabase.from('caja_movimientos').insert({
-                          tipo: 'ingreso',
-                          concepto: `Aporte de ${cajaEgresoForm.aportante}${cajaEgresoForm.observacion ? ' | ' + cajaEgresoForm.observacion : ''}`,
-                          monto_pesos: totalPesos,
-                          monto_dolares: dolares || null,
-                          cotizacion: dolares ? tc : null,
-                          persona: cajaEgresoForm.receptor,
                           aportante: cajaEgresoForm.aportante,
                           fecha: cajaEgresoForm.fecha
                         });
                       } else {
-                        // Egreso normal
+                        // Egreso normal (Pagos extras, Otros, etc.)
+                        // persona = aportante (de qué caja sale el dinero)
                         const data = {
                           tipo: 'egreso',
                           concepto: cajaEgresoForm.observacion || cajaEgresoForm.concepto,
                           monto_pesos: totalPesos,
                           monto_dolares: dolares || null,
                           cotizacion: dolares ? tc : null,
-                          persona: cajaEgresoForm.receptor,
-                          aportante: cajaEgresoForm.aportante || null,
+                          persona: cajaEgresoForm.aportante,
+                          aportante: cajaEgresoForm.aportante,
                           fecha: cajaEgresoForm.fecha
                         };
 
@@ -7354,11 +7331,12 @@ export default function App() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1">Aportado por</label>
+                        <label className="block text-xs text-slate-400 mb-1">Sale de caja de *</label>
                         <select
                           value={cajaEgresoForm.aportante}
                           onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, aportante: e.target.value})}
                           className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                          required
                         >
                           <option value="">Seleccionar...</option>
                           {CAJAS.map(c => <option key={c} value={c}>{c}</option>)}
@@ -7375,20 +7353,20 @@ export default function App() {
                           {CONCEPTOS_EGRESO.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                       </div>
-                      <div>
-                        <label className="block text-xs text-slate-400 mb-1">Recibido por *</label>
-                        <select
-                          value={cajaEgresoForm.receptor}
-                          onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, receptor: e.target.value})}
-                          className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
-                        >
-                          <option value="">Seleccionar...</option>
-                          {RECEPTORES_EGRESO.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                        {cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) && (
-                          <p className="text-xs text-yellow-400 mt-1">→ Solo Retiros (no afecta caja)</p>
-                        )}
-                      </div>
+                      {/* Solo mostrar Recibido por para R. Socios */}
+                      {cajaEgresoForm.concepto === 'R. Socios' && (
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">Retira Socio *</label>
+                          <select
+                            value={cajaEgresoForm.receptor}
+                            onChange={(e) => setCajaEgresoForm({...cajaEgresoForm, receptor: e.target.value})}
+                            className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm"
+                          >
+                            <option value="">Seleccionar...</option>
+                            {SOCIOS.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </div>
+                      )}
                     </div>
                     <div className="grid grid-cols-3 gap-3">
                       <div>
@@ -7455,9 +7433,8 @@ export default function App() {
                     <thead>
                       <tr className="border-b border-white/10 text-slate-400 text-xs">
                         <th className="text-left py-2 px-3">Fecha</th>
-                        <th className="text-left py-2 px-3">Aportado por</th>
+                        <th className="text-left py-2 px-3">Sale de caja</th>
                         <th className="text-left py-2 px-3">Concepto</th>
-                        <th className="text-left py-2 px-3">Recibido por</th>
                         <th className="text-right py-2 px-3">Pesos</th>
                         <th className="text-right py-2 px-3">USD</th>
                         <th className="w-20"></th>
@@ -7467,23 +7444,25 @@ export default function App() {
                       {cajaMovimientos.filter(m => m.tipo === 'egreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).map(item => (
                         <tr key={item.id} className="border-b border-white/5 hover:bg-white/5">
                           <td className="py-2 px-3 text-slate-400">{item.fecha}</td>
-                          <td className="py-2 px-3 text-slate-400">{item.aportante || '-'}</td>
+                          <td className="py-2 px-3 text-slate-400">{item.persona || item.aportante || '-'}</td>
                           <td className="py-2 px-3 font-medium">{item.concepto}</td>
-                          <td className="py-2 px-3 text-slate-400">{item.persona || '-'}</td>
                           <td className="py-2 px-3 text-right text-red-400">${(item.monto_pesos || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</td>
                           <td className="py-2 px-3 text-right text-blue-400">{item.monto_dolares ? item.monto_dolares.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '-'}</td>
                           <td className="py-2 px-3 flex gap-1">
                             <button onClick={() => {
+                              // Detectar si es R. Socios para cargar el receptor
+                              const esRetiroSocios = item.concepto && item.concepto.startsWith('R. Socios a ');
+                              const receptor = esRetiroSocios ? item.concepto.replace('R. Socios a ', '').split(' | ')[0] : '';
                               setEditingCajaEgreso(item.id);
                               setCajaEgresoForm({
                                 fecha: item.fecha,
-                                concepto: CONCEPTOS_EGRESO.includes(item.concepto) ? item.concepto : 'Otros',
-                                receptor: item.persona,
-                                aportante: item.aportante || '',
+                                concepto: esRetiroSocios ? 'R. Socios' : (CONCEPTOS_EGRESO.includes(item.concepto) ? item.concepto : 'Otros'),
+                                receptor: receptor,
+                                aportante: item.persona || item.aportante || '',
                                 monto_pesos: item.monto_dolares ? '' : (item.monto_pesos || '').toString(),
                                 monto_dolares: (item.monto_dolares || '').toString(),
                                 cotizacion: (item.cotizacion || '').toString(),
-                                observacion: CONCEPTOS_EGRESO.includes(item.concepto) ? '' : item.concepto
+                                observacion: esRetiroSocios ? '' : (CONCEPTOS_EGRESO.includes(item.concepto) ? '' : item.concepto)
                               });
                               setShowCajaEgresoForm(true);
                             }} className="p-1 text-blue-400 hover:text-blue-300">
