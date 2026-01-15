@@ -211,7 +211,7 @@ export default function App() {
   const [transferenciaForm, setTransferenciaForm] = useState({ fecha: new Date().toISOString().split('T')[0], origen: '', destino: '', monto_pesos: '', observacion: '' });
   const [editingTransferencia, setEditingTransferencia] = useState(null); // { ingresoId, egresoId }
   const CONCEPTOS_INGRESO = ['Evento', 'Vta directa', 'Caja', 'Banco', 'Otros'];
-  const CONCEPTOS_EGRESO = ['R. Socios', 'Pagos extras', 'Otros'];
+  const CONCEPTOS_EGRESO = ['R. Socios', 'Pagos extras', 'Tero', 'Otros'];
   const SOCIOS = ['Rodrigo', 'Piru', 'Francisco'];
   const CAJAS = ['Francisco', 'Rodrigo', 'Alejandro', 'Banco', 'Caja'];
 
