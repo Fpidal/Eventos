@@ -395,8 +395,27 @@ export default function App() {
     }
   };
 
-  // Auth: mostrar login directamente
+  // Auth: verificar sesión guardada en localStorage
   useEffect(() => {
+    const savedSession = localStorage.getItem('session');
+    if (savedSession) {
+      try {
+        const session = JSON.parse(savedSession);
+        const elapsed = Date.now() - session.timestamp;
+        // Si no pasaron más de 30 minutos, restaurar sesión
+        if (elapsed < SESSION_TIMEOUT) {
+          setUser(session.user);
+          setUserRole(session.role);
+          // Actualizar timestamp para extender la sesión
+          localStorage.setItem('session', JSON.stringify({ ...session, timestamp: Date.now() }));
+        } else {
+          // Sesión expirada, limpiar
+          localStorage.removeItem('session');
+        }
+      } catch (e) {
+        localStorage.removeItem('session');
+      }
+    }
     setAuthLoading(false);
   }, []);
 
@@ -425,10 +444,12 @@ export default function App() {
 
     // Login con clave única
     if (loginForm.password === 'admin1234') {
-      setUser({ email: loginForm.email || 'usuario@eventos.com', id: 'temp-user' });
+      const userData = { email: loginForm.email || 'usuario@eventos.com', id: 'temp-user' };
+      setUser(userData);
       setUserRole('admin');
+      // Guardar sesión en localStorage para persistencia
+      localStorage.setItem('session', JSON.stringify({ user: userData, role: 'admin', timestamp: Date.now() }));
       setLoginLoading(false);
-      // Iniciar timer de 10 minutos
       startSessionTimer();
       return;
     }
@@ -446,6 +467,8 @@ export default function App() {
     }
     await supabase.auth.signOut();
     setUser(null);
+    // Limpiar sesión guardada en localStorage
+    localStorage.removeItem('session');
     // Limpiar formulario para que pida clave de nuevo
     setLoginForm({ email: '', password: '' });
   };
