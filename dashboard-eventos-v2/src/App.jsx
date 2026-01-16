@@ -7268,12 +7268,13 @@ export default function App() {
             <div className="glass rounded-xl p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-slate-400 mb-2">Dinero por caja (ingresos - egresos)</p>
+                  <p className="text-xs text-slate-400 mb-2">Dinero por caja (ingresos - egresos - retiros)</p>
                   <div className="flex flex-wrap gap-4">
                     {CAJAS.map(caja => {
                       const ingresos = cajaMovimientos.filter(m => m.tipo === 'ingreso' && m.persona === caja).reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
                       const egresos = cajaMovimientos.filter(m => m.tipo === 'egreso' && m.persona === caja).reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
-                      const saldo = ingresos - egresos;
+                      const retiros = cajaMovimientos.filter(m => m.tipo === 'retiro' && m.persona === caja).reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
+                      const saldo = ingresos - egresos - retiros;
                       return (
                         <div key={caja} className="bg-white/5 rounded-lg px-3 py-2 min-w-[100px] text-center">
                           <p className="text-xs text-slate-400">{caja}</p>
