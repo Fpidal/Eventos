@@ -11,6 +11,7 @@ El sistema incluye los siguientes modulos:
 - Graficos de ventas por vendedor
 - Comensales por mes
 - Eventos por tipo/menu/salon
+- **Diseño responsive** para mobile y desktop
 
 ### 2. Gestion de Eventos
 - CRUD completo de eventos
@@ -23,6 +24,7 @@ El sistema incluye los siguientes modulos:
 - Generacion profesional con logo
 - Colores verde oliva corporativos
 - Desglose de menu por categorias
+- Indicadores especiales: "(2 a eleccion)" para Cazuelas, "(una opcion)" para Fin de Fiesta
 - Formas de pago y politicas de cancelacion
 - Subtotal, IVA 21% y Total
 
@@ -38,10 +40,14 @@ El sistema incluye los siguientes modulos:
 - Proteccion con clave
 
 ### 6. Menus
-- **Plantillas de Menu**: Tapeo, Asado, 3 Pasos, etc.
-- **Catalogo de Platos**: Base de datos de platos y bebidas
-- Categorias personalizables
+- **Plantillas de Menu**: Tapeo, Asado, 3 Pasos, Premium, Brunch
+- **Catalogo de Platos**: Base de datos dinamica de platos y bebidas
+- Categorias: Tapas, Platos, Islas, Bebidas
+- Subcategorias para Tapas: Tapeo Frio, Tapeo Caliente, Cazuelas, Mesa de Dulces, Fin de Fiesta
+- Filtros por categoria y subcategoria
+- Las plantillas de menu toman items del catalogo
 - Extras opcionales
+- Edicion de nombre en menus existentes
 
 ### 7. Agenda de Contactos
 - Base de datos de clientes con UUID unico
@@ -78,12 +84,12 @@ El sistema incluye los siguientes modulos:
 ```
 dashboard-eventos-v2/
 ├── src/
-│   ├── App.jsx          # Componente principal (~7000 lineas)
+│   ├── App.jsx          # Componente principal
 │   ├── supabase.js      # Configuracion Supabase
-│   ├── index.css        # Estilos Tailwind
+│   ├── index.css        # Estilos Tailwind + custom
 │   └── main.jsx         # Entry point
 ├── public/
-│   └── logo.png         # Logo Tero Resto
+│   └── logo-tero.jpg    # Logo Tero Resto
 ├── dist/                # Build de produccion
 ├── SCHEMA.sql           # Estructura de BD
 ├── PROJECT_SPEC.md      # Especificaciones
@@ -97,9 +103,9 @@ dashboard-eventos-v2/
 ## Base de Datos (Supabase)
 
 ### Tablas principales:
-- `eventos` - Eventos con fechas, clientes, precios
+- `eventos` - Eventos con fechas, clientes, precios, menu_detalle
 - `pagos` - Pagos y senas de eventos
-- `menus` - Plantillas de menu
+- `menus` - Plantillas de menu con categorias e items
 - `clientes` - Agenda de contactos con UUID
 - `usuarios` - Usuarios del sistema
 - `caja_movimientos` - Movimientos de caja

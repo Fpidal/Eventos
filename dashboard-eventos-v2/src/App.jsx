@@ -86,7 +86,15 @@ const PLATOS_POR_MENU = {
       'Mini Hamburguesas',
       'Finger De Ave Apanado & Barbacoa'
     ],
-    'Cazuelas': [],
+    'Cazuelas': [
+      'Cazuela De Langostinos Al Ajillo',
+      'Cazuela De Mariscos',
+      'Cazuela De Gambas Al Pil Pil',
+      'Cazuela De Champignones Al Verdeo',
+      'Cazuela De Provolone Fundido',
+      'Cazuela De Chorizo A La Pomarola',
+      'Revuelto Gramajo'
+    ],
     'Mesa de Dulces': [
       'Mini Lemon Pie',
       'Mini Brownie, Dulce De Leche & Almendras',
@@ -97,8 +105,18 @@ const PLATOS_POR_MENU = {
       'Shot Bavarois De Frutilla',
       'Espuma De Durazno Con Salsa De Maracuya'
     ],
-    'Fin de Fiesta': [],
-    'Bebidas': []
+    'Fin de Fiesta': [
+      'Lomitos',
+      'Pizzas'
+    ],
+    'Bebidas': [
+      'Vino',
+      'Bebidas Sin Alcohol',
+      'Barra De Trago Tradicional',
+      'Barra De Tragos Y Coctelería',
+      'Brindis Con Champagne',
+      'Champagne'
+    ]
   },
   'Menu Asado': {
     'Entradas': [
@@ -300,6 +318,7 @@ export default function App() {
   const [editingCatalogoItem, setEditingCatalogoItem] = useState(null);
   const [catalogoForm, setCatalogoForm] = useState({ nombre: '', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' });
   const [catalogoFiltro, setCatalogoFiltro] = useState('todos');
+  const [catalogoSubfiltro, setCatalogoSubfiltro] = useState('todos');
   const [catalogoBusqueda, setCatalogoBusqueda] = useState('');
   const CATEGORIAS_CATALOGO = ['Platos', 'Tapas', 'Islas', 'Bebidas'];
   const SUBCATEGORIAS_CATALOGO = {
@@ -450,11 +469,8 @@ export default function App() {
   // Cargar catálogo desde localStorage o datos iniciales
   useEffect(() => {
     const saved = localStorage.getItem('catalogoItems');
-    if (saved) {
-      setCatalogoItems(JSON.parse(saved));
-    } else {
-      // Datos iniciales del catálogo
-      const catalogoInicial = [
+    // Datos iniciales del catálogo
+    const catalogoInicial = [
         // TAPAS - Tapeo Frío
         { id: 1, nombre: 'Montadito De Salmon Ahumado', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Frío' },
         { id: 2, nombre: 'Langostino & Mousse De Palta', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Frío' },
@@ -477,6 +493,14 @@ export default function App() {
         { id: 18, nombre: 'Bastones Mozzarella Apanado', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Caliente' },
         { id: 19, nombre: 'Mini Hamburguesas', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Caliente' },
         { id: 20, nombre: 'Finger De Ave Apanado & Barbacoa', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Caliente' },
+        // TAPAS - Cazuelas
+        { id: 100, nombre: 'Cazuela De Langostinos Al Ajillo', descripcion: '', categoria: 'Tapas', subcategoria: 'Cazuelas' },
+        { id: 101, nombre: 'Cazuela De Mariscos', descripcion: '', categoria: 'Tapas', subcategoria: 'Cazuelas' },
+        { id: 102, nombre: 'Cazuela De Gambas Al Pil Pil', descripcion: '', categoria: 'Tapas', subcategoria: 'Cazuelas' },
+        { id: 103, nombre: 'Cazuela De Champignones Al Verdeo', descripcion: '', categoria: 'Tapas', subcategoria: 'Cazuelas' },
+        { id: 104, nombre: 'Cazuela De Provolone Fundido', descripcion: '', categoria: 'Tapas', subcategoria: 'Cazuelas' },
+        { id: 105, nombre: 'Cazuela De Chorizo A La Pomarola', descripcion: '', categoria: 'Tapas', subcategoria: 'Cazuelas' },
+        { id: 106, nombre: 'Revuelto Gramajo', descripcion: '', categoria: 'Tapas', subcategoria: 'Cazuelas' },
         // TAPAS - Mesa de Dulces
         { id: 21, nombre: 'Mini Lemon Pie', descripcion: '', categoria: 'Tapas', subcategoria: 'Mesa de Dulces' },
         { id: 22, nombre: 'Mini Brownie, Dulce De Leche & Almendras', descripcion: '', categoria: 'Tapas', subcategoria: 'Mesa de Dulces' },
@@ -486,6 +510,16 @@ export default function App() {
         { id: 26, nombre: 'Shot Mousse De Chocolate', descripcion: '', categoria: 'Tapas', subcategoria: 'Mesa de Dulces' },
         { id: 27, nombre: 'Shot Bavarois De Frutilla', descripcion: '', categoria: 'Tapas', subcategoria: 'Mesa de Dulces' },
         { id: 28, nombre: 'Espuma De Durazno Con Salsa De Maracuya', descripcion: '', categoria: 'Tapas', subcategoria: 'Mesa de Dulces' },
+        // TAPAS - Fin de Fiesta
+        { id: 110, nombre: 'Lomitos', descripcion: '', categoria: 'Tapas', subcategoria: 'Fin de Fiesta' },
+        { id: 111, nombre: 'Pizzas', descripcion: '', categoria: 'Tapas', subcategoria: 'Fin de Fiesta' },
+        // BEBIDAS
+        { id: 200, nombre: 'Vino', descripcion: '', categoria: 'Bebidas', subcategoria: 'Vinos' },
+        { id: 201, nombre: 'Bebidas Sin Alcohol', descripcion: '', categoria: 'Bebidas', subcategoria: 'Sin Alcohol' },
+        { id: 202, nombre: 'Barra De Trago Tradicional', descripcion: '', categoria: 'Bebidas', subcategoria: 'Tragos' },
+        { id: 203, nombre: 'Barra De Tragos Y Coctelería', descripcion: '', categoria: 'Bebidas', subcategoria: 'Tragos' },
+        { id: 204, nombre: 'Brindis Con Champagne', descripcion: '', categoria: 'Bebidas', subcategoria: 'Espumantes' },
+        { id: 205, nombre: 'Champagne', descripcion: '', categoria: 'Bebidas', subcategoria: 'Espumantes' },
         // PLATOS - Entradas (Asado)
         { id: 29, nombre: 'Chorizo Criollo', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' },
         { id: 30, nombre: 'Morcilla', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' },
@@ -539,6 +573,21 @@ export default function App() {
         { id: 76, nombre: 'Helado con Frutos Rojos', descripcion: '', categoria: 'Platos', subcategoria: 'Postres' },
         { id: 77, nombre: 'Volcán de Dulce de Leche', descripcion: '', categoria: 'Platos', subcategoria: 'Postres' },
       ];
+
+    if (saved) {
+      // Cargar items guardados y agregar los que falten del catálogo inicial
+      const savedItems = JSON.parse(saved);
+      const savedNames = savedItems.map(item => item.nombre.toLowerCase());
+      const itemsFaltantes = catalogoInicial.filter(item => !savedNames.includes(item.nombre.toLowerCase()));
+
+      if (itemsFaltantes.length > 0) {
+        const merged = [...savedItems, ...itemsFaltantes];
+        setCatalogoItems(merged);
+        localStorage.setItem('catalogoItems', JSON.stringify(merged));
+      } else {
+        setCatalogoItems(savedItems);
+      }
+    } else {
       setCatalogoItems(catalogoInicial);
       localStorage.setItem('catalogoItems', JSON.stringify(catalogoInicial));
     }
@@ -795,11 +844,14 @@ export default function App() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!error && data) {
+      if (error) {
+        console.error('Error fetching auditoria_caja:', error);
+      } else if (data) {
+        console.log('Auditoria caja cargada:', data.length, 'registros', data);
         setAuditoriaCaja(data);
       }
     } catch (e) {
-      // Tabla no existe todavía
+      console.error('Error en fetchAuditoriaCaja:', e);
     }
   };
 
@@ -2139,12 +2191,20 @@ export default function App() {
         return texto;
       };
 
+      // Función para obtener sufijo de categoría
+      const getSufijoCat = (nombreCat) => {
+        if (nombreCat === 'Cazuelas') return ' (2 a elección)';
+        if (nombreCat === 'Fin de Fiesta') return ' (una opción)';
+        return '';
+      };
+
       // Dibujar columna izquierda
       categoriasIzq.forEach(categoria => {
         doc.setFontSize(10);
         doc.setTextColor(...VERDE_TERO);
         doc.setFont('helvetica', 'bold');
-        doc.text(categoria.nombre, menuColLeft, yLeft);
+        const sufijo = getSufijoCat(categoria.nombre);
+        doc.text(categoria.nombre + sufijo, menuColLeft, yLeft);
         yLeft += 5;
 
         doc.setFontSize(9);
@@ -2164,7 +2224,8 @@ export default function App() {
         doc.setFontSize(10);
         doc.setTextColor(...VERDE_TERO);
         doc.setFont('helvetica', 'bold');
-        doc.text(categoria.nombre, menuColRight, yRight);
+        const sufijo = getSufijoCat(categoria.nombre);
+        doc.text(categoria.nombre + sufijo, menuColRight, yRight);
         yRight += 5;
 
         doc.setFontSize(9);
@@ -4161,27 +4222,27 @@ export default function App() {
 
       {/* Header */}
       <header className="glass border-b border-white/10 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center glow">
-                <Calendar className="w-6 h-6" />
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center glow flex-shrink-0">
+                <Calendar className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+              <div className="hidden sm:block">
+                <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
                   Gestión de Eventos
                 </h1>
-                <p className="text-sm text-slate-400">Panel de Control</p>
+                <p className="text-xs sm:text-sm text-slate-400">Panel de Control</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-3">
               {/* Selector de Año */}
-              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
-                <Calendar className="w-4 h-4 text-slate-400" />
+              <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-white/5 border border-white/10">
+                <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 hidden sm:block" />
                 <select
                   value={filterYear}
                   onChange={(e) => setFilterYear(Number(e.target.value))}
-                  className="bg-transparent text-white font-medium focus:outline-none cursor-pointer"
+                  className="bg-transparent text-white text-sm sm:text-base font-medium focus:outline-none cursor-pointer"
                 >
                   {yearsDisponibles.map(year => (
                     <option key={year} value={year} className="bg-slate-900">{year}</option>
@@ -4191,14 +4252,14 @@ export default function App() {
               {canCreate && (
                 <button
                   onClick={() => setShowModal(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium hover:from-purple-700 hover:to-indigo-700 transition-all"
+                  className="flex items-center gap-1 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium hover:from-purple-700 hover:to-indigo-700 transition-all"
                 >
-                  <Plus className="w-5 h-5" />
+                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                   <span className="hidden sm:inline">Nuevo Evento</span>
                 </button>
               )}
-              <div className="flex items-center gap-2">
-                <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className={`hidden sm:inline px-2 py-1 rounded-lg text-xs font-medium ${
                   userRole === 'admin' ? 'bg-purple-500/20 text-purple-300' :
                   userRole === 'vendedor' ? 'bg-blue-500/20 text-blue-300' :
                   'bg-slate-500/20 text-slate-300'
@@ -4207,10 +4268,10 @@ export default function App() {
                 </span>
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 transition-all"
+                  className="flex items-center gap-2 px-2 sm:px-3 py-2 sm:py-2.5 rounded-lg sm:rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 transition-all"
                   title={user?.email}
                 >
-                  <LogOut className="w-5 h-5" />
+                  <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
             </div>
@@ -4219,21 +4280,21 @@ export default function App() {
       </header>
 
       {/* Navigation */}
-      <nav className="max-w-7xl mx-auto px-6 py-4">
-        <div className="flex gap-1 p-1 glass rounded-2xl overflow-x-auto">
+      <nav className="max-w-7xl mx-auto px-2 sm:px-6 py-2 sm:py-4">
+        <div className="flex gap-0.5 sm:gap-1 p-0.5 sm:p-1 glass rounded-xl sm:rounded-2xl overflow-x-auto scrollbar-hide">
           {[
-            { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-            { id: 'proximos', label: 'Próximos', icon: Clock },
-            { id: 'aconfirmar', label: 'A Confirmar', icon: AlertCircle },
-            { id: 'realizados', label: 'Realizados', icon: CheckCircle },
-            { id: 'calendario', label: 'Calendario', icon: Calendar },
-            { id: 'eventos', label: 'Eventos', icon: Briefcase },
-            { id: 'cobranzas', label: 'Cobranzas', icon: Wallet },
-            { id: 'menus', label: 'Menús', icon: UtensilsCrossed },
-            { id: 'informes', label: 'Informes', icon: ClipboardList },
-            { id: 'agenda', label: 'Agenda', icon: Contact },
-            ...(userRole === 'admin' ? [{ id: 'usuarios', label: 'Usuarios', icon: Users }] : []),
-            { id: 'caja', label: 'Caja', icon: Banknote },
+            { id: 'dashboard', label: 'Dashboard', shortLabel: 'Dash', icon: BarChart3 },
+            { id: 'proximos', label: 'Próximos', shortLabel: 'Próx', icon: Clock },
+            { id: 'aconfirmar', label: 'A Confirmar', shortLabel: 'Conf', icon: AlertCircle },
+            { id: 'realizados', label: 'Realizados', shortLabel: 'Real', icon: CheckCircle },
+            { id: 'calendario', label: 'Calendario', shortLabel: 'Cal', icon: Calendar },
+            { id: 'eventos', label: 'Eventos', shortLabel: 'Ev', icon: Briefcase },
+            { id: 'cobranzas', label: 'Cobranzas', shortLabel: 'Cobr', icon: Wallet },
+            { id: 'menus', label: 'Menús', shortLabel: 'Menú', icon: UtensilsCrossed },
+            { id: 'informes', label: 'Informes', shortLabel: 'Inf', icon: ClipboardList },
+            { id: 'agenda', label: 'Agenda', shortLabel: 'Ag', icon: Contact },
+            ...(userRole === 'admin' ? [{ id: 'usuarios', label: 'Usuarios', shortLabel: 'Usr', icon: Users }] : []),
+            { id: 'caja', label: 'Caja', shortLabel: 'Caja', icon: Banknote },
           ].map(tab => (
             <button
               key={tab.id}
@@ -4258,38 +4319,39 @@ export default function App() {
                   setActiveTab(tab.id);
                 }
               }}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all text-xs font-medium whitespace-nowrap ${
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-all text-[10px] sm:text-xs font-medium whitespace-nowrap ${
                 activeTab === tab.id ? 'tab-active text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             >
-              <tab.icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
+              <tab.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="sm:hidden">{tab.shortLabel || tab.label}</span>
+              <span className="hidden sm:inline">{tab.label}</span>
             </button>
           ))}
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-6 pb-12">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 pb-8 sm:pb-12">
         {/* Dashboard */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="space-y-4 sm:space-y-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
               {[
                 { label: 'Total Eventos', value: stats.totalEventos, icon: Calendar, color: 'from-indigo-500 to-blue-600' },
                 { label: 'Facturación Total', value: stats.totalFacturado, icon: DollarSign, color: 'from-emerald-500 to-teal-600', format: true },
                 { label: 'Total Invitados', value: stats.totalAdultos, icon: Users, color: 'from-amber-500 to-orange-600' },
                 { label: 'Promedio x Evento', value: stats.totalEventos > 0 ? stats.totalFacturado / stats.totalEventos : 0, icon: TrendingUp, color: 'from-rose-500 to-pink-600', format: true },
               ].map((stat, i) => (
-                <div key={i} className="stat-card glass rounded-2xl p-5 glow">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-slate-400 text-xs sm:text-sm mb-1">{stat.label}</p>
-                      <p className="text-lg sm:text-2xl font-bold">
+                <div key={i} className="stat-card glass rounded-xl sm:rounded-2xl p-3 sm:p-5 glow">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-slate-400 text-[10px] sm:text-xs lg:text-sm mb-0.5 sm:mb-1 truncate">{stat.label}</p>
+                      <p className="text-sm sm:text-lg lg:text-2xl font-bold truncate">
                         {stat.format ? formatCurrency(stat.value) : stat.value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
                       </p>
                     </div>
-                    <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center`}>
-                      <stat.icon className="w-5 h-5" />
+                    <div className={`w-8 h-8 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-lg sm:rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center flex-shrink-0`}>
+                      <stat.icon className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                   </div>
                 </div>
@@ -4316,49 +4378,50 @@ export default function App() {
                 .sort((a, b) => a.fecha.localeCompare(b.fecha));
 
               return (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                   {/* Próximos 15 días */}
-                  <div className="glass rounded-2xl p-5 glow">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <Clock className="w-5 h-5 text-purple-400" />
-                      Próximos 15 días
-                      <span className="ml-auto text-sm font-normal text-slate-400">{eventosProximos15.length} eventos</span>
+                  <div className="glass rounded-xl sm:rounded-2xl p-3 sm:p-5 glow">
+                    <h3 className="text-sm sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center gap-2">
+                      <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
+                      <span className="hidden sm:inline">Próximos 15 días</span>
+                      <span className="sm:hidden">Próximos</span>
+                      <span className="ml-auto text-xs sm:text-sm font-normal text-slate-400">{eventosProximos15.length}</span>
                     </h3>
                     {eventosProximos15.length === 0 ? (
-                      <p className="text-slate-500 text-center py-4">No hay eventos en los próximos 15 días</p>
+                      <p className="text-slate-500 text-center py-4 text-sm">No hay eventos próximos</p>
                     ) : (
-                      <div className="space-y-3 max-h-[300px] overflow-y-auto scrollbar-thin">
+                      <div className="space-y-2 sm:space-y-3 max-h-[250px] sm:max-h-[300px] overflow-y-auto scrollbar-thin">
                         {eventosProximos15.map(evento => {
                           const clima = climaData[evento.fecha];
                           const climaInfo = clima ? getClimaInfo(clima.codigo) : null;
                           return (
                             <div
                               key={evento.id}
-                              className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all border border-white/5"
+                              className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/5 hover:bg-white/10 transition-all border border-white/5"
                             >
-                              <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-600 to-indigo-600 flex flex-col items-center justify-center flex-shrink-0 cursor-pointer" onClick={() => setSelectedEvento(evento)}>
-                                  <span className="text-lg font-bold">{new Date(evento.fecha + 'T12:00:00').getDate()}</span>
-                                  <span className="text-[10px] uppercase">{new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
+                              <div className="flex items-center gap-2 sm:gap-3">
+                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br from-purple-600 to-indigo-600 flex flex-col items-center justify-center flex-shrink-0 cursor-pointer" onClick={() => setSelectedEvento(evento)}>
+                                  <span className="text-sm sm:text-lg font-bold">{new Date(evento.fecha + 'T12:00:00').getDate()}</span>
+                                  <span className="text-[8px] sm:text-[10px] uppercase">{new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
                                 </div>
                                 <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedEvento(evento)}>
-                                  <p className="font-medium truncate">{evento.cliente}</p>
-                                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                                  <p className="text-sm sm:text-base font-medium truncate">{evento.cliente}</p>
+                                  <div className="flex items-center gap-1 sm:gap-2 text-[10px] sm:text-xs text-slate-400 flex-wrap">
                                     <span>{evento.tipo_evento}</span>
-                                    <span>•</span>
+                                    <span className="hidden sm:inline">•</span>
                                     <span>{evento.adultos} pers.</span>
                                     {clima && <span title={climaInfo?.desc}>{climaInfo?.icono} {clima.tempMax}°</span>}
                                   </div>
                                 </div>
-                                <div className="flex gap-1 flex-shrink-0">
-                                  <button onClick={(e) => { e.stopPropagation(); abrirDetalle(evento); }} className="p-1.5 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30" title="Detalle">
-                                    <Monitor className="w-3.5 h-3.5" />
+                                <div className="flex gap-0.5 sm:gap-1 flex-shrink-0">
+                                  <button onClick={(e) => { e.stopPropagation(); abrirDetalle(evento); }} className="p-1.5 sm:p-2 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30" title="Detalle">
+                                    <Monitor className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                                   </button>
-                                  <button onClick={(e) => { e.stopPropagation(); generarCotizacion(evento); }} className="p-1.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30" title="Cotización">
-                                    <FileText className="w-3.5 h-3.5" />
+                                  <button onClick={(e) => { e.stopPropagation(); generarCotizacion(evento); }} className="p-1.5 sm:p-2 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 hidden sm:block" title="Cotización">
+                                    <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                                   </button>
-                                  <button onClick={(e) => { e.stopPropagation(); generarPDF(evento); }} className="p-1.5 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30" title="Resumen">
-                                    <FileText className="w-3.5 h-3.5" />
+                                  <button onClick={(e) => { e.stopPropagation(); generarPDF(evento); }} className="p-1.5 sm:p-2 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30" title="Resumen">
+                                    <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                                   </button>
                                 </div>
                               </div>
@@ -4370,16 +4433,17 @@ export default function App() {
                   </div>
 
                   {/* Pendientes por confirmar */}
-                  <div className="glass rounded-2xl p-5 glow">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <AlertCircle className="w-5 h-5 text-amber-400" />
-                      Pendientes por Confirmar
-                      <span className="ml-auto text-sm font-normal text-amber-400">{eventosPendientes.length} eventos</span>
+                  <div className="glass rounded-xl sm:rounded-2xl p-3 sm:p-5 glow">
+                    <h3 className="text-sm sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
+                      <span className="hidden sm:inline">Pendientes por Confirmar</span>
+                      <span className="sm:hidden">Pendientes</span>
+                      <span className="ml-auto text-xs sm:text-sm font-normal text-amber-400">{eventosPendientes.length}</span>
                     </h3>
                     {eventosPendientes.length === 0 ? (
-                      <p className="text-slate-500 text-center py-4">No hay eventos pendientes de confirmar</p>
+                      <p className="text-slate-500 text-center py-4 text-sm">No hay eventos pendientes</p>
                     ) : (
-                      <div className="space-y-3 max-h-[300px] overflow-y-auto scrollbar-thin">
+                      <div className="space-y-2 sm:space-y-3 max-h-[250px] sm:max-h-[300px] overflow-y-auto scrollbar-thin">
                         {eventosPendientes.map(evento => {
                           const diasRestantes = Math.ceil((new Date(evento.fecha + 'T12:00:00') - hoy) / (1000 * 60 * 60 * 24));
                           const clima = climaData[evento.fecha];
@@ -4387,18 +4451,18 @@ export default function App() {
                           return (
                             <div
                               key={evento.id}
-                              className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all border border-amber-500/20"
+                              className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/5 hover:bg-white/10 transition-all border border-amber-500/20"
                             >
-                              <div className="flex items-center gap-3">
-                                <div className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center flex-shrink-0 cursor-pointer ${
+                              <div className="flex items-center gap-2 sm:gap-3">
+                                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex flex-col items-center justify-center flex-shrink-0 cursor-pointer ${
                                   diasRestantes <= 7 ? 'bg-gradient-to-br from-red-600 to-orange-600' : 'bg-gradient-to-br from-amber-600 to-orange-600'
                                 }`} onClick={() => setSelectedEvento(evento)}>
-                                  <span className="text-lg font-bold">{new Date(evento.fecha + 'T12:00:00').getDate()}</span>
-                                  <span className="text-[10px] uppercase">{new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
+                                  <span className="text-sm sm:text-lg font-bold">{new Date(evento.fecha + 'T12:00:00').getDate()}</span>
+                                  <span className="text-[8px] sm:text-[10px] uppercase">{new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
                                 </div>
                                 <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedEvento(evento)}>
-                                  <p className="font-medium truncate">{evento.cliente}</p>
-                                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                                  <p className="text-sm sm:text-base font-medium truncate">{evento.cliente}</p>
+                                  <div className="flex items-center gap-1 sm:gap-2 text-[10px] sm:text-xs text-slate-400">
                                     <span>{evento.tipo_evento}</span>
                                     <span className={diasRestantes <= 7 ? 'text-red-400' : 'text-amber-400'}>
                                       {diasRestantes === 0 ? 'HOY' : diasRestantes === 1 ? 'Mañana' : `${diasRestantes}d`}
@@ -4406,15 +4470,15 @@ export default function App() {
                                     {clima && <span>{climaInfo?.icono} {clima.tempMax}°</span>}
                                   </div>
                                 </div>
-                                <div className="flex gap-1 flex-shrink-0">
-                                  <button onClick={(e) => { e.stopPropagation(); abrirDetalle(evento); }} className="p-1.5 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30" title="Detalle">
-                                    <Monitor className="w-3.5 h-3.5" />
+                                <div className="flex gap-0.5 sm:gap-1 flex-shrink-0">
+                                  <button onClick={(e) => { e.stopPropagation(); abrirDetalle(evento); }} className="p-1.5 sm:p-2 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30" title="Detalle">
+                                    <Monitor className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                                   </button>
-                                  <button onClick={(e) => { e.stopPropagation(); generarCotizacion(evento); }} className="p-1.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30" title="Cotización">
-                                    <FileText className="w-3.5 h-3.5" />
+                                  <button onClick={(e) => { e.stopPropagation(); generarCotizacion(evento); }} className="p-1.5 sm:p-2 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 hidden sm:block" title="Cotización">
+                                    <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                                   </button>
-                                  <button onClick={(e) => { e.stopPropagation(); generarPDF(evento); }} className="p-1.5 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30" title="Resumen">
-                                    <FileText className="w-3.5 h-3.5" />
+                                  <button onClick={(e) => { e.stopPropagation(); generarPDF(evento); }} className="p-1.5 sm:p-2 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30" title="Resumen">
+                                    <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                                   </button>
                                 </div>
                               </div>
@@ -4428,13 +4492,13 @@ export default function App() {
               );
             })()}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="glass rounded-2xl p-6 glow">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-indigo-400" />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+              <div className="glass rounded-xl sm:rounded-2xl p-3 sm:p-6 glow">
+                <h3 className="text-sm sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-400" />
                   Facturación por Mes
                 </h3>
-                <ResponsiveContainer width="100%" height={280}>
+                <ResponsiveContainer width="100%" height={180} className="sm:!h-[280px]">
                   <AreaChart data={eventosPorMes}>
                     <defs>
                       <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
@@ -4442,10 +4506,10 @@ export default function App() {
                         <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <XAxis dataKey="mes" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} tickFormatter={v => `$${(v/1000000).toFixed(0)}M`} />
-                    <Tooltip 
-                      contentStyle={{ background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '12px', color: 'white' }}
+                    <XAxis dataKey="mes" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#64748b" fontSize={9} tickLine={false} axisLine={false} tickFormatter={v => `$${(v/1000000).toFixed(0)}M`} width={35} />
+                    <Tooltip
+                      contentStyle={{ background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '8px', color: 'white', fontSize: '12px' }}
                       formatter={(value) => [formatCurrency(value), 'Total']}
                     />
                     <Area type="monotone" dataKey="total" stroke="#8b5cf6" strokeWidth={2} fill="url(#colorTotal)" />
@@ -4453,31 +4517,31 @@ export default function App() {
                 </ResponsiveContainer>
               </div>
 
-              <div className="glass rounded-2xl p-6 glow">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-purple-400" />
+              <div className="glass rounded-xl sm:rounded-2xl p-3 sm:p-6 glow">
+                <h3 className="text-sm sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center gap-2">
+                  <Users className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
                   Ventas por Vendedor
                 </h3>
-                <ResponsiveContainer width="100%" height={220}>
+                <ResponsiveContainer width="100%" height={150} className="sm:!h-[220px]">
                   <PieChart>
-                    <Pie data={eventosPorVendedor} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={4} dataKey="value">
+                    <Pie data={eventosPorVendedor} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={4} dataKey="value" className="sm:[&>path]:!inner-radius-[60px] sm:[&>path]:!outer-radius-[90px]">
                       {eventosPorVendedor.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip
-                      contentStyle={{ background: '#1e293b', border: '1px solid #8b5cf6', borderRadius: '12px', color: '#fff', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}
+                      contentStyle={{ background: '#1e293b', border: '1px solid #8b5cf6', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
                       itemStyle={{ color: '#fff' }}
                       formatter={(value) => [formatCurrency(value), 'Facturado']}
                     />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="flex justify-center gap-6 mt-3 flex-wrap">
+                <div className="flex justify-center gap-2 sm:gap-6 mt-2 sm:mt-3 flex-wrap">
                   {eventosPorVendedor.map((v, i) => (
-                    <div key={v.name} className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: `${COLORS[i]}20` }}>
-                      <div className="w-3 h-3 rounded-full" style={{ background: COLORS[i] }} />
-                      <span className="font-medium" style={{ color: COLORS[i] }}>{v.name}</span>
-                      <span className="text-slate-400 text-xs ml-1">{formatCurrency(v.value)}</span>
+                    <div key={v.name} className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg" style={{ background: `${COLORS[i]}20` }}>
+                      <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full" style={{ background: COLORS[i] }} />
+                      <span className="text-xs sm:text-sm font-medium" style={{ color: COLORS[i] }}>{v.name}</span>
+                      <span className="text-slate-400 text-[10px] sm:text-xs ml-0.5 sm:ml-1 hidden sm:inline">{formatCurrency(v.value)}</span>
                     </div>
                   ))}
                 </div>
@@ -4485,70 +4549,70 @@ export default function App() {
             </div>
 
             {/* Gráfico de Comensales por Mes */}
-            <div className="glass rounded-2xl p-6 glow">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Users className="w-5 h-5 text-cyan-400" />
+            <div className="glass rounded-xl sm:rounded-2xl p-3 sm:p-6 glow">
+              <h3 className="text-sm sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center gap-2">
+                <Users className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
                 Comensales por Mes
               </h3>
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height={180} className="sm:!h-[280px]">
                 <BarChart data={comensalesPorMes}>
-                  <XAxis dataKey="mes" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
+                  <XAxis dataKey="mes" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#64748b" fontSize={9} tickLine={false} axisLine={false} width={30} />
                   <Tooltip
-                    contentStyle={{ background: '#1e293b', border: '1px solid #06b6d4', borderRadius: '12px', color: '#fff', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}
+                    contentStyle={{ background: '#1e293b', border: '1px solid #06b6d4', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
                     itemStyle={{ color: '#fff' }}
                   />
                   <Bar dataKey="adultos" name="Adultos" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="menores" name="Menores" fill="#06b6d4" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-              <div className="flex justify-center gap-6 mt-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-purple-500" />
-                  <span className="text-slate-300 text-sm">Adultos</span>
+              <div className="flex justify-center gap-4 sm:gap-6 mt-2">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-purple-500" />
+                  <span className="text-slate-300 text-xs sm:text-sm">Adultos</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-cyan-500" />
-                  <span className="text-slate-300 text-sm">Menores</span>
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-cyan-500" />
+                  <span className="text-slate-300 text-xs sm:text-sm">Menores</span>
                 </div>
               </div>
             </div>
 
-            <div className="glass rounded-2xl p-6 glow">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-pink-400" />
+            <div className="glass rounded-xl sm:rounded-2xl p-3 sm:p-6 glow">
+              <h3 className="text-sm sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center gap-2">
+                <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 text-pink-400" />
                 Tipos de Evento
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3">
                 {eventosPorTipo.slice(0, 12).map((tipo) => (
-                  <div key={tipo.name} className="bg-white/5 rounded-xl p-4 text-center border border-white/5 hover:border-purple-500/30 transition-all">
-                    <p className="text-2xl font-bold text-purple-400">{tipo.value}</p>
-                    <p className="text-xs text-slate-400 mt-1 truncate">{tipo.name}</p>
+                  <div key={tipo.name} className="bg-white/5 rounded-lg sm:rounded-xl p-2 sm:p-4 text-center border border-white/5 hover:border-purple-500/30 transition-all">
+                    <p className="text-lg sm:text-2xl font-bold text-purple-400">{tipo.value}</p>
+                    <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5 sm:mt-1 truncate">{tipo.name}</p>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               {/* Eventos por Menú */}
-              <div className="glass rounded-2xl p-6 glow">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <UtensilsCrossed className="w-5 h-5 text-emerald-400" />
+              <div className="glass rounded-xl sm:rounded-2xl p-3 sm:p-6 glow">
+                <h3 className="text-sm sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center gap-2">
+                  <UtensilsCrossed className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
                   Eventos por Menú
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {eventosPorMenu.map((menu, idx) => {
                     const maxValue = Math.max(...eventosPorMenu.map(m => m.value));
                     const percentage = (menu.value / maxValue) * 100;
                     return (
-                      <div key={menu.name} className="flex items-center gap-3">
-                        <div className="w-24 text-sm text-slate-300 truncate">{menu.name}</div>
-                        <div className="flex-1 h-8 bg-white/5 rounded-lg overflow-hidden">
+                      <div key={menu.name} className="flex items-center gap-2 sm:gap-3">
+                        <div className="w-16 sm:w-24 text-xs sm:text-sm text-slate-300 truncate">{menu.name}</div>
+                        <div className="flex-1 h-6 sm:h-8 bg-white/5 rounded-lg overflow-hidden">
                           <div
-                            className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg flex items-center justify-end pr-2 transition-all"
+                            className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg flex items-center justify-end pr-1.5 sm:pr-2 transition-all"
                             style={{ width: `${percentage}%` }}
                           >
-                            <span className="text-xs font-bold text-white">{menu.value}</span>
+                            <span className="text-[10px] sm:text-xs font-bold text-white">{menu.value}</span>
                           </div>
                         </div>
                       </div>
@@ -4558,20 +4622,20 @@ export default function App() {
               </div>
 
               {/* Eventos por Salón */}
-              <div className="glass rounded-2xl p-6 glow">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-amber-400" />
+              <div className="glass rounded-xl sm:rounded-2xl p-3 sm:p-6 glow">
+                <h3 className="text-sm sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center gap-2">
+                  <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
                   Eventos por Salón
                 </h3>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-2 sm:gap-4">
                   {eventosPorSalon.map((salon, idx) => {
                     const colores = ['from-amber-500 to-orange-500', 'from-blue-500 to-cyan-500', 'from-purple-500 to-pink-500'];
                     return (
                       <div key={salon.name} className="text-center">
-                        <div className={`w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br ${colores[idx % colores.length]} flex items-center justify-center mb-3`}>
-                          <span className="text-2xl font-bold text-white">{salon.value}</span>
+                        <div className={`w-14 h-14 sm:w-20 sm:h-20 mx-auto rounded-xl sm:rounded-2xl bg-gradient-to-br ${colores[idx % colores.length]} flex items-center justify-center mb-1.5 sm:mb-3`}>
+                          <span className="text-lg sm:text-2xl font-bold text-white">{salon.value}</span>
                         </div>
-                        <p className="text-sm text-slate-300 font-medium">{salon.name}</p>
+                        <p className="text-[10px] sm:text-sm text-slate-300 font-medium truncate">{salon.name}</p>
                       </div>
                     );
                   })}
@@ -5683,7 +5747,7 @@ export default function App() {
                 {/* Filtros */}
                 <div className="flex gap-2 flex-wrap">
                   <button
-                    onClick={() => setCatalogoFiltro('todos')}
+                    onClick={() => { setCatalogoFiltro('todos'); setCatalogoSubfiltro('todos'); }}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                       catalogoFiltro === 'todos'
                         ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
@@ -5693,7 +5757,7 @@ export default function App() {
                     Todos
                   </button>
                   <button
-                    onClick={() => setCatalogoFiltro('Platos')}
+                    onClick={() => { setCatalogoFiltro('Platos'); setCatalogoSubfiltro('todos'); }}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                       catalogoFiltro === 'Platos'
                         ? 'bg-orange-500/20 text-orange-400 border border-orange-500/50'
@@ -5703,7 +5767,7 @@ export default function App() {
                     Platos
                   </button>
                   <button
-                    onClick={() => setCatalogoFiltro('Tapas')}
+                    onClick={() => { setCatalogoFiltro('Tapas'); setCatalogoSubfiltro('todos'); }}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                       catalogoFiltro === 'Tapas'
                         ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50'
@@ -5713,7 +5777,7 @@ export default function App() {
                     Tapas
                   </button>
                   <button
-                    onClick={() => setCatalogoFiltro('Islas')}
+                    onClick={() => { setCatalogoFiltro('Islas'); setCatalogoSubfiltro('todos'); }}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                       catalogoFiltro === 'Islas'
                         ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
@@ -5723,7 +5787,7 @@ export default function App() {
                     Islas
                   </button>
                   <button
-                    onClick={() => setCatalogoFiltro('Bebidas')}
+                    onClick={() => { setCatalogoFiltro('Bebidas'); setCatalogoSubfiltro('todos'); }}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                       catalogoFiltro === 'Bebidas'
                         ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
@@ -5734,14 +5798,44 @@ export default function App() {
                   </button>
                 </div>
 
+                {/* Subfiltros por subcategoría */}
+                {catalogoFiltro !== 'todos' && SUBCATEGORIAS_CATALOGO[catalogoFiltro] && (
+                  <div className="flex gap-1.5 flex-wrap mt-2">
+                    <button
+                      onClick={() => setCatalogoSubfiltro('todos')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                        catalogoSubfiltro === 'todos'
+                          ? 'bg-white/20 text-white'
+                          : 'bg-white/5 text-slate-500 hover:bg-white/10'
+                      }`}
+                    >
+                      Todos
+                    </button>
+                    {SUBCATEGORIAS_CATALOGO[catalogoFiltro].map(sub => (
+                      <button
+                        key={sub}
+                        onClick={() => setCatalogoSubfiltro(sub)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                          catalogoSubfiltro === sub
+                            ? 'bg-white/20 text-white'
+                            : 'bg-white/5 text-slate-500 hover:bg-white/10'
+                        }`}
+                      >
+                        {sub}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {/* Lista de items */}
                 {catalogoItems.filter(item => {
                   const matchCategoria = catalogoFiltro === 'todos' || item.categoria === catalogoFiltro;
+                  const matchSubcategoria = catalogoSubfiltro === 'todos' || item.subcategoria === catalogoSubfiltro;
                   const matchBusqueda = !catalogoBusqueda ||
                     item.nombre.toLowerCase().includes(catalogoBusqueda.toLowerCase()) ||
                     item.subcategoria.toLowerCase().includes(catalogoBusqueda.toLowerCase()) ||
                     (item.descripcion && item.descripcion.toLowerCase().includes(catalogoBusqueda.toLowerCase()));
-                  return matchCategoria && matchBusqueda;
+                  return matchCategoria && matchSubcategoria && matchBusqueda;
                 }).length === 0 ? (
                   <div className="glass rounded-2xl p-12 text-center">
                     <FileText className="w-16 h-16 mx-auto text-slate-600 mb-4" />
@@ -5754,11 +5848,12 @@ export default function App() {
                       catalogoItems
                         .filter(item => {
                           const matchCategoria = catalogoFiltro === 'todos' || item.categoria === catalogoFiltro;
+                          const matchSubcategoria = catalogoSubfiltro === 'todos' || item.subcategoria === catalogoSubfiltro;
                           const matchBusqueda = !catalogoBusqueda ||
                             item.nombre.toLowerCase().includes(catalogoBusqueda.toLowerCase()) ||
                             item.subcategoria.toLowerCase().includes(catalogoBusqueda.toLowerCase()) ||
                             (item.descripcion && item.descripcion.toLowerCase().includes(catalogoBusqueda.toLowerCase()));
-                          return matchCategoria && matchBusqueda;
+                          return matchCategoria && matchSubcategoria && matchBusqueda;
                         })
                         .reduce((acc, item) => {
                           const key = `${item.categoria} - ${item.subcategoria}`;
@@ -5920,6 +6015,10 @@ export default function App() {
                     setCatalogoItems(updated);
                     localStorage.setItem('catalogoItems', JSON.stringify(updated));
                     setShowCatalogoForm(false);
+                    // Limpiar búsqueda y cambiar filtro a la categoría/subcategoría del item agregado/editado
+                    setCatalogoBusqueda('');
+                    setCatalogoFiltro(catalogoForm.categoria);
+                    setCatalogoSubfiltro(catalogoForm.subcategoria);
                     setCatalogoForm({ nombre: '', descripcion: '', categoria: 'Platos', subcategoria: 'Entradas' });
                     setEditingCatalogoItem(null);
                   }}
@@ -7192,7 +7291,7 @@ export default function App() {
                                       return;
                                     }
                                     // Guardar auditoría antes de eliminar
-                                    await supabase.from('auditoria_caja').insert({
+                                    const { error: auditError } = await supabase.from('auditoria_caja').insert({
                                       tipo_movimiento: 'ingreso',
                                       concepto: item.concepto,
                                       monto_pesos: item.monto_pesos,
@@ -7204,6 +7303,10 @@ export default function App() {
                                       motivo: motivo,
                                       usuario: user?.email || 'Sistema'
                                     });
+                                    if (auditError) {
+                                      console.error('Error guardando auditoría:', auditError);
+                                      alert('Error guardando auditoría: ' + auditError.message);
+                                    }
                                     const esAporte = item.concepto && item.concepto.startsWith('Aporte de ');
                                     const { error } = await supabase.from('caja_movimientos').delete().eq('id', item.id);
                                     if (error) {
@@ -7515,7 +7618,7 @@ export default function App() {
                                 return;
                               }
                               // Guardar auditoría antes de eliminar
-                              await supabase.from('auditoria_caja').insert({
+                              const { error: auditError } = await supabase.from('auditoria_caja').insert({
                                 tipo_movimiento: 'egreso',
                                 concepto: item.concepto,
                                 monto_pesos: item.monto_pesos,
@@ -7527,6 +7630,12 @@ export default function App() {
                                 motivo: motivo,
                                 usuario: user?.email || 'Sistema'
                               });
+                              if (auditError) {
+                                console.error('Error guardando auditoría:', auditError);
+                                alert('Error guardando auditoría: ' + auditError.message);
+                              } else {
+                                console.log('Auditoría guardada correctamente para egreso:', item.concepto);
+                              }
                               const esAporte = item.concepto && item.concepto.startsWith('Aporte a ');
                               const esRetiroSocios = item.concepto && item.concepto.startsWith('R. Socios a ');
                               const { error } = await supabase.from('caja_movimientos').delete().eq('id', item.id);
@@ -7667,7 +7776,7 @@ export default function App() {
                                       return;
                                     }
                                     // Guardar auditoría antes de eliminar
-                                    await supabase.from('auditoria_caja').insert({
+                                    const { error: auditError } = await supabase.from('auditoria_caja').insert({
                                       tipo_movimiento: 'transferencia',
                                       concepto: item.concepto,
                                       monto_pesos: item.monto_pesos,
@@ -7679,6 +7788,10 @@ export default function App() {
                                       motivo: motivo,
                                       usuario: user?.email || 'Sistema'
                                     });
+                                    if (auditError) {
+                                      console.error('Error guardando auditoría:', auditError);
+                                      alert('Error guardando auditoría: ' + auditError.message);
+                                    }
                                     // Eliminar el ingreso
                                     await supabase.from('caja_movimientos').delete().eq('id', item.id);
                                     // Buscar y eliminar el egreso correspondiente (mismo monto, fecha, y aportante como persona)
@@ -7788,7 +7901,7 @@ export default function App() {
                                 return;
                               }
                               // Guardar auditoría antes de eliminar
-                              await supabase.from('auditoria_caja').insert({
+                              const { error: auditError } = await supabase.from('auditoria_caja').insert({
                                 tipo_movimiento: 'retiro',
                                 concepto: item.concepto,
                                 monto_pesos: item.monto_pesos,
@@ -7800,6 +7913,10 @@ export default function App() {
                                 motivo: motivo,
                                 usuario: user?.email || 'Sistema'
                               });
+                              if (auditError) {
+                                console.error('Error guardando auditoría:', auditError);
+                                alert('Error guardando auditoría: ' + auditError.message);
+                              }
                               // Eliminar el retiro
                               const { error } = await supabase.from('caja_movimientos').delete().eq('id', item.id);
                               if (error) {
@@ -7881,7 +7998,20 @@ export default function App() {
                     ))}
                   </select>
                 </div>
-                {menuTipoOtro && (
+                {editingMenu && (
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Nombre del menú</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Nombre del menú..."
+                      value={nuevoMenu.nombre}
+                      onChange={(e) => setNuevoMenu({...nuevoMenu, nombre: e.target.value})}
+                      className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    />
+                  </div>
+                )}
+                {!editingMenu && menuTipoOtro && (
                   <div>
                     <label className="block text-sm text-slate-400 mb-1">Nombre personalizado</label>
                     <input
@@ -7918,10 +8048,21 @@ export default function App() {
                         </div>
 
                         <div className="space-y-2">
-                          {/* Select de platos predefinidos */}
+                          {/* Select de platos del catálogo */}
                           {(() => {
                             const tipoMenu = menuTipoOtro ? 'Otro' : (TIPOS_MENU.find(t => nuevoMenu.nombre.startsWith(t)) || nuevoMenu.nombre);
-                            const platosDisponibles = PLATOS_POR_MENU[tipoMenu]?.[categoria.nombre] || [];
+                            // Obtener platos del catálogo según tipo de menú y categoría
+                            let platosDisponibles = [];
+                            if (categoria.nombre === 'Bebidas') {
+                              // Bebidas viene del catálogo de Bebidas
+                              platosDisponibles = catalogoItems.filter(item => item.categoria === 'Bebidas').map(item => item.nombre);
+                            } else if (tipoMenu === 'Menu Tapeo') {
+                              // Para menú tapeo, buscar en categoría Tapas con la subcategoría correspondiente
+                              platosDisponibles = catalogoItems.filter(item => item.categoria === 'Tapas' && item.subcategoria === categoria.nombre).map(item => item.nombre);
+                            } else {
+                              // Para otros menús, buscar en categoría Platos con la subcategoría correspondiente
+                              platosDisponibles = catalogoItems.filter(item => item.categoria === 'Platos' && item.subcategoria === categoria.nombre).map(item => item.nombre);
+                            }
                             const platosSinSeleccionar = platosDisponibles.filter(p => !categoria.items.includes(p));
 
                             return platosSinSeleccionar.length > 0 && (
