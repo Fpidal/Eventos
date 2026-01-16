@@ -4649,7 +4649,7 @@ export default function App() {
 
               const eventosProximos15 = eventos
                 .filter(e => {
-                  if (e.anulado) return false;
+                  if (e.anulado || !e.confirmado) return false;
                   const fechaEvento = new Date(e.fecha + 'T12:00:00');
                   return fechaEvento >= hoy && fechaEvento <= en15Dias;
                 })
