@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed, ClipboardList, XCircle, Banknote, ArrowLeftRight, Contact, RefreshCw, Monitor } from 'lucide-react';
+import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed, ClipboardList, XCircle, Banknote, ArrowLeftRight, Contact, RefreshCw, Monitor, Check } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar } from 'recharts';
 import { supabase } from './supabase';
 import { jsPDF } from 'jspdf';
@@ -254,7 +254,15 @@ export default function App() {
   // Filtros de solapas Próximos y A Confirmar
   const [filterMesProximos, setFilterMesProximos] = useState('todos');
   const [filterMesAConfirmar, setFilterMesAConfirmar] = useState('todos');
-  const [vistaCobranzas, setVistaCobranzas] = useState('estado'); // 'estado' o 'detalle'
+  const [vistaCobranzas, setVistaCobranzas] = useState('estado'); // 'estado', 'detalle' o 'ipc'
+
+  // Estados para IPC
+  const [ipcMensual, setIpcMensual] = useState([]);
+  const [showIPCModal, setShowIPCModal] = useState(false);
+  const [ipcAñoSeleccionado, setIpcAñoSeleccionado] = useState(new Date().getFullYear());
+  const [nuevoIPC, setNuevoIPC] = useState({ mes: '', ipc_indec: '', ipc_aplicado: '' });
+  const [ipcPreview, setIpcPreview] = useState({ eventos: 0, totalSaldos: 0, incremento: 0 });
+
   const [selectedDate, setSelectedDate] = useState(null);
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [selectedEvento, setSelectedEvento] = useState(null);
@@ -339,8 +347,11 @@ export default function App() {
     menu: 'Tapas',
     salon: 'Tero',
     tecnica: false,
+    tecnica_precio: '',
     tecnica_superior: false,
+    tecnica_superior_precio: '',
     ceremonia: false,
+    ceremonia_precio: '',
     dj: '',
     celiacos: '',
     vegetarianos: '',
@@ -389,9 +400,9 @@ export default function App() {
     setAuthLoading(false);
   }, []);
 
-  // Session timeout (10 minutos = 600000 ms)
+  // Session timeout (30 minutos = 1800000 ms)
   const sessionTimeoutRef = React.useRef(null);
-  const SESSION_TIMEOUT = 10 * 60 * 1000; // 10 minutos
+  const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutos
 
   // Función para iniciar el timer de sesión
   const startSessionTimer = () => {
@@ -452,6 +463,7 @@ export default function App() {
     if (user) {
       fetchEventos();
       fetchPagos();
+      fetchIPCMensual();
       fetchMenus();
       fetchClientes();
       fetchClima();
@@ -619,6 +631,108 @@ export default function App() {
     } else {
       setPagos(data || []);
     }
+  };
+
+  const fetchIPCMensual = async () => {
+    const { data, error } = await supabase
+      .from('ipc_mensual')
+      .select('*')
+      .order('año', { ascending: false })
+      .order('mes', { ascending: true });
+
+    if (error) {
+      console.error('Error IPC:', error);
+    } else {
+      setIpcMensual(data || []);
+    }
+  };
+
+  const aplicarIPCMensual = async () => {
+    setSaving(true);
+    const año = ipcAñoSeleccionado;
+    const mes = nuevoIPC.mes;
+    const ipcIndec = parseFloat(nuevoIPC.ipc_indec) || 0;
+    const ipcAplicado = parseFloat(nuevoIPC.ipc_aplicado);
+    const nombreMes = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][mes - 1];
+
+    try {
+      // 1. Obtener eventos con saldo pendiente y fecha >= mes
+      const eventosConSaldo = cobranzasData.filter(e => {
+        const fechaEvento = new Date(e.fecha);
+        const inicioMes = new Date(año, mes - 1, 1);
+        return e.saldo > 0 && fechaEvento >= inicioMes;
+      });
+
+      if (eventosConSaldo.length === 0) {
+        alert('No hay eventos con saldo pendiente para ajustar');
+        setSaving(false);
+        return;
+      }
+
+      let totalAjustado = 0;
+
+      // 2. Crear pagos de ajuste IPC para cada evento
+      for (const evento of eventosConSaldo) {
+        const ajuste = evento.saldo * (ipcAplicado / 100);
+        totalAjustado += ajuste;
+
+        // Crear pago de ajuste
+        const { error: pagoError } = await supabase
+          .from('pagos')
+          .insert([{
+            evento_id: evento.id,
+            fecha: new Date().toISOString().split('T')[0],
+            monto: ajuste,
+            concepto: 'ajuste_ipc',
+            cobrador: user?.email || 'Sistema',
+            ipc_indec: ipcIndec,
+            ipc_aplicado: ipcAplicado
+          }]);
+
+        if (pagoError) {
+          console.error('Error creando pago IPC:', pagoError);
+        }
+
+        // Actualizar total_ajustes_ipc del evento
+        await supabase
+          .from('eventos')
+          .update({
+            total_ajustes_ipc: (evento.ajustesIPC || 0) + ajuste
+          })
+          .eq('id', evento.id);
+      }
+
+      // 3. Guardar registro de IPC mensual
+      const { error: ipcError } = await supabase
+        .from('ipc_mensual')
+        .upsert([{
+          año,
+          mes,
+          ipc_indec: ipcIndec,
+          ipc_aplicado: ipcAplicado,
+          aplicado: true,
+          fecha_aplicacion: new Date().toISOString(),
+          eventos_afectados: eventosConSaldo.length,
+          total_ajustado: totalAjustado
+        }], { onConflict: 'año,mes' });
+
+      if (ipcError) {
+        console.error('Error guardando IPC:', ipcError);
+        alert('Error al guardar el registro de IPC');
+      } else {
+        alert(`IPC ${nombreMes} ${año} aplicado correctamente.\n\nEventos actualizados: ${eventosConSaldo.length}\nTotal ajustado: $${Math.round(totalAjustado).toLocaleString('es-AR')}`);
+        setShowIPCModal(false);
+        setNuevoIPC({ mes: '', ipc_indec: '', ipc_aplicado: '' });
+        fetchIPCMensual();
+        fetchPagos();
+        fetchEventos();
+      }
+    } catch (err) {
+      console.error('Error aplicando IPC:', err);
+      alert('Error al aplicar IPC');
+    }
+
+    setSaving(false);
   };
 
   const handleAddPago = async (e) => {
@@ -2329,11 +2443,32 @@ export default function App() {
       }
     });
 
+    // Técnica
+    if (evento.tecnica && evento.tecnica_precio > 0) {
+      subtotalGeneral += evento.tecnica_precio;
+      doc.text('Técnica de sonido e iluminación', colConcepto, y);
+      doc.text('1', colCant, y);
+      doc.text(formatMoneyPDF(evento.tecnica_precio), colPrecio, y);
+      doc.text(formatMoneyPDF(evento.tecnica_precio), colSubtotal, y, { align: 'right' });
+      y += 7;
+    }
+
+    // Técnica Superior
+    if (evento.tecnica_superior && evento.tecnica_superior_precio > 0) {
+      subtotalGeneral += evento.tecnica_superior_precio;
+      doc.text('Técnica superior (premium)', colConcepto, y);
+      doc.text('1', colCant, y);
+      doc.text(formatMoneyPDF(evento.tecnica_superior_precio), colPrecio, y);
+      doc.text(formatMoneyPDF(evento.tecnica_superior_precio), colSubtotal, y, { align: 'right' });
+      y += 7;
+    }
+
     y += 2;
     drawLine(y, GRIS_LINEA, 0.3);
     y += 8;
 
-    const subtotal = evento.total_evento || evento.totalEvento || subtotalGeneral || 0;
+    // Usar subtotalGeneral que ahora incluye técnica
+    const subtotal = subtotalGeneral > 0 ? subtotalGeneral : (evento.total_evento || evento.totalEvento || 0);
     const iva = subtotal * 0.21;
     const total = subtotal + iva;
 
@@ -2365,9 +2500,8 @@ export default function App() {
 
     y += 15;
 
-    // --- SERVICIOS ADICIONALES ---
-    const tieneServicios = evento.tecnica || evento.tecnica_superior || evento.dj;
-    if (tieneServicios) {
+    // --- SERVICIOS ADICIONALES (solo DJ, técnica va en detalle de precios) ---
+    if (evento.dj) {
       doc.setFontSize(11);
       doc.setTextColor(...NEGRO);
       doc.setFont('helvetica', 'bold');
@@ -2375,22 +2509,10 @@ export default function App() {
       y += 6;
 
       doc.setFontSize(10);
-      doc.setTextColor(...GRIS_TEXTO);
       doc.setFont('helvetica', 'normal');
-
-      if (evento.tecnica) {
-        doc.text('• Técnica de sonido e iluminación', marginLeft, y);
-        y += 5;
-      }
-      if (evento.tecnica_superior) {
-        doc.text('• Técnica superior (equipamiento premium)', marginLeft, y);
-        y += 5;
-      }
-      if (evento.dj) {
-        doc.text('• DJ: ' + evento.dj, marginLeft, y);
-        y += 5;
-      }
-      y += 5;
+      doc.setTextColor(...GRIS_TEXTO);
+      doc.text('• DJ: ' + evento.dj, marginLeft, y);
+      y += 10;
     }
 
     // --- OBSERVACIONES ---
@@ -2517,8 +2639,11 @@ export default function App() {
         menu: nuevoEvento.menu,
         salon: nuevoEvento.salon,
         tecnica: nuevoEvento.tecnica,
+        tecnica_precio: parseFloat(nuevoEvento.tecnica_precio) || 0,
         tecnica_superior: nuevoEvento.tecnica_superior,
+        tecnica_superior_precio: parseFloat(nuevoEvento.tecnica_superior_precio) || 0,
         ceremonia: nuevoEvento.ceremonia,
+        ceremonia_precio: parseFloat(nuevoEvento.ceremonia_precio) || 0,
         dj: nuevoEvento.dj,
         otros: nuevoEvento.otros,
         adultos: parseInt(nuevoEvento.adultos) || 0,
@@ -2559,8 +2684,11 @@ export default function App() {
         menu: 'Tapas',
         salon: 'Tero',
         tecnica: false,
+        tecnica_precio: '',
         tecnica_superior: false,
+        tecnica_superior_precio: '',
         ceremonia: false,
+        ceremonia_precio: '',
         dj: '',
         celiacos: '',
         vegetarianos: '',
@@ -2601,8 +2729,11 @@ export default function App() {
       menu: evento.menu,
       salon: evento.salon || 'Tero',
       tecnica: evento.tecnica || false,
+      tecnica_precio: evento.tecnica_precio > 0 ? evento.tecnica_precio.toString() : '',
       tecnica_superior: evento.tecnica_superior || false,
+      tecnica_superior_precio: evento.tecnica_superior_precio > 0 ? evento.tecnica_superior_precio.toString() : '',
       ceremonia: evento.ceremonia || false,
+      ceremonia_precio: evento.ceremonia_precio > 0 ? evento.ceremonia_precio.toString() : '',
       dj: evento.dj || '',
       celiacos: evento.celiacos?.toString() || '',
       vegetarianos: evento.vegetarianos?.toString() || '',
@@ -2665,8 +2796,11 @@ export default function App() {
         menu: eventoEdit.menu,
         salon: eventoEdit.salon,
         tecnica: eventoEdit.tecnica,
+        tecnica_precio: parseFloat(eventoEdit.tecnica_precio) || 0,
         tecnica_superior: eventoEdit.tecnica_superior,
+        tecnica_superior_precio: parseFloat(eventoEdit.tecnica_superior_precio) || 0,
         ceremonia: eventoEdit.ceremonia,
+        ceremonia_precio: parseFloat(eventoEdit.ceremonia_precio) || 0,
         dj: eventoEdit.dj,
         otros: eventoEdit.otros,
         adultos: parseInt(eventoEdit.adultos) || 0,
@@ -2966,7 +3100,8 @@ export default function App() {
     const totalCobrado = cobranzasData.reduce((sum, e) => sum + e.totalPagado, 0);
     const totalPendiente = cobranzasData.reduce((sum, e) => sum + Math.max(0, e.saldo), 0);
     const eventosConSaldo = cobranzasData.filter(e => e.saldo > 0).length;
-    return { totalFacturado, totalCobrado, totalPendiente, eventosConSaldo };
+    const totalIPC = cobranzasData.reduce((sum, e) => sum + e.ajustesIPC, 0);
+    return { totalFacturado, totalCobrado, totalPendiente, eventosConSaldo, totalIPC };
   }, [cobranzasData]);
 
   // Calcular días restantes
@@ -3261,49 +3396,60 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Técnica, Técnica Superior, Ceremonia, DJ */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="flex items-center gap-2 p-2 rounded-lg border border-white/10 bg-white/5">
-                  <input
-                    type="checkbox"
-                    id="tecnica"
-                    checked={nuevoEvento.tecnica}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica: e.target.checked})}
-                    className="w-4 h-4 rounded accent-purple-500"
-                  />
-                  <label htmlFor="tecnica" className="flex items-center gap-1 text-xs cursor-pointer">
-                    <Mic className="w-3 h-3 text-purple-400" />
-                    Técnica
-                  </label>
+              {/* Técnica, Técnica Superior, DJ */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="p-3 rounded-lg border border-white/10 bg-white/5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      type="checkbox"
+                      id="tecnica"
+                      checked={nuevoEvento.tecnica}
+                      onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica: e.target.checked, tecnica_precio: e.target.checked ? nuevoEvento.tecnica_precio : ''})}
+                      className="w-4 h-4 rounded accent-purple-500"
+                    />
+                    <label htmlFor="tecnica" className="flex items-center gap-1 text-xs cursor-pointer">
+                      <Mic className="w-3 h-3 text-purple-400" />
+                      Técnica
+                    </label>
+                  </div>
+                  {nuevoEvento.tecnica && (
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Costo: $560.000"
+                      value={formatNumberInput(nuevoEvento.tecnica_precio)}
+                      onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica_precio: parseNumberInput(e.target.value)})}
+                      className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-purple-500/50"
+                    />
+                  )}
                 </div>
-                <div className="flex items-center gap-2 p-2 rounded-lg border border-white/10 bg-white/5">
-                  <input
-                    type="checkbox"
-                    id="tecnica_superior"
-                    checked={nuevoEvento.tecnica_superior}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica_superior: e.target.checked})}
-                    className="w-4 h-4 rounded accent-purple-500"
-                  />
-                  <label htmlFor="tecnica_superior" className="flex items-center gap-1 text-xs cursor-pointer">
-                    <Mic className="w-3 h-3 text-amber-400" />
-                    Téc. Superior
-                  </label>
+                <div className="p-3 rounded-lg border border-white/10 bg-white/5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      type="checkbox"
+                      id="tecnica_superior"
+                      checked={nuevoEvento.tecnica_superior}
+                      onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica_superior: e.target.checked, tecnica_superior_precio: e.target.checked ? nuevoEvento.tecnica_superior_precio : ''})}
+                      className="w-4 h-4 rounded accent-purple-500"
+                    />
+                    <label htmlFor="tecnica_superior" className="flex items-center gap-1 text-xs cursor-pointer">
+                      <Mic className="w-3 h-3 text-amber-400" />
+                      Técnica Superior
+                    </label>
+                  </div>
+                  {nuevoEvento.tecnica_superior && (
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Costo: $300.000"
+                      value={formatNumberInput(nuevoEvento.tecnica_superior_precio)}
+                      onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica_superior_precio: parseNumberInput(e.target.value)})}
+                      className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-purple-500/50"
+                    />
+                  )}
                 </div>
-                <div className="flex items-center gap-2 p-2 rounded-lg border border-white/10 bg-white/5">
-                  <input
-                    type="checkbox"
-                    id="ceremonia"
-                    checked={nuevoEvento.ceremonia}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, ceremonia: e.target.checked})}
-                    className="w-4 h-4 rounded accent-purple-500"
-                  />
-                  <label htmlFor="ceremonia" className="flex items-center gap-1 text-xs cursor-pointer">
-                    <Music className="w-3 h-3 text-pink-400" />
-                    Ceremonia
-                  </label>
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">DJ</label>
+                <div className="p-3 rounded-lg border border-white/10 bg-white/5">
+                  <label className="block text-xs text-slate-400 mb-2">DJ</label>
                   <input
                     type="text"
                     placeholder="Nombre del DJ"
@@ -3820,51 +3966,63 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Técnica, Técnica Superior, Ceremonia, DJ */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="flex items-center gap-2 p-2 rounded-lg border border-white/10 bg-white/5">
-                  <input
-                    type="checkbox"
-                    id="tecnica_edit"
-                    checked={eventoEdit.tecnica}
-                    onChange={(e) => setEventoEdit({...eventoEdit, tecnica: e.target.checked})}
-                    className="w-4 h-4 rounded accent-purple-500"
-                  />
-                  <label htmlFor="tecnica_edit" className="flex items-center gap-1 text-xs cursor-pointer">
-                    <Mic className="w-3 h-3 text-purple-400" />
-                    Técnica
-                  </label>
+              {/* Técnica, Técnica Superior, DJ */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="p-3 rounded-lg border border-white/10 bg-white/5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      type="checkbox"
+                      id="tecnica_edit"
+                      checked={eventoEdit.tecnica}
+                      onChange={(e) => setEventoEdit({...eventoEdit, tecnica: e.target.checked, tecnica_precio: e.target.checked ? eventoEdit.tecnica_precio : ''})}
+                      className="w-4 h-4 rounded accent-purple-500"
+                    />
+                    <label htmlFor="tecnica_edit" className="flex items-center gap-1 text-xs cursor-pointer">
+                      <Mic className="w-3 h-3 text-purple-400" />
+                      Técnica
+                    </label>
+                  </div>
+                  {eventoEdit.tecnica && (
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Costo: $560.000"
+                      value={formatNumberInput(eventoEdit.tecnica_precio)}
+                      onChange={(e) => setEventoEdit({...eventoEdit, tecnica_precio: parseNumberInput(e.target.value)})}
+                      className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-purple-500/50"
+                    />
+                  )}
                 </div>
-                <div className="flex items-center gap-2 p-2 rounded-lg border border-white/10 bg-white/5">
-                  <input
-                    type="checkbox"
-                    id="tecnica_superior_edit"
-                    checked={eventoEdit.tecnica_superior}
-                    onChange={(e) => setEventoEdit({...eventoEdit, tecnica_superior: e.target.checked})}
-                    className="w-4 h-4 rounded accent-purple-500"
-                  />
-                  <label htmlFor="tecnica_superior_edit" className="flex items-center gap-1 text-xs cursor-pointer">
-                    <Mic className="w-3 h-3 text-amber-400" />
-                    Téc. Superior
-                  </label>
+                <div className="p-3 rounded-lg border border-white/10 bg-white/5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      type="checkbox"
+                      id="tecnica_superior_edit"
+                      checked={eventoEdit.tecnica_superior}
+                      onChange={(e) => setEventoEdit({...eventoEdit, tecnica_superior: e.target.checked, tecnica_superior_precio: e.target.checked ? eventoEdit.tecnica_superior_precio : ''})}
+                      className="w-4 h-4 rounded accent-purple-500"
+                    />
+                    <label htmlFor="tecnica_superior_edit" className="flex items-center gap-1 text-xs cursor-pointer">
+                      <Mic className="w-3 h-3 text-amber-400" />
+                      Técnica Superior
+                    </label>
+                  </div>
+                  {eventoEdit.tecnica_superior && (
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Costo: $300.000"
+                      value={formatNumberInput(eventoEdit.tecnica_superior_precio)}
+                      onChange={(e) => setEventoEdit({...eventoEdit, tecnica_superior_precio: parseNumberInput(e.target.value)})}
+                      className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-purple-500/50"
+                    />
+                  )}
                 </div>
-                <div className="flex items-center gap-2 p-2 rounded-lg border border-white/10 bg-white/5">
-                  <input
-                    type="checkbox"
-                    id="ceremonia_edit"
-                    checked={eventoEdit.ceremonia}
-                    onChange={(e) => setEventoEdit({...eventoEdit, ceremonia: e.target.checked})}
-                    className="w-4 h-4 rounded accent-purple-500"
-                  />
-                  <label htmlFor="ceremonia_edit" className="flex items-center gap-1 text-xs cursor-pointer">
-                    <Music className="w-3 h-3 text-pink-400" />
-                    Ceremonia
-                  </label>
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">DJ</label>
+                <div className="p-3 rounded-lg border border-white/10 bg-white/5">
+                  <label className="block text-xs text-slate-400 mb-2">DJ</label>
                   <input
                     type="text"
+                    placeholder="Nombre del DJ"
                     value={eventoEdit.dj}
                     onChange={(e) => setEventoEdit({...eventoEdit, dj: e.target.value})}
                     className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
@@ -4216,6 +4374,107 @@ export default function App() {
                 {saving ? 'Guardando...' : (editingPagoId ? 'Actualizar' : 'Registrar Pago')}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal IPC */}
+      {showIPCModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="glass rounded-2xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold">
+                Cargar IPC - {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][nuevoIPC.mes - 1]} {ipcAñoSeleccionado}
+              </h2>
+              <button onClick={() => setShowIPCModal(false)} className="p-2 hover:bg-white/10 rounded-xl">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* IPC INDEC */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">IPC INDEC (referencia)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Ej: 2.70"
+                    value={nuevoIPC.ipc_indec}
+                    onChange={(e) => setNuevoIPC({...nuevoIPC, ipc_indec: e.target.value})}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-slate-400 placeholder-slate-600 focus:outline-none focus:border-amber-500/50"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500">%</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Valor publicado por INDEC (solo referencia)</p>
+              </div>
+
+              {/* IPC a Aplicar */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">IPC a Aplicar *</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Ej: 2.50"
+                    value={nuevoIPC.ipc_aplicado}
+                    onChange={(e) => {
+                      const valor = e.target.value;
+                      setNuevoIPC({...nuevoIPC, ipc_aplicado: valor});
+                      // Recalcular incremento
+                      if (valor && ipcPreview.totalSaldos > 0) {
+                        setIpcPreview({
+                          ...ipcPreview,
+                          incremento: ipcPreview.totalSaldos * (parseFloat(valor) / 100)
+                        });
+                      }
+                    }}
+                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/50"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">%</span>
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Eventos que serán actualizados:</span>
+                  <span className="text-white font-medium">{ipcPreview.eventos}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Total saldos a ajustar:</span>
+                  <span className="text-white font-medium">${Math.round(ipcPreview.totalSaldos).toLocaleString('es-AR')}</span>
+                </div>
+                <div className="flex justify-between text-sm border-t border-amber-500/30 pt-2">
+                  <span className="text-amber-400 font-medium">Incremento estimado:</span>
+                  <span className="text-amber-400 font-bold">+${Math.round(ipcPreview.incremento).toLocaleString('es-AR')}</span>
+                </div>
+              </div>
+
+              {/* Botones */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowIPCModal(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-white/10 text-slate-400 hover:bg-white/5"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!nuevoIPC.ipc_aplicado) {
+                      alert('Ingresá el IPC a aplicar');
+                      return;
+                    }
+                    await aplicarIPCMensual();
+                  }}
+                  disabled={saving || !nuevoIPC.ipc_aplicado}
+                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 text-white font-semibold hover:from-amber-700 hover:to-orange-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
+                  {saving ? 'Aplicando...' : 'Aplicar Ajuste'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -5322,7 +5581,7 @@ export default function App() {
         {activeTab === 'cobranzas' && (
           <div className="space-y-6">
             {/* Stats de Cobranzas */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
               <div className="glass rounded-2xl p-5 glow">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="p-2.5 rounded-xl bg-indigo-500/20">
@@ -5361,6 +5620,15 @@ export default function App() {
               </div>
               <div className="glass rounded-2xl p-5 glow">
                 <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2.5 rounded-xl bg-orange-500/20">
+                    <TrendingUp className="w-5 h-5 text-orange-400" />
+                  </div>
+                  <span className="text-sm text-slate-400">Total IPC</span>
+                </div>
+                <p className="text-2xl font-bold text-orange-400">+{formatCurrency(statsCobranzas.totalIPC)}</p>
+              </div>
+              <div className="glass rounded-2xl p-5 glow">
+                <div className="flex items-center gap-3 mb-3">
                   <div className="p-2.5 rounded-xl bg-blue-500/20">
                     <DollarSign className="w-5 h-5 text-blue-400" />
                   </div>
@@ -5384,7 +5652,7 @@ export default function App() {
             </div>
 
             {/* Selector de vista */}
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap">
               <button
                 onClick={() => setVistaCobranzas('estado')}
                 className={`px-4 py-2 rounded-xl font-medium transition-all ${
@@ -5404,6 +5672,16 @@ export default function App() {
                 }`}
               >
                 Detalle de Pagos
+              </button>
+              <button
+                onClick={() => setVistaCobranzas('ipc')}
+                className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                  vistaCobranzas === 'ipc'
+                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50'
+                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                }`}
+              >
+                Ajuste IPC
               </button>
             </div>
 
@@ -5595,6 +5873,122 @@ export default function App() {
                   <p className="text-center text-slate-400 py-8">No hay pagos registrados</p>
                 )}
               </div>
+              </div>
+            )}
+
+            {/* Vista: Ajuste IPC */}
+            {vistaCobranzas === 'ipc' && (
+              <div className="space-y-6">
+                {/* Header con selector de año */}
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <h2 className="text-xl font-bold">Configuración IPC Mensual</h2>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-slate-400">Año:</span>
+                    <select
+                      value={ipcAñoSeleccionado}
+                      onChange={(e) => setIpcAñoSeleccionado(parseInt(e.target.value))}
+                      className="px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white"
+                    >
+                      {[2024, 2025, 2026, 2027].map(año => (
+                        <option key={año} value={año} className="bg-slate-900">{año}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Tabla de IPC por mes */}
+                <div className="glass rounded-2xl overflow-hidden">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-white/10">
+                        <th className="text-left p-4 text-slate-400 font-medium">Mes</th>
+                        <th className="text-right p-4 text-slate-400 font-medium">IPC INDEC</th>
+                        <th className="text-right p-4 text-slate-400 font-medium">IPC Aplicado</th>
+                        <th className="text-center p-4 text-slate-400 font-medium">Estado</th>
+                        <th className="text-right p-4 text-slate-400 font-medium">Eventos</th>
+                        <th className="text-right p-4 text-slate-400 font-medium">Total Ajustado</th>
+                        <th className="text-center p-4 text-slate-400 font-medium">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map((mesNombre, idx) => {
+                        const mesNum = idx + 1;
+                        const ipcDelMes = ipcMensual.find(i => i.año === ipcAñoSeleccionado && i.mes === mesNum);
+                        const esFuturo = new Date(ipcAñoSeleccionado, mesNum - 1) > new Date();
+
+                        return (
+                          <tr key={mesNum} className="border-b border-white/5 hover:bg-white/5">
+                            <td className="p-4 font-medium">{mesNombre}</td>
+                            <td className="p-4 text-right text-slate-400">
+                              {ipcDelMes?.ipc_indec ? `${ipcDelMes.ipc_indec}%` : '-'}
+                            </td>
+                            <td className="p-4 text-right">
+                              {ipcDelMes?.ipc_aplicado ? (
+                                <span className="text-amber-400 font-medium">{ipcDelMes.ipc_aplicado}%</span>
+                              ) : '-'}
+                            </td>
+                            <td className="p-4 text-center">
+                              {ipcDelMes?.aplicado ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs">
+                                  <Check className="w-3 h-3" /> Aplicado
+                                </span>
+                              ) : esFuturo ? (
+                                <span className="text-slate-500 text-xs">Futuro</span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs">
+                                  Pendiente
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-4 text-right text-slate-400">
+                              {ipcDelMes?.eventos_afectados || '-'}
+                            </td>
+                            <td className="p-4 text-right">
+                              {ipcDelMes?.total_ajustado ? (
+                                <span className="text-amber-400">+${Math.round(ipcDelMes.total_ajustado).toLocaleString('es-AR')}</span>
+                              ) : '-'}
+                            </td>
+                            <td className="p-4 text-center">
+                              {!ipcDelMes?.aplicado && !esFuturo && canCreate && (
+                                <button
+                                  onClick={() => {
+                                    setNuevoIPC({ mes: mesNum, ipc_indec: '', ipc_aplicado: '' });
+                                    // Calcular preview
+                                    const eventosConSaldo = cobranzasData.filter(e => {
+                                      const fechaEvento = new Date(e.fecha);
+                                      const inicioMes = new Date(ipcAñoSeleccionado, mesNum - 1, 1);
+                                      return e.saldo > 0 && fechaEvento >= inicioMes;
+                                    });
+                                    setIpcPreview({
+                                      eventos: eventosConSaldo.length,
+                                      totalSaldos: eventosConSaldo.reduce((sum, e) => sum + e.saldo, 0),
+                                      incremento: 0
+                                    });
+                                    setShowIPCModal(true);
+                                  }}
+                                  className="px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 text-sm font-medium"
+                                >
+                                  Cargar IPC
+                                </button>
+                              )}
+                              {ipcDelMes?.aplicado && (
+                                <span className="text-slate-500 text-sm">
+                                  {new Date(ipcDelMes.fecha_aplicacion).toLocaleDateString('es-AR')}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Info */}
+                <div className="glass rounded-xl p-4 text-sm text-slate-400">
+                  <p><strong>Nota:</strong> El IPC se aplica sobre el saldo pendiente de cada evento con fecha posterior al mes seleccionado.
+                  El IPC INDEC es de referencia, podés aplicar un porcentaje menor.</p>
+                </div>
               </div>
             )}
           </div>
