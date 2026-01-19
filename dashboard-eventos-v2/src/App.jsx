@@ -289,6 +289,9 @@ export default function App() {
   const [clientes, setClientes] = useState([]);
   const [editingContacto, setEditingContacto] = useState(null);
   const [showContactoModal, setShowContactoModal] = useState(false);
+  const [showClienteSugerencias, setShowClienteSugerencias] = useState(false);
+  const [showClienteSugerenciasEdit, setShowClienteSugerenciasEdit] = useState(false);
+  const [telefonoDuplicado, setTelefonoDuplicado] = useState(null);
 
   // Estado para clima
   const [climaData, setClimaData] = useState({});
@@ -3252,16 +3255,49 @@ export default function App() {
                     className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
                   />
                 </div>
-                <div>
+                <div className="relative">
                   <label className="block text-xs text-slate-400 mb-1">Cliente *</label>
                   <input
                     type="text"
                     required
-                    placeholder="Nombre del cliente"
+                    placeholder="Buscar o escribir nombre"
                     value={nuevoEvento.cliente}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, cliente: e.target.value})}
+                    onChange={(e) => {
+                      setNuevoEvento({...nuevoEvento, cliente: e.target.value});
+                      setShowClienteSugerencias(e.target.value.length >= 2);
+                    }}
+                    onFocus={() => nuevoEvento.cliente.length >= 2 && setShowClienteSugerencias(true)}
+                    onBlur={() => setTimeout(() => setShowClienteSugerencias(false), 200)}
                     className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
+                  {showClienteSugerencias && (
+                    <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-white/20 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                      {clientes
+                        .filter(c => c.nombre?.toLowerCase().includes(nuevoEvento.cliente.toLowerCase()))
+                        .slice(0, 8)
+                        .map(c => (
+                          <div
+                            key={c.id}
+                            className="px-3 py-2 hover:bg-purple-500/20 cursor-pointer border-b border-white/5 last:border-0"
+                            onMouseDown={() => {
+                              setNuevoEvento({
+                                ...nuevoEvento,
+                                cliente: c.nombre,
+                                telefono: c.telefono || nuevoEvento.telefono
+                              });
+                              setShowClienteSugerencias(false);
+                              setTelefonoDuplicado(null);
+                            }}
+                          >
+                            <p className="text-white text-sm">{c.nombre}</p>
+                            {c.telefono && <p className="text-slate-400 text-xs">{c.telefono}</p>}
+                          </div>
+                        ))}
+                      {clientes.filter(c => c.nombre?.toLowerCase().includes(nuevoEvento.cliente.toLowerCase())).length === 0 && (
+                        <p className="px-3 py-2 text-slate-400 text-sm">Cliente nuevo - se agregará a la agenda</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -3273,9 +3309,26 @@ export default function App() {
                     type="tel"
                     placeholder="Número de teléfono"
                     value={nuevoEvento.telefono}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, telefono: e.target.value})}
-                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    onChange={(e) => {
+                      const tel = e.target.value;
+                      setNuevoEvento({...nuevoEvento, telefono: tel});
+                      // Verificar si el teléfono ya existe en agenda
+                      if (tel.length >= 8) {
+                        const existente = clientes.find(c =>
+                          c.telefono && c.telefono.replace(/\D/g, '').includes(tel.replace(/\D/g, ''))
+                        );
+                        setTelefonoDuplicado(existente || null);
+                      } else {
+                        setTelefonoDuplicado(null);
+                      }
+                    }}
+                    className={`w-full px-3 py-2 rounded-lg border bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none ${telefonoDuplicado ? 'border-yellow-500/50' : 'border-white/10 focus:border-purple-500/50'}`}
                   />
+                  {telefonoDuplicado && (
+                    <p className="text-yellow-400 text-xs mt-1">
+                      Este teléfono ya existe: {telefonoDuplicado.nombre}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Vendedor</label>
@@ -3824,15 +3877,48 @@ export default function App() {
                     className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
                   />
                 </div>
-                <div>
+                <div className="relative">
                   <label className="block text-sm text-slate-400 mb-1">Cliente *</label>
                   <input
                     type="text"
                     required
+                    placeholder="Buscar o escribir nombre"
                     value={eventoEdit.cliente}
-                    onChange={(e) => setEventoEdit({...eventoEdit, cliente: e.target.value})}
+                    onChange={(e) => {
+                      setEventoEdit({...eventoEdit, cliente: e.target.value});
+                      setShowClienteSugerenciasEdit(e.target.value.length >= 2);
+                    }}
+                    onFocus={() => eventoEdit.cliente?.length >= 2 && setShowClienteSugerenciasEdit(true)}
+                    onBlur={() => setTimeout(() => setShowClienteSugerenciasEdit(false), 200)}
                     className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
                   />
+                  {showClienteSugerenciasEdit && (
+                    <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-white/20 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                      {clientes
+                        .filter(c => c.nombre?.toLowerCase().includes(eventoEdit.cliente?.toLowerCase() || ''))
+                        .slice(0, 8)
+                        .map(c => (
+                          <div
+                            key={c.id}
+                            className="px-3 py-2 hover:bg-purple-500/20 cursor-pointer border-b border-white/5 last:border-0"
+                            onMouseDown={() => {
+                              setEventoEdit({
+                                ...eventoEdit,
+                                cliente: c.nombre,
+                                telefono: c.telefono || eventoEdit.telefono
+                              });
+                              setShowClienteSugerenciasEdit(false);
+                            }}
+                          >
+                            <p className="text-white text-sm">{c.nombre}</p>
+                            {c.telefono && <p className="text-slate-400 text-xs">{c.telefono}</p>}
+                          </div>
+                        ))}
+                      {clientes.filter(c => c.nombre?.toLowerCase().includes(eventoEdit.cliente?.toLowerCase() || '')).length === 0 && (
+                        <p className="px-3 py-2 text-slate-400 text-sm">Cliente nuevo - se agregará a la agenda</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
