@@ -914,19 +914,24 @@ export default function App() {
     } else {
       // Generar recibo solo para pagos nuevos (no ediciones)
       if (!editingPagoId) {
-        const pagadoAntes = selectedEventoPago.pagosYSenas || 0;
-        generarRecibo(
-          selectedEventoPago,
-          {
-            fecha: nuevoPago.fecha,
-            monto: montoEnPesos,
-            concepto: nuevoPago.concepto,
-            cobrador: nuevoPago.cobrador,
-            moneda: nuevoPago.moneda,
-            cotizacion: cotizacion
-          },
-          { pagadoAntes }
-        );
+        try {
+          const pagadoAntes = selectedEventoPago.pagosYSenas || 0;
+          generarRecibo(
+            selectedEventoPago,
+            {
+              fecha: nuevoPago.fecha,
+              monto: montoEnPesos,
+              concepto: nuevoPago.concepto,
+              cobrador: nuevoPago.cobrador,
+              moneda: nuevoPago.moneda,
+              cotizacion: cotizacion
+            },
+            { pagadoAntes }
+          );
+        } catch (pdfError) {
+          console.error('Error generando recibo:', pdfError);
+          alert('Pago registrado. Error al generar recibo PDF: ' + pdfError.message);
+        }
       }
       setShowPagoModal(false);
       setNuevoPago({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '' });
@@ -6319,7 +6324,7 @@ export default function App() {
                               <button
                                 onClick={() => {
                                   setSelectedEventoPago(evento);
-                                  setNuevoPago({ fecha: new Date().toISOString().split('T')[0], monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '' });
+                                  setNuevoPago({ fecha: new Date().toISOString().split('T')[0], monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '' });
                                   setEditingPagoId(null);
                                   setShowPagoModal(true);
                                 }}
