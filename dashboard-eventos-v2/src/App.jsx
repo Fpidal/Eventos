@@ -209,6 +209,8 @@ export default function App() {
   // Auth states
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState('admin');
+  const [userTabsPermitidas, setUserTabsPermitidas] = useState(['dashboard', 'proximos', 'aconfirmar', 'realizados', 'calendario', 'eventos', 'cobranzas', 'menus', 'informes', 'agenda', 'usuarios', 'caja']);
+  const [userVerPrecios, setUserVerPrecios] = useState(true);
   const [authLoading, setAuthLoading] = useState(true);
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [loginError, setLoginError] = useState('');
@@ -299,7 +301,15 @@ export default function App() {
   // Estados para gestión de usuarios
   const [usuarios, setUsuarios] = useState([]);
   const [showUserModal, setShowUserModal] = useState(false);
-  const [nuevoUsuario, setNuevoUsuario] = useState({ email: '', password: '', nombre: '', rol: 'lectura' });
+  const [nuevoUsuario, setNuevoUsuario] = useState({
+    email: '',
+    password: '',
+    password2: '',
+    nombre: '',
+    rol: 'lectura',
+    tabs_permitidas: ['dashboard', 'calendario', 'eventos', 'proximos'],
+    ver_precios: true
+  });
   const [userError, setUserError] = useState('');
 
   // Estados para menús
@@ -398,6 +408,12 @@ export default function App() {
     }
   };
 
+  // Helper para mostrar/ocultar precios según permisos
+  const displayPrice = (value) => {
+    if (!userVerPrecios) return '---';
+    return formatCurrency(value);
+  };
+
   // Auth: verificar sesión guardada en localStorage
   useEffect(() => {
     const savedSession = localStorage.getItem('session');
@@ -409,6 +425,8 @@ export default function App() {
         if (elapsed < SESSION_TIMEOUT) {
           setUser(session.user);
           setUserRole(session.role);
+          setUserTabsPermitidas(session.tabs_permitidas || ['dashboard', 'proximos', 'aconfirmar', 'realizados', 'calendario', 'eventos', 'cobranzas', 'menus', 'informes', 'agenda', 'usuarios', 'caja']);
+          setUserVerPrecios(session.ver_precios !== false);
           // Actualizar timestamp para extender la sesión
           localStorage.setItem('session', JSON.stringify({ ...session, timestamp: Date.now() }));
         } else {
@@ -445,16 +463,62 @@ export default function App() {
     setLoginError('');
     setLoginLoading(true);
 
-    // Login con clave única
+    // Login con clave única (admin)
     if (loginForm.password === 'admin1234') {
       const userData = { email: loginForm.email || 'usuario@eventos.com', id: 'temp-user' };
+      const allTabs = ['dashboard', 'proximos', 'aconfirmar', 'realizados', 'calendario', 'eventos', 'cobranzas', 'menus', 'informes', 'agenda', 'usuarios', 'caja'];
       setUser(userData);
       setUserRole('admin');
+      setUserTabsPermitidas(allTabs);
+      setUserVerPrecios(true);
       // Guardar sesión en localStorage para persistencia
-      localStorage.setItem('session', JSON.stringify({ user: userData, role: 'admin', timestamp: Date.now() }));
+      localStorage.setItem('session', JSON.stringify({
+        user: userData,
+        role: 'admin',
+        tabs_permitidas: allTabs,
+        ver_precios: true,
+        timestamp: Date.now()
+      }));
       setLoginLoading(false);
       startSessionTimer();
       return;
+    }
+
+    // Buscar usuario en la base de datos
+    const { data: usuarios } = await supabase
+      .from('usuarios')
+      .select('*')
+      .eq('email', loginForm.email)
+      .single();
+
+    if (usuarios && loginForm.password) {
+      // Intentar login con Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: loginForm.email,
+        password: loginForm.password
+      });
+
+      if (!authError && authData.user) {
+        const userData = { email: usuarios.email, id: authData.user.id, nombre: usuarios.nombre };
+        const tabs = usuarios.tabs_permitidas || ['dashboard', 'calendario', 'eventos'];
+        const verPrecios = usuarios.ver_precios !== false;
+
+        setUser(userData);
+        setUserRole(usuarios.rol);
+        setUserTabsPermitidas(tabs);
+        setUserVerPrecios(verPrecios);
+
+        localStorage.setItem('session', JSON.stringify({
+          user: userData,
+          role: usuarios.rol,
+          tabs_permitidas: tabs,
+          ver_precios: verPrecios,
+          timestamp: Date.now()
+        }));
+        setLoginLoading(false);
+        startSessionTimer();
+        return;
+      }
     }
 
     setLoginError('Contraseña incorrecta');
@@ -1162,21 +1226,31 @@ export default function App() {
       return;
     }
 
-    // 2. Agregar a la tabla usuarios con el rol
+    // 2. Agregar a la tabla usuarios con el rol y permisos
     const { error: dbError } = await supabase
       .from('usuarios')
       .insert([{
         user_id: authData.user.id,
         email: nuevoUsuario.email,
         nombre: nuevoUsuario.nombre,
-        rol: nuevoUsuario.rol
+        rol: nuevoUsuario.rol,
+        tabs_permitidas: nuevoUsuario.tabs_permitidas,
+        ver_precios: nuevoUsuario.ver_precios
       }]);
 
     if (dbError) {
       setUserError('Usuario creado pero error al asignar rol: ' + dbError.message);
     } else {
       setShowUserModal(false);
-      setNuevoUsuario({ email: '', password: '', nombre: '', rol: 'lectura' });
+      setNuevoUsuario({
+        email: '',
+        password: '',
+        password2: '',
+        nombre: '',
+        rol: 'lectura',
+        tabs_permitidas: ['dashboard', 'calendario', 'eventos', 'proximos'],
+        ver_precios: true
+      });
       fetchUsuarios();
     }
     setSaving(false);
@@ -3663,7 +3737,7 @@ export default function App() {
               {/* Total calculado */}
               <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
                 <p className="text-xs text-slate-400">Total Evento</p>
-                <p className="text-xl font-bold text-emerald-400">{formatCurrency(calcularTotal())}</p>
+                <p className="text-xl font-bold text-emerald-400">{displayPrice(calcularTotal())}</p>
               </div>
 
               {/* Otros */}
@@ -3823,7 +3897,7 @@ export default function App() {
 
               <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
                 <p className="text-xs text-slate-400">Total Evento</p>
-                <p className="text-xl font-bold text-emerald-400">{formatCurrency(selectedEvento.totalEvento)}</p>
+                <p className="text-xl font-bold text-emerald-400">{displayPrice(selectedEvento.totalEvento)}</p>
               </div>
 
               {/* Botones Editar y Eliminar */}
@@ -4262,7 +4336,7 @@ export default function App() {
               {/* Total calculado */}
               <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
                 <p className="text-sm text-slate-400">Total Evento</p>
-                <p className="text-2xl font-bold text-emerald-400">{formatCurrency(calcularTotalEdit())}</p>
+                <p className="text-2xl font-bold text-emerald-400">{displayPrice(calcularTotalEdit())}</p>
               </div>
 
               {/* Otros */}
@@ -4661,9 +4735,9 @@ export default function App() {
             { id: 'menus', label: 'Menús', shortLabel: 'Menú', icon: UtensilsCrossed },
             { id: 'informes', label: 'Informes', shortLabel: 'Inf', icon: ClipboardList },
             { id: 'agenda', label: 'Agenda', shortLabel: 'Ag', icon: Contact },
-            ...(userRole === 'admin' ? [{ id: 'usuarios', label: 'Usuarios', shortLabel: 'Usr', icon: Users }] : []),
+            { id: 'usuarios', label: 'Usuarios', shortLabel: 'Usr', icon: Users },
             { id: 'caja', label: 'Caja', shortLabel: 'Caja', icon: Banknote },
-          ].map(tab => (
+          ].filter(tab => userTabsPermitidas.includes(tab.id)).map(tab => (
             <button
               key={tab.id}
               onClick={() => {
@@ -4715,7 +4789,7 @@ export default function App() {
                     <div className="min-w-0 flex-1">
                       <p className="text-slate-400 text-[10px] sm:text-xs lg:text-sm mb-0.5 sm:mb-1 truncate">{stat.label}</p>
                       <p className="text-sm sm:text-lg lg:text-2xl font-bold truncate">
-                        {stat.format ? formatCurrency(stat.value) : stat.value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                        {stat.format ? displayPrice(stat.value) : stat.value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
                       </p>
                     </div>
                     <div className={`w-8 h-8 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-lg sm:rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center flex-shrink-0`}>
@@ -5127,7 +5201,7 @@ export default function App() {
                       <div className="flex-shrink-0 flex flex-col items-end gap-2">
                         <div className="text-right">
                           <p className="text-xs text-slate-400">Total</p>
-                          <p className="text-xl font-bold text-emerald-400">{formatCurrency(e.totalEvento)}</p>
+                          <p className="text-xl font-bold text-emerald-400">{displayPrice(e.totalEvento)}</p>
                         </div>
                         <div className="flex gap-1">
                           <button
@@ -5252,7 +5326,7 @@ export default function App() {
                       {/* Total */}
                       <div className="flex-shrink-0 text-right">
                         <p className="text-xs text-slate-400">Total</p>
-                        <p className="text-xl font-bold text-emerald-400">{formatCurrency(e.totalEvento)}</p>
+                        <p className="text-xl font-bold text-emerald-400">{displayPrice(e.totalEvento)}</p>
                       </div>
                     </div>
 
@@ -5354,7 +5428,7 @@ export default function App() {
                       <div className="flex-shrink-0 flex flex-col items-end gap-2">
                         <div className="text-right">
                           <p className="text-xs text-slate-400">Total</p>
-                          <p className="text-xl font-bold text-emerald-400">{formatCurrency(e.totalEvento)}</p>
+                          <p className="text-xl font-bold text-emerald-400">{displayPrice(e.totalEvento)}</p>
                         </div>
                         <div className="flex gap-1">
                           <button
@@ -5536,7 +5610,7 @@ export default function App() {
                           )}
                         </div>
                       )}
-                      <p className="text-emerald-400 font-semibold text-sm mt-2">{formatCurrency(e.totalEvento)}</p>
+                      <p className="text-emerald-400 font-semibold text-sm mt-2">{displayPrice(e.totalEvento)}</p>
                     </button>
                   ))}
                 </div>
@@ -5674,7 +5748,7 @@ export default function App() {
                         </td>
                         <td className="px-5 py-4 text-slate-300 hidden lg:table-cell">{e.vendedor}</td>
                         <td className="px-5 py-4 text-righthidden sm:table-cell">{e.adultos + (e.menores || 0)}</td>
-                        <td className="px-5 py-4 text-right font-semibold text-emerald-400">{formatCurrency(e.totalEvento)}</td>
+                        <td className="px-5 py-4 text-right font-semibold text-emerald-400">{displayPrice(e.totalEvento)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -5699,7 +5773,7 @@ export default function App() {
                   </div>
                   <span className="text-sm text-slate-400">Total Facturado</span>
                 </div>
-                <p className="text-2xl font-bold text-white">{formatCurrency(statsCobranzas.totalFacturado)}</p>
+                <p className="text-2xl font-bold text-white">{displayPrice(statsCobranzas.totalFacturado)}</p>
               </div>
               <div className="glass rounded-2xl p-5 glow">
                 <div className="flex items-center gap-3 mb-3">
@@ -5708,7 +5782,7 @@ export default function App() {
                   </div>
                   <span className="text-sm text-slate-400">Total Cobrado</span>
                 </div>
-                <p className="text-2xl font-bold text-emerald-400">{formatCurrency(statsCobranzas.totalCobrado)}</p>
+                <p className="text-2xl font-bold text-emerald-400">{displayPrice(statsCobranzas.totalCobrado)}</p>
               </div>
               <div className="glass rounded-2xl p-5 glow">
                 <div className="flex items-center gap-3 mb-3">
@@ -5717,7 +5791,7 @@ export default function App() {
                   </div>
                   <span className="text-sm text-slate-400">Pendiente</span>
                 </div>
-                <p className="text-2xl font-bold text-amber-400">{formatCurrency(statsCobranzas.totalPendiente)}</p>
+                <p className="text-2xl font-bold text-amber-400">{displayPrice(statsCobranzas.totalPendiente)}</p>
               </div>
               <div className="glass rounded-2xl p-5 glow">
                 <div className="flex items-center gap-3 mb-3">
@@ -5858,7 +5932,7 @@ export default function App() {
                           <p className="font-medium">{evento.cliente}</p>
                           <p className="text-xs text-slate-400">{evento.tipoEvento}</p>
                         </td>
-                        <td className="px-5 py-4 text-right">{formatCurrency(evento.totalEvento)}</td>
+                        <td className="px-5 py-4 text-right">{displayPrice(evento.totalEvento)}</td>
                         <td className="px-5 py-4 text-right text-emerald-400">{formatCurrency(evento.pagosYSenas)}</td>
                         <td className="px-5 py-4 text-right">
                           {evento.ajustesIPC > 0 ? (
@@ -5867,10 +5941,10 @@ export default function App() {
                             <span className="text-slate-500">-</span>
                           )}
                         </td>
-                        <td className="px-5 py-4 text-rightfont-medium">{formatCurrency(evento.totalPagado)}</td>
+                        <td className="px-5 py-4 text-rightfont-medium">{displayPrice(evento.totalPagado)}</td>
                         <td className="px-5 py-4 text-right">
                           <span className={`font-semibold${evento.saldo > 0 ? 'text-amber-400' : evento.saldo < 0 ? 'text-blue-400' : 'text-emerald-400'}`}>
-                            {formatCurrency(evento.saldo)}
+                            {displayPrice(evento.saldo)}
                           </span>
                         </td>
                         <td className="px-5 py-4">
@@ -5930,7 +6004,7 @@ export default function App() {
                       <div className="text-right">
                         <p className="text-sm text-slate-400">Saldo</p>
                         <p className={`font-semibold${evento.saldo > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                          {formatCurrency(evento.saldo)}
+                          {displayPrice(evento.saldo)}
                         </p>
                       </div>
                     </div>
@@ -6773,7 +6847,7 @@ export default function App() {
                       <p className="text-sm text-slate-400">Promedio x Evento</p>
                     </div>
                     <div className="glass rounded-xl p-4 text-center">
-                      <p className="text-3xl font-bold text-amber-400">{formatCurrency(facturacionTotal)}</p>
+                      <p className="text-3xl font-bold text-amber-400">{displayPrice(facturacionTotal)}</p>
                       <p className="text-sm text-slate-400">Facturación Total</p>
                     </div>
                   </div>
@@ -8701,8 +8775,8 @@ export default function App() {
 
         {/* Modal Nuevo Usuario */}
         {showUserModal && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-            <div className="glass rounded-2xl p-6 w-full max-w-md">
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="glass rounded-2xl p-6 w-full max-w-lg my-4">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold">Nuevo Usuario</h2>
                 <button onClick={() => { setShowUserModal(false); setUserError(''); }} className="p-2 hover:bg-white/10 rounded-xl">
@@ -8710,56 +8784,102 @@ export default function App() {
                 </button>
               </div>
 
-              <form onSubmit={handleCreateUser} className="space-y-4">
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (nuevoUsuario.password !== nuevoUsuario.password2) {
+                  setUserError('Las contraseñas no coinciden');
+                  return;
+                }
+                handleCreateUser(e);
+              }} className="space-y-4">
                 {userError && (
                   <div className="p-3 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-sm">
                     {userError}
                   </div>
                 )}
 
-                <div>
-                  <label className="block text-sm text-slate-400 mb-1">Nombre</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Nombre del usuario"
-                    value={nuevoUsuario.nombre}
-                    onChange={(e) => setNuevoUsuario({...nuevoUsuario, nombre: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Nombre *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Nombre"
+                      value={nuevoUsuario.nombre}
+                      onChange={(e) => setNuevoUsuario({...nuevoUsuario, nombre: e.target.value})}
+                      className="w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Email *</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="email@ejemplo.com"
+                      value={nuevoUsuario.email}
+                      onChange={(e) => setNuevoUsuario({...nuevoUsuario, email: e.target.value})}
+                      className="w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm text-slate-400 mb-1">Email</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="email@ejemplo.com"
-                    value={nuevoUsuario.email}
-                    onChange={(e) => setNuevoUsuario({...nuevoUsuario, email: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm text-slate-400 mb-1">Contraseña</label>
-                  <input
-                    type="password"
-                    required
-                    minLength={6}
-                    placeholder="Mínimo 6 caracteres"
-                    value={nuevoUsuario.password}
-                    onChange={(e) => setNuevoUsuario({...nuevoUsuario, password: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Contraseña *</label>
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      placeholder="Mínimo 6 caracteres"
+                      value={nuevoUsuario.password}
+                      onChange={(e) => setNuevoUsuario({...nuevoUsuario, password: e.target.value})}
+                      className="w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Repetir Contraseña *</label>
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      placeholder="Repetir contraseña"
+                      value={nuevoUsuario.password2}
+                      onChange={(e) => setNuevoUsuario({...nuevoUsuario, password2: e.target.value})}
+                      className={`w-full px-3 py-2 rounded-xl border bg-white/5 text-white placeholder-slate-500 focus:outline-none ${
+                        nuevoUsuario.password2 && nuevoUsuario.password !== nuevoUsuario.password2
+                          ? 'border-red-500/50'
+                          : nuevoUsuario.password2 && nuevoUsuario.password === nuevoUsuario.password2
+                          ? 'border-green-500/50'
+                          : 'border-white/10 focus:border-purple-500/50'
+                      }`}
+                    />
+                    {nuevoUsuario.password2 && nuevoUsuario.password !== nuevoUsuario.password2 && (
+                      <p className="text-red-400 text-xs mt-1">No coinciden</p>
+                    )}
+                    {nuevoUsuario.password2 && nuevoUsuario.password === nuevoUsuario.password2 && (
+                      <p className="text-green-400 text-xs mt-1">✓ Coinciden</p>
+                    )}
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Rol</label>
                   <select
                     value={nuevoUsuario.rol}
-                    onChange={(e) => setNuevoUsuario({...nuevoUsuario, rol: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                    onChange={(e) => {
+                      const rol = e.target.value;
+                      if (rol === 'admin') {
+                        setNuevoUsuario({
+                          ...nuevoUsuario,
+                          rol,
+                          tabs_permitidas: ['dashboard', 'proximos', 'aconfirmar', 'realizados', 'calendario', 'eventos', 'cobranzas', 'menus', 'informes', 'agenda', 'usuarios', 'caja'],
+                          ver_precios: true
+                        });
+                      } else {
+                        setNuevoUsuario({...nuevoUsuario, rol});
+                      }
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
                   >
                     <option value="lectura" className="bg-slate-900">Lectura (solo ver)</option>
                     <option value="vendedor" className="bg-slate-900">Vendedor (crear y editar)</option>
@@ -8767,9 +8887,69 @@ export default function App() {
                   </select>
                 </div>
 
+                {nuevoUsuario.rol !== 'admin' && (
+                  <>
+                    <div>
+                      <label className="block text-sm text-slate-400 mb-2">Pestañas permitidas</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { id: 'dashboard', label: 'Dashboard' },
+                          { id: 'proximos', label: 'Próximos' },
+                          { id: 'aconfirmar', label: 'A Confirmar' },
+                          { id: 'realizados', label: 'Realizados' },
+                          { id: 'calendario', label: 'Calendario' },
+                          { id: 'eventos', label: 'Eventos' },
+                          { id: 'cobranzas', label: 'Cobranzas' },
+                          { id: 'menus', label: 'Menús' },
+                          { id: 'informes', label: 'Informes' },
+                          { id: 'agenda', label: 'Agenda' },
+                          { id: 'caja', label: 'Caja' }
+                        ].map(tab => (
+                          <label key={tab.id} className="flex items-center gap-2 p-2 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={nuevoUsuario.tabs_permitidas.includes(tab.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setNuevoUsuario({
+                                    ...nuevoUsuario,
+                                    tabs_permitidas: [...nuevoUsuario.tabs_permitidas, tab.id]
+                                  });
+                                } else {
+                                  setNuevoUsuario({
+                                    ...nuevoUsuario,
+                                    tabs_permitidas: nuevoUsuario.tabs_permitidas.filter(t => t !== tab.id)
+                                  });
+                                }
+                              }}
+                              className="rounded border-white/20"
+                            />
+                            <span className="text-sm">{tab.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={nuevoUsuario.ver_precios}
+                          onChange={(e) => setNuevoUsuario({...nuevoUsuario, ver_precios: e.target.checked})}
+                          className="rounded border-white/20 w-5 h-5"
+                        />
+                        <div>
+                          <span className="text-sm font-medium">Ver precios</span>
+                          <p className="text-xs text-slate-400">Si está desactivado, no verá montos en ninguna parte</p>
+                        </div>
+                      </label>
+                    </div>
+                  </>
+                )}
+
                 <button
                   type="submit"
-                  disabled={saving}
+                  disabled={saving || (nuevoUsuario.password !== nuevoUsuario.password2)}
                   className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Users className="w-5 h-5" />}
