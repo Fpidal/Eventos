@@ -2996,9 +2996,9 @@ export default function App() {
     doc.setTextColor(...GRIS_SEC);
     doc.setFont('helvetica', 'normal');
     doc.text('La seña confirma la reserva de fecha y salón.', centerX, y, { align: 'center' });
-    y += 5;
+    y += 3.5;
     doc.text('El saldo deberá abonarse previo al evento.', centerX, y, { align: 'center' });
-    y += 5;
+    y += 3.5;
     doc.setFont('helvetica', 'italic');
     doc.text('Este comprobante no constituye factura.', centerX, y, { align: 'center' });
 
@@ -3006,7 +3006,7 @@ export default function App() {
     doc.setFontSize(8);
     doc.setTextColor(...GRIS_SEC);
     doc.setFont('helvetica', 'italic');
-    doc.text('Gracias por confiar en Tero', centerX, 202, { align: 'center' });
+    doc.text('Gracias por confiar en Tero', centerX, 205, { align: 'center' });
 
     // Guardar
     const fileName = 'Recibo_' + (evento.cliente || 'pago').replace(/\s+/g, '_') + '_' + pagoData.fecha + '.pdf';
