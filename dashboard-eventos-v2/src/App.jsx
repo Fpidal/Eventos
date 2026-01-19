@@ -3023,6 +3023,8 @@ export default function App() {
   const filteredEventos = useMemo(() => {
     return eventosDelAño
       .filter(e => {
+        // Excluir eventos anulados
+        if (e.anulado) return false;
         const matchSearch = e.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            e.tipoEvento.toLowerCase().includes(searchTerm.toLowerCase());
         const matchVendedor = filterVendedor === 'todos' || e.vendedor === filterVendedor;
@@ -3834,23 +3836,25 @@ export default function App() {
               </button>
             </div>
 
-            {/* Botones PDF y Cotización arriba */}
-            <div className="flex gap-2 mb-4">
-              <button
-                onClick={() => generarCotizacion(selectedEvento)}
-                className="px-3 py-2 rounded-lg bg-blue-500/20 text-blue-400 text-sm font-medium hover:bg-blue-500/30 transition-all border border-blue-500/30 flex items-center gap-1"
-              >
-                <FileText className="w-3 h-3" />
-                Cotización
-              </button>
-              <button
-                onClick={() => generarPDF(selectedEvento)}
-                className="px-3 py-2 rounded-lg bg-emerald-500/20 text-emerald-400 text-sm font-medium hover:bg-emerald-500/30 transition-all border border-emerald-500/30 flex items-center gap-1"
-              >
-                <FileText className="w-3 h-3" />
-                Resumen
-              </button>
-            </div>
+            {/* Botones PDF y Cotización arriba - solo si puede ver precios */}
+            {userVerPrecios && (
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={() => generarCotizacion(selectedEvento)}
+                  className="px-3 py-2 rounded-lg bg-blue-500/20 text-blue-400 text-sm font-medium hover:bg-blue-500/30 transition-all border border-blue-500/30 flex items-center gap-1"
+                >
+                  <FileText className="w-3 h-3" />
+                  Cotización
+                </button>
+                <button
+                  onClick={() => generarPDF(selectedEvento)}
+                  className="px-3 py-2 rounded-lg bg-emerald-500/20 text-emerald-400 text-sm font-medium hover:bg-emerald-500/30 transition-all border border-emerald-500/30 flex items-center gap-1"
+                >
+                  <FileText className="w-3 h-3" />
+                  Resumen
+                </button>
+              </div>
+            )}
 
             {/* Estado de confirmación */}
             <div className={`mb-3 p-2 rounded-xl flex items-center justify-between ${selectedEvento.confirmado ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-amber-500/10 border border-amber-500/30'}`}>
@@ -5269,20 +5273,24 @@ export default function App() {
                           >
                             <Monitor className="w-3.5 h-3.5" />
                           </button>
-                          <button
-                            onClick={(ev) => { ev.stopPropagation(); generarCotizacion(e); }}
-                            className="p-1.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-all"
-                            title="Cotización"
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={(ev) => { ev.stopPropagation(); generarPDF(e); }}
-                            className="p-1.5 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-all"
-                            title="Resumen"
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                          </button>
+                          {userVerPrecios && (
+                            <>
+                              <button
+                                onClick={(ev) => { ev.stopPropagation(); generarCotizacion(e); }}
+                                className="p-1.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-all"
+                                title="Cotización"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={(ev) => { ev.stopPropagation(); generarPDF(e); }}
+                                className="p-1.5 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-all"
+                                title="Resumen"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -5517,20 +5525,24 @@ export default function App() {
                           >
                             <Monitor className="w-3.5 h-3.5" />
                           </button>
-                          <button
-                            onClick={(ev) => { ev.stopPropagation(); generarCotizacion(e); }}
-                            className="p-1.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-all"
-                            title="Cotización"
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={(ev) => { ev.stopPropagation(); generarPDF(e); }}
-                            className="p-1.5 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-all"
-                            title="Resumen"
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                          </button>
+                          {userVerPrecios && (
+                            <>
+                              <button
+                                onClick={(ev) => { ev.stopPropagation(); generarCotizacion(e); }}
+                                className="p-1.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-all"
+                                title="Cotización"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={(ev) => { ev.stopPropagation(); generarPDF(e); }}
+                                className="p-1.5 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-all"
+                                title="Resumen"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
