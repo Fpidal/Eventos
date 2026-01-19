@@ -2979,34 +2979,34 @@ export default function App() {
       doc.text('EVENTO CANCELADO', colLabel, y);
       doc.text(formatMoneyPDF(0), colValue, y, { align: 'right' });
     }
-    y += 20;
+    y += 12;
 
     // --- FIRMA ---
     doc.setDrawColor(...GRIS_LINEA);
     doc.setLineWidth(0.3);
-    doc.line(centerX - 40, y + 15, centerX + 40, y + 15);
-    doc.setFontSize(9);
-    doc.setTextColor(...GRIS_SEC);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Firma y sello', centerX, y + 20, { align: 'center' });
-
-    // --- TEXTOS LEGALES ---
-    y += 35;
+    doc.line(centerX - 35, y + 10, centerX + 35, y + 10);
     doc.setFontSize(8);
     doc.setTextColor(...GRIS_SEC);
     doc.setFont('helvetica', 'normal');
+    doc.text('Firma y sello', centerX, y + 14, { align: 'center' });
+    y += 22;
+
+    // --- TEXTOS LEGALES ---
+    doc.setFontSize(7.5);
+    doc.setTextColor(...GRIS_SEC);
+    doc.setFont('helvetica', 'normal');
     doc.text('La seña confirma la reserva de fecha y salón.', centerX, y, { align: 'center' });
-    y += 4;
+    y += 5;
     doc.text('El saldo deberá abonarse previo al evento.', centerX, y, { align: 'center' });
-    y += 4;
+    y += 5;
     doc.setFont('helvetica', 'italic');
     doc.text('Este comprobante no constituye factura.', centerX, y, { align: 'center' });
 
     // --- FOOTER ---
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setTextColor(...GRIS_SEC);
     doc.setFont('helvetica', 'italic');
-    doc.text('Gracias por confiar en Tero', centerX, 200, { align: 'center' });
+    doc.text('Gracias por confiar en Tero', centerX, 202, { align: 'center' });
 
     // Guardar
     const fileName = 'Recibo_' + (evento.cliente || 'pago').replace(/\s+/g, '_') + '_' + pagoData.fecha + '.pdf';
