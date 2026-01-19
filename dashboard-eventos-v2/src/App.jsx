@@ -2780,16 +2780,16 @@ export default function App() {
     doc.setFont('helvetica', 'bold');
     doc.text('RECIBO DE SEÑA - EVENTO', marginLeft, y + 8);
 
-    // Logo a la derecha
+    // Logo a la derecha (estirado 15% y reducido 15%)
     try {
-      doc.addImage('/logo-tero.jpg', 'JPEG', pageWidth - marginRight - 28, y, 28, 20);
+      doc.addImage('/logo-tero.jpg', 'JPEG', pageWidth - marginRight - 27, y, 27, 17);
     } catch (e) {
       doc.setFontSize(12);
       doc.setTextColor(...VERDE_TERO);
       doc.setFont('helvetica', 'bold');
       doc.text('TERO', pageWidth - marginRight, y + 10, { align: 'right' });
     }
-    y += 22;
+    y += 20;
 
     // --- NÚMERO DE RECIBO Y FECHA ---
     const numeroRecibo = Date.now().toString().slice(-8);
