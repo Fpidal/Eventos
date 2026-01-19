@@ -301,6 +301,7 @@ export default function App() {
   // Estados para gestión de usuarios
   const [usuarios, setUsuarios] = useState([]);
   const [showUserModal, setShowUserModal] = useState(false);
+  const [editingUsuario, setEditingUsuario] = useState(null);
   const [nuevoUsuario, setNuevoUsuario] = useState({
     email: '',
     password: '',
@@ -1265,6 +1266,40 @@ export default function App() {
     if (!error) {
       fetchUsuarios();
     }
+  };
+
+  const handleUpdateUser = async (e) => {
+    e.preventDefault();
+    setUserError('');
+    setSaving(true);
+
+    const { error } = await supabase
+      .from('usuarios')
+      .update({
+        nombre: nuevoUsuario.nombre,
+        rol: nuevoUsuario.rol,
+        tabs_permitidas: nuevoUsuario.tabs_permitidas,
+        ver_precios: nuevoUsuario.ver_precios
+      })
+      .eq('id', editingUsuario.id);
+
+    if (error) {
+      setUserError('Error al actualizar: ' + error.message);
+    } else {
+      setShowUserModal(false);
+      setEditingUsuario(null);
+      setNuevoUsuario({
+        email: '',
+        password: '',
+        password2: '',
+        nombre: '',
+        rol: 'lectura',
+        tabs_permitidas: ['dashboard', 'calendario', 'eventos', 'proximos'],
+        ver_precios: true
+      });
+      fetchUsuarios();
+    }
+    setSaving(false);
   };
 
   const handleDeleteUser = async (usuario) => {
@@ -7384,13 +7419,34 @@ export default function App() {
                           </select>
                         </td>
                         <td className="px-5 py-4 text-center">
-                          <button
-                            onClick={() => handleDeleteUser(usuario)}
-                            className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
-                            title="Eliminar usuario"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => {
+                                setEditingUsuario(usuario);
+                                setNuevoUsuario({
+                                  email: usuario.email,
+                                  password: '',
+                                  password2: '',
+                                  nombre: usuario.nombre || '',
+                                  rol: usuario.rol || 'lectura',
+                                  tabs_permitidas: usuario.tabs_permitidas || ['dashboard', 'calendario', 'eventos', 'proximos'],
+                                  ver_precios: usuario.ver_precios !== false
+                                });
+                                setShowUserModal(true);
+                              }}
+                              className="p-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
+                              title="Editar usuario"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(usuario)}
+                              className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+                              title="Eliminar usuario"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -8788,24 +8844,28 @@ export default function App() {
           </div>
         )}
 
-        {/* Modal Nuevo Usuario */}
+        {/* Modal Nuevo/Editar Usuario */}
         {showUserModal && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
             <div className="glass rounded-2xl p-6 w-full max-w-lg my-4">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold">Nuevo Usuario</h2>
-                <button onClick={() => { setShowUserModal(false); setUserError(''); }} className="p-2 hover:bg-white/10 rounded-xl">
+                <h2 className="text-xl font-bold">{editingUsuario ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
+                <button onClick={() => { setShowUserModal(false); setEditingUsuario(null); setUserError(''); }} className="p-2 hover:bg-white/10 rounded-xl">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <form onSubmit={(e) => {
                 e.preventDefault();
-                if (nuevoUsuario.password !== nuevoUsuario.password2) {
-                  setUserError('Las contraseñas no coinciden');
-                  return;
+                if (editingUsuario) {
+                  handleUpdateUser(e);
+                } else {
+                  if (nuevoUsuario.password !== nuevoUsuario.password2) {
+                    setUserError('Las contraseñas no coinciden');
+                    return;
+                  }
+                  handleCreateUser(e);
                 }
-                handleCreateUser(e);
               }} className="space-y-4">
                 {userError && (
                   <div className="p-3 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-sm">
@@ -8826,56 +8886,59 @@ export default function App() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">Email *</label>
+                    <label className="block text-sm text-slate-400 mb-1">Email {editingUsuario ? '' : '*'}</label>
                     <input
                       type="email"
-                      required
+                      required={!editingUsuario}
+                      disabled={!!editingUsuario}
                       placeholder="email@ejemplo.com"
                       value={nuevoUsuario.email}
                       onChange={(e) => setNuevoUsuario({...nuevoUsuario, email: e.target.value})}
-                      className="w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                      className={`w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 ${editingUsuario ? 'opacity-50 cursor-not-allowed' : ''}`}
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-1">Contraseña *</label>
-                    <input
-                      type="password"
-                      required
-                      minLength={6}
-                      placeholder="Mínimo 6 caracteres"
-                      value={nuevoUsuario.password}
-                      onChange={(e) => setNuevoUsuario({...nuevoUsuario, password: e.target.value})}
-                      className="w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
-                    />
+                {!editingUsuario && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm text-slate-400 mb-1">Contraseña *</label>
+                      <input
+                        type="password"
+                        required
+                        minLength={6}
+                        placeholder="Mínimo 6 caracteres"
+                        value={nuevoUsuario.password}
+                        onChange={(e) => setNuevoUsuario({...nuevoUsuario, password: e.target.value})}
+                        className="w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-slate-400 mb-1">Repetir Contraseña *</label>
+                      <input
+                        type="password"
+                        required
+                        minLength={6}
+                        placeholder="Repetir contraseña"
+                        value={nuevoUsuario.password2}
+                        onChange={(e) => setNuevoUsuario({...nuevoUsuario, password2: e.target.value})}
+                        className={`w-full px-3 py-2 rounded-xl border bg-white/5 text-white placeholder-slate-500 focus:outline-none ${
+                          nuevoUsuario.password2 && nuevoUsuario.password !== nuevoUsuario.password2
+                            ? 'border-red-500/50'
+                            : nuevoUsuario.password2 && nuevoUsuario.password === nuevoUsuario.password2
+                            ? 'border-green-500/50'
+                            : 'border-white/10 focus:border-purple-500/50'
+                        }`}
+                      />
+                      {nuevoUsuario.password2 && nuevoUsuario.password !== nuevoUsuario.password2 && (
+                        <p className="text-red-400 text-xs mt-1">No coinciden</p>
+                      )}
+                      {nuevoUsuario.password2 && nuevoUsuario.password === nuevoUsuario.password2 && (
+                        <p className="text-green-400 text-xs mt-1">✓ Coinciden</p>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-1">Repetir Contraseña *</label>
-                    <input
-                      type="password"
-                      required
-                      minLength={6}
-                      placeholder="Repetir contraseña"
-                      value={nuevoUsuario.password2}
-                      onChange={(e) => setNuevoUsuario({...nuevoUsuario, password2: e.target.value})}
-                      className={`w-full px-3 py-2 rounded-xl border bg-white/5 text-white placeholder-slate-500 focus:outline-none ${
-                        nuevoUsuario.password2 && nuevoUsuario.password !== nuevoUsuario.password2
-                          ? 'border-red-500/50'
-                          : nuevoUsuario.password2 && nuevoUsuario.password === nuevoUsuario.password2
-                          ? 'border-green-500/50'
-                          : 'border-white/10 focus:border-purple-500/50'
-                      }`}
-                    />
-                    {nuevoUsuario.password2 && nuevoUsuario.password !== nuevoUsuario.password2 && (
-                      <p className="text-red-400 text-xs mt-1">No coinciden</p>
-                    )}
-                    {nuevoUsuario.password2 && nuevoUsuario.password === nuevoUsuario.password2 && (
-                      <p className="text-green-400 text-xs mt-1">✓ Coinciden</p>
-                    )}
-                  </div>
-                </div>
+                )}
 
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Rol</label>
@@ -8968,7 +9031,7 @@ export default function App() {
                   className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Users className="w-5 h-5" />}
-                  {saving ? 'Creando...' : 'Crear Usuario'}
+                  {saving ? 'Guardando...' : (editingUsuario ? 'Actualizar Usuario' : 'Crear Usuario')}
                 </button>
               </form>
             </div>
