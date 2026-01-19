@@ -912,6 +912,22 @@ export default function App() {
       console.error('Error:', error);
       alert(editingPagoId ? 'Error al actualizar el pago' : 'Error al registrar el pago');
     } else {
+      // Generar recibo solo para pagos nuevos (no ediciones)
+      if (!editingPagoId) {
+        const pagadoAntes = selectedEventoPago.pagosYSenas || 0;
+        generarRecibo(
+          selectedEventoPago,
+          {
+            fecha: nuevoPago.fecha,
+            monto: montoEnPesos,
+            concepto: nuevoPago.concepto,
+            cobrador: nuevoPago.cobrador,
+            moneda: nuevoPago.moneda,
+            cotizacion: cotizacion
+          },
+          { pagadoAntes }
+        );
+      }
       setShowPagoModal(false);
       setNuevoPago({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '' });
       setSelectedEventoPago(null);
@@ -2736,6 +2752,247 @@ export default function App() {
 
     // ============ GUARDAR ============
     const fileName = 'Cotizacion_' + (evento.cliente || evento.nombre || 'evento').replace(/\s+/g, '_') + '_' + (evento.fecha || 'fecha') + '.pdf';
+    doc.save(fileName);
+  };
+
+  // ============ GENERADOR DE RECIBO DE PAGO ============
+  const generarRecibo = (evento, pagoData, saldoAnterior) => {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    // Colores
+    const VERDE_TERO = [85, 107, 47];
+    const VERDE_SUAVE = [245, 245, 235];
+    const NEGRO = [17, 24, 39];
+    const GRIS_TEXTO = [55, 65, 81];
+    const GRIS_SEC = [107, 114, 128];
+    const GRIS_LINEA = [229, 231, 235];
+
+    // Medidas
+    const pageWidth = 210;
+    const marginLeft = 20;
+    const marginRight = 20;
+    const contentWidth = pageWidth - marginLeft - marginRight;
+    const centerX = pageWidth / 2;
+
+    let y = 20;
+
+    // Helper para formatear montos
+    const formatMoneyPDF = (num) => {
+      if (!num && num !== 0) return '$0';
+      return '$' + Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    };
+
+    // --- LOGO ---
+    try {
+      doc.addImage('/logo-tero.jpg', 'JPEG', centerX - 18, y, 36, 25);
+      y += 32;
+    } catch (e) {
+      doc.setFontSize(20);
+      doc.setTextColor(...VERDE_TERO);
+      doc.setFont('helvetica', 'bold');
+      doc.text('TERO RESTÓ', centerX, y + 10, { align: 'center' });
+      y += 20;
+    }
+
+    // --- TÍTULO RECIBO ---
+    doc.setFontSize(16);
+    doc.setTextColor(...NEGRO);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RECIBO DE PAGO', centerX, y, { align: 'center' });
+    y += 5;
+
+    // Línea decorativa
+    doc.setDrawColor(...VERDE_TERO);
+    doc.setLineWidth(0.8);
+    doc.line(centerX - 35, y, centerX + 35, y);
+    y += 12;
+
+    // --- NÚMERO DE RECIBO Y FECHA ---
+    const numeroRecibo = Date.now().toString().slice(-8);
+    const fechaRecibo = new Date().toLocaleDateString('es-AR', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+
+    doc.setFontSize(10);
+    doc.setTextColor(...GRIS_SEC);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Recibo N°: ' + numeroRecibo, marginLeft, y);
+    doc.text('Fecha: ' + fechaRecibo, pageWidth - marginRight, y, { align: 'right' });
+    y += 10;
+
+    // --- DATOS DEL EVENTO ---
+    doc.setFillColor(...VERDE_SUAVE);
+    doc.rect(marginLeft, y, contentWidth, 40, 'F');
+    doc.setDrawColor(...GRIS_LINEA);
+    doc.rect(marginLeft, y, contentWidth, 40, 'S');
+
+    y += 7;
+    doc.setFontSize(11);
+    doc.setTextColor(...NEGRO);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DATOS DEL EVENTO', marginLeft + 5, y);
+    y += 8;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...GRIS_TEXTO);
+
+    // Cliente
+    doc.text('Cliente:', marginLeft + 5, y);
+    doc.setFont('helvetica', 'bold');
+    doc.text(evento.cliente || '-', marginLeft + 30, y);
+    y += 6;
+
+    // Fecha del evento
+    doc.setFont('helvetica', 'normal');
+    doc.text('Fecha evento:', marginLeft + 5, y);
+    doc.text(formatDate(evento.fecha), marginLeft + 35, y);
+
+    // Tipo de evento
+    doc.text('Tipo:', centerX + 5, y);
+    doc.text(evento.tipoEvento || evento.tipo_evento || '-', centerX + 20, y);
+    y += 6;
+
+    // Salón
+    doc.text('Salón:', marginLeft + 5, y);
+    doc.text(evento.salon || 'Tero', marginLeft + 22, y);
+
+    // Personas
+    const totalPersonas = (evento.adultos || 0) + (evento.menores || 0);
+    doc.text('Personas:', centerX + 5, y);
+    doc.text(totalPersonas + ' (' + (evento.adultos || 0) + ' adultos, ' + (evento.menores || 0) + ' menores)', centerX + 28, y);
+    y += 15;
+
+    // --- DETALLE DEL PAGO ---
+    doc.setFillColor(240, 253, 244);
+    doc.rect(marginLeft, y, contentWidth, 35, 'F');
+    doc.setDrawColor(...GRIS_LINEA);
+    doc.rect(marginLeft, y, contentWidth, 35, 'S');
+
+    y += 7;
+    doc.setFontSize(11);
+    doc.setTextColor(...NEGRO);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DETALLE DEL PAGO', marginLeft + 5, y);
+    y += 8;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...GRIS_TEXTO);
+
+    // Fecha de pago
+    doc.text('Fecha de pago:', marginLeft + 5, y);
+    doc.text(formatDate(pagoData.fecha), marginLeft + 38, y);
+
+    // Cobrado por
+    doc.text('Cobrado por:', centerX + 5, y);
+    doc.text(pagoData.cobrador || '-', centerX + 35, y);
+    y += 6;
+
+    // Concepto
+    const conceptoTexto = pagoData.concepto === 'seña' ? 'Seña' : pagoData.concepto === 'ajuste_ipc' ? 'Ajuste IPC' : 'Pago';
+    doc.text('Concepto:', marginLeft + 5, y);
+    doc.text(conceptoTexto, marginLeft + 28, y);
+
+    // Moneda
+    if (pagoData.moneda === 'USD') {
+      doc.text('Moneda: USD (TC: $' + (pagoData.cotizacion || '-') + ')', centerX + 5, y);
+    }
+    y += 15;
+
+    // --- IMPORTE ---
+    doc.setFillColor(220, 252, 231);
+    doc.rect(marginLeft, y, contentWidth, 20, 'F');
+    doc.setDrawColor(34, 197, 94);
+    doc.setLineWidth(1);
+    doc.rect(marginLeft, y, contentWidth, 20, 'S');
+
+    doc.setFontSize(14);
+    doc.setTextColor(...NEGRO);
+    doc.setFont('helvetica', 'bold');
+    doc.text('IMPORTE RECIBIDO', marginLeft + 5, y + 13);
+    doc.setFontSize(18);
+    doc.setTextColor(22, 163, 74);
+    doc.text(formatMoneyPDF(pagoData.monto), pageWidth - marginRight - 5, y + 13, { align: 'right' });
+    y += 28;
+
+    // --- ESTADO DE CUENTA ---
+    doc.setDrawColor(...GRIS_LINEA);
+    doc.setLineWidth(0.3);
+    doc.line(marginLeft, y, pageWidth - marginRight, y);
+    y += 8;
+
+    doc.setFontSize(11);
+    doc.setTextColor(...NEGRO);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ESTADO DE CUENTA', marginLeft, y);
+    y += 10;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...GRIS_TEXTO);
+
+    const colLabel = marginLeft;
+    const colValue = pageWidth - marginRight;
+
+    // Total del evento
+    doc.text('Total del evento:', colLabel, y);
+    doc.text(formatMoneyPDF(evento.totalEvento || evento.total_evento || 0), colValue, y, { align: 'right' });
+    y += 7;
+
+    // Pagado anteriormente
+    doc.text('Pagado anteriormente:', colLabel, y);
+    doc.text(formatMoneyPDF(saldoAnterior.pagadoAntes || 0), colValue, y, { align: 'right' });
+    y += 7;
+
+    // Este pago
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(22, 163, 74);
+    doc.text('Este pago:', colLabel, y);
+    doc.text(formatMoneyPDF(pagoData.monto), colValue, y, { align: 'right' });
+    y += 3;
+
+    // Línea
+    doc.setDrawColor(...GRIS_LINEA);
+    doc.line(marginLeft, y, pageWidth - marginRight, y);
+    y += 7;
+
+    // Saldo pendiente
+    const nuevoSaldo = (evento.totalEvento || evento.total_evento || 0) - (saldoAnterior.pagadoAntes || 0) - pagoData.monto;
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    if (nuevoSaldo > 0) {
+      doc.setTextColor(245, 158, 11);
+      doc.text('SALDO PENDIENTE:', colLabel, y);
+      doc.text(formatMoneyPDF(nuevoSaldo), colValue, y, { align: 'right' });
+    } else {
+      doc.setTextColor(22, 163, 74);
+      doc.text('EVENTO CANCELADO', colLabel, y);
+      doc.text(formatMoneyPDF(0), colValue, y, { align: 'right' });
+    }
+    y += 20;
+
+    // --- FIRMA ---
+    doc.setDrawColor(...GRIS_LINEA);
+    doc.line(centerX - 40, y + 15, centerX + 40, y + 15);
+    doc.setFontSize(9);
+    doc.setTextColor(...GRIS_SEC);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Firma y sello', centerX, y + 20, { align: 'center' });
+
+    // --- FOOTER ---
+    doc.setFontSize(9);
+    doc.setTextColor(...GRIS_SEC);
+    doc.setFont('helvetica', 'italic');
+    doc.text('Gracias por confiar en Tero Restó', centerX, 280, { align: 'center' });
+    doc.text('Este recibo es válido como comprobante de pago', centerX, 285, { align: 'center' });
+
+    // Guardar
+    const fileName = 'Recibo_' + (evento.cliente || 'pago').replace(/\s+/g, '_') + '_' + pagoData.fecha + '.pdf';
     doc.save(fileName);
   };
 
