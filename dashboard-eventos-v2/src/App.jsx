@@ -5186,7 +5186,7 @@ export default function App() {
                     key={e.id || i}
                     className="glass rounded-2xl p-5 glow hover:border-purple-500/30 border border-transparent transition-all"
                   >
-                    <div className="flex flex-col md:flex-row md:items-center gap-4 cursor-pointer" onClick={() => setSelectedEvento(e)}>
+                    <div className={`flex flex-col md:flex-row md:items-center gap-4 ${userVerPrecios ? 'cursor-pointer' : ''}`} onClick={() => userVerPrecios && setSelectedEvento(e)}>
                       {/* Fecha destacada */}
                       <div className="flex-shrink-0 w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 flex flex-col items-center justify-center">
                         <span className="text-2xl font-bold">{new Date(e.fecha + 'T12:00:00').getDate()}</span>
@@ -5327,8 +5327,8 @@ export default function App() {
                 {eventosRealizados.map((e, i) => (
                   <div
                     key={e.id || i}
-                    onClick={() => setSelectedEvento(e)}
-                    className="glass rounded-2xl p-5 glow cursor-pointer hover:border-emerald-500/30 border border-transparent transition-all opacity-90"
+                    onClick={() => userVerPrecios && setSelectedEvento(e)}
+                    className={`glass rounded-2xl p-5 glow hover:border-emerald-500/30 border border-transparent transition-all opacity-90 ${userVerPrecios ? 'cursor-pointer' : ''}`}
                   >
                     <div className="flex flex-col md:flex-row md:items-center gap-4">
                       {/* Fecha destacada */}
@@ -5440,7 +5440,7 @@ export default function App() {
                     key={e.id || i}
                     className="glass rounded-2xl p-5 glow hover:border-amber-500/30 border border-amber-500/20 transition-all"
                   >
-                    <div className="flex flex-col md:flex-row md:items-center gap-4 cursor-pointer" onClick={() => setSelectedEvento(e)}>
+                    <div className={`flex flex-col md:flex-row md:items-center gap-4 ${userVerPrecios ? 'cursor-pointer' : ''}`} onClick={() => userVerPrecios && setSelectedEvento(e)}>
                       {/* Fecha destacada */}
                       <div className="flex-shrink-0 w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-600 to-orange-600 flex flex-col items-center justify-center">
                         <span className="text-2xl font-bold">{new Date(e.fecha + 'T12:00:00').getDate()}</span>
@@ -5644,10 +5644,10 @@ export default function App() {
               {eventosDelDiaSeleccionado.length > 0 ? (
                 <div className="space-y-3">
                   {eventosDelDiaSeleccionado.map((e, i) => (
-                    <button
+                    <div
                       key={i}
-                      onClick={() => setSelectedEvento(e)}
-                      className={`w-full text-left rounded-xl p-4 border transition-all ${
+                      onClick={() => userVerPrecios && setSelectedEvento(e)}
+                      className={`w-full text-left rounded-xl p-4 border transition-all ${userVerPrecios ? 'cursor-pointer' : ''} ${
                         e.confirmado
                           ? 'bg-white/5 border-white/10 hover:border-purple-500/30'
                           : 'bg-amber-500/5 border-amber-500/20 hover:border-amber-500/40'
@@ -5701,8 +5701,8 @@ export default function App() {
                           )}
                         </div>
                       )}
-                      <p className="text-emerald-400 font-semibold text-sm mt-2">{displayPrice(e.totalEvento)}</p>
-                    </button>
+                      {userVerPrecios && <p className="text-emerald-400 font-semibold text-sm mt-2">{displayPrice(e.totalEvento)}</p>}
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -5833,8 +5833,8 @@ export default function App() {
                       return (
                       <tr
                         key={e.id || i}
-                        className="border-b border-white/5 row-hover transition-colors cursor-pointer"
-                        onClick={() => setSelectedEvento(e)}
+                        className={`border-b border-white/5 row-hover transition-colors ${userVerPrecios ? 'cursor-pointer' : ''}`}
+                        onClick={() => userVerPrecios && setSelectedEvento(e)}
                       >
                         <td className="px-5 py-4 text-sm">{formatDate(e.fecha)}</td>
                         <td className="px-5 py-4 font-medium">{e.cliente}</td>
