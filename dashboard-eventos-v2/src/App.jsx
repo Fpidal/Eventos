@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed, ClipboardList, XCircle, Banknote, ArrowLeftRight, Contact, RefreshCw, Monitor, Check, Eye, EyeOff } from 'lucide-react';
+import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed, ClipboardList, XCircle, Banknote, ArrowLeftRight, Contact, RefreshCw, Monitor, Check, Eye, EyeOff, Download } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar } from 'recharts';
 import { supabase } from './supabase';
 import { jsPDF } from 'jspdf';
@@ -912,27 +912,6 @@ export default function App() {
       console.error('Error:', error);
       alert(editingPagoId ? 'Error al actualizar el pago' : 'Error al registrar el pago');
     } else {
-      // Generar recibo solo para pagos nuevos (no ediciones)
-      if (!editingPagoId) {
-        try {
-          const pagadoAntes = selectedEventoPago.pagosYSenas || 0;
-          generarRecibo(
-            selectedEventoPago,
-            {
-              fecha: nuevoPago.fecha,
-              monto: montoEnPesos,
-              concepto: nuevoPago.concepto,
-              cobrador: nuevoPago.cobrador,
-              moneda: nuevoPago.moneda,
-              cotizacion: cotizacion
-            },
-            { pagadoAntes }
-          );
-        } catch (pdfError) {
-          console.error('Error generando recibo:', pdfError);
-          alert('Pago registrado. Error al generar recibo PDF: ' + pdfError.message);
-        }
-      }
       setShowPagoModal(false);
       setNuevoPago({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '' });
       setSelectedEventoPago(null);
@@ -6402,6 +6381,30 @@ export default function App() {
                                 </>
                               ) : formatCurrency(pago.monto)}
                             </span>
+                            <button
+                              onClick={() => {
+                                // Calcular pagos anteriores a este pago
+                                const pagosAnteriores = evento.pagos
+                                  .filter(p => (p.concepto === 'pago' || p.concepto === 'seña') && new Date(p.fecha) < new Date(pago.fecha))
+                                  .reduce((sum, p) => sum + Number(p.monto), 0);
+                                generarRecibo(
+                                  evento,
+                                  {
+                                    fecha: pago.fecha,
+                                    monto: pago.monto,
+                                    concepto: pago.concepto,
+                                    cobrador: pago.cobrador || '-',
+                                    moneda: pago.moneda,
+                                    cotizacion: pago.cotizacion_dolar
+                                  },
+                                  { pagadoAntes: pagosAnteriores }
+                                );
+                              }}
+                              className="p-1 rounded text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                              title="Descargar recibo"
+                            >
+                              <Download className="w-4 h-4" />
+                            </button>
                             {canEdit && (
                               <button
                                 onClick={() => handleEditPago(pago, evento)}
