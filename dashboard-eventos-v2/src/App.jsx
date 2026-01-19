@@ -2748,12 +2748,15 @@ export default function App() {
     });
 
     // Colores
-    const VERDE_TERO = [85, 107, 47];
-    const VERDE_SUAVE = [245, 245, 235];
+    const VERDE_TERO = [85, 107, 47];       // Verde oliva oscuro
+    const VERDE_SUAVE = [245, 245, 235];    // Verde oliva muy claro
+    const TERRACOTA = [180, 90, 50];        // Terracota/naranja cálido Tero
     const NEGRO = [17, 24, 39];
-    const GRIS_TEXTO = [55, 65, 81];
+    const GRIS_OSCURO = [55, 65, 81];       // Para Total del evento
+    const GRIS_CLARO = [140, 150, 160];     // Para Pagado anteriormente
     const GRIS_SEC = [107, 114, 128];
     const GRIS_LINEA = [229, 231, 235];
+    const VERDE_FUERTE = [22, 120, 60];     // Verde fuerte para montos
 
     // Medidas
     const pageWidth = 210;
@@ -2823,7 +2826,7 @@ export default function App() {
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...GRIS_TEXTO);
+    doc.setTextColor(...GRIS_OSCURO);
 
     // Cliente
     doc.text('Cliente:', marginLeft + 5, y);
@@ -2852,7 +2855,7 @@ export default function App() {
     y += 15;
 
     // --- DETALLE DEL PAGO ---
-    doc.setFillColor(240, 253, 244);
+    doc.setFillColor(248, 250, 245);
     doc.rect(marginLeft, y, contentWidth, 35, 'F');
     doc.setDrawColor(...GRIS_LINEA);
     doc.rect(marginLeft, y, contentWidth, 35, 'S');
@@ -2866,7 +2869,7 @@ export default function App() {
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...GRIS_TEXTO);
+    doc.setTextColor(...GRIS_OSCURO);
 
     // Fecha de pago
     doc.text('Fecha de pago:', marginLeft + 5, y);
@@ -2888,28 +2891,20 @@ export default function App() {
     }
     y += 15;
 
-    // --- IMPORTE ---
-    doc.setFillColor(220, 252, 231);
-    doc.rect(marginLeft, y, contentWidth, 20, 'F');
-    doc.setDrawColor(34, 197, 94);
-    doc.setLineWidth(1);
-    doc.rect(marginLeft, y, contentWidth, 20, 'S');
+    // --- IMPORTE RECIBIDO (elegante, sin borde grueso) ---
+    doc.setFillColor(240, 248, 240);  // Verde muy suave
+    doc.rect(marginLeft, y, contentWidth, 18, 'F');
 
-    doc.setFontSize(14);
-    doc.setTextColor(...NEGRO);
+    doc.setFontSize(12);
+    doc.setTextColor(...GRIS_OSCURO);
     doc.setFont('helvetica', 'bold');
-    doc.text('IMPORTE RECIBIDO', marginLeft + 5, y + 13);
+    doc.text('IMPORTE RECIBIDO', marginLeft + 5, y + 12);
     doc.setFontSize(18);
-    doc.setTextColor(22, 163, 74);
-    doc.text(formatMoneyPDF(pagoData.monto), pageWidth - marginRight - 5, y + 13, { align: 'right' });
-    y += 28;
+    doc.setTextColor(...VERDE_FUERTE);  // Verde fuerte para el monto
+    doc.text(formatMoneyPDF(pagoData.monto), pageWidth - marginRight - 5, y + 12, { align: 'right' });
+    y += 26;
 
     // --- ESTADO DE CUENTA ---
-    doc.setDrawColor(...GRIS_LINEA);
-    doc.setLineWidth(0.3);
-    doc.line(marginLeft, y, pageWidth - marginRight, y);
-    y += 8;
-
     doc.setFontSize(11);
     doc.setTextColor(...NEGRO);
     doc.setFont('helvetica', 'bold');
@@ -2918,43 +2913,45 @@ export default function App() {
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...GRIS_TEXTO);
 
     const colLabel = marginLeft;
     const colValue = pageWidth - marginRight;
 
-    // Total del evento
+    // Total del evento (gris oscuro)
+    doc.setTextColor(...GRIS_OSCURO);
     doc.text('Total del evento:', colLabel, y);
     doc.text(formatMoneyPDF(evento.totalEvento || evento.total_evento || 0), colValue, y, { align: 'right' });
     y += 7;
 
-    // Pagado anteriormente
+    // Pagado anteriormente (gris claro)
+    doc.setTextColor(...GRIS_CLARO);
     doc.text('Pagado anteriormente:', colLabel, y);
     doc.text(formatMoneyPDF(saldoAnterior.pagadoAntes || 0), colValue, y, { align: 'right' });
     y += 7;
 
-    // Este pago
+    // Este pago (verde oliva)
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(22, 163, 74);
+    doc.setTextColor(...VERDE_TERO);
     doc.text('Este pago:', colLabel, y);
     doc.text(formatMoneyPDF(pagoData.monto), colValue, y, { align: 'right' });
-    y += 3;
+    y += 8;
 
-    // Línea
-    doc.setDrawColor(...GRIS_LINEA);
+    // Línea separadora antes del saldo
+    doc.setDrawColor(...TERRACOTA);
+    doc.setLineWidth(0.5);
     doc.line(marginLeft, y, pageWidth - marginRight, y);
-    y += 7;
+    y += 10;
 
-    // Saldo pendiente
+    // Saldo pendiente (grande, terracota)
     const nuevoSaldo = (evento.totalEvento || evento.total_evento || 0) - (saldoAnterior.pagadoAntes || 0) - pagoData.monto;
-    doc.setFontSize(12);
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     if (nuevoSaldo > 0) {
-      doc.setTextColor(245, 158, 11);
+      doc.setTextColor(...TERRACOTA);
       doc.text('SALDO PENDIENTE:', colLabel, y);
       doc.text(formatMoneyPDF(nuevoSaldo), colValue, y, { align: 'right' });
     } else {
-      doc.setTextColor(22, 163, 74);
+      doc.setTextColor(...VERDE_FUERTE);
       doc.text('EVENTO CANCELADO', colLabel, y);
       doc.text(formatMoneyPDF(0), colValue, y, { align: 'right' });
     }
@@ -2962,18 +2959,30 @@ export default function App() {
 
     // --- FIRMA ---
     doc.setDrawColor(...GRIS_LINEA);
+    doc.setLineWidth(0.3);
     doc.line(centerX - 40, y + 15, centerX + 40, y + 15);
     doc.setFontSize(9);
     doc.setTextColor(...GRIS_SEC);
     doc.setFont('helvetica', 'normal');
     doc.text('Firma y sello', centerX, y + 20, { align: 'center' });
 
+    // --- TEXTOS LEGALES ---
+    y += 35;
+    doc.setFontSize(8);
+    doc.setTextColor(...GRIS_SEC);
+    doc.setFont('helvetica', 'normal');
+    doc.text('La seña confirma la reserva de fecha y salón.', centerX, y, { align: 'center' });
+    y += 4;
+    doc.text('El saldo deberá abonarse previo al evento.', centerX, y, { align: 'center' });
+    y += 4;
+    doc.setFont('helvetica', 'italic');
+    doc.text('Este comprobante no constituye factura.', centerX, y, { align: 'center' });
+
     // --- FOOTER ---
     doc.setFontSize(9);
     doc.setTextColor(...GRIS_SEC);
     doc.setFont('helvetica', 'italic');
-    doc.text('Gracias por confiar en Tero Restó', centerX, 280, { align: 'center' });
-    doc.text('Este recibo es válido como comprobante de pago', centerX, 285, { align: 'center' });
+    doc.text('Gracias por confiar en Tero Restó', centerX, 285, { align: 'center' });
 
     // Guardar
     const fileName = 'Recibo_' + (evento.cliente || 'pago').replace(/\s+/g, '_') + '_' + pagoData.fecha + '.pdf';
