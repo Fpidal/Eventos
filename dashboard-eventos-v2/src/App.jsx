@@ -5480,6 +5480,27 @@ export default function App() {
                             </span>
                           )}
                         </div>
+
+                        {/* Badges Técnica, Técnica Superior, DJ */}
+                        {(e.tecnica || e.tecnica_superior || e.dj) && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {e.tecnica && (
+                              <span className="px-2 py-0.5 rounded-full text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                                <Mic className="w-3 h-3" /> Técnica
+                              </span>
+                            )}
+                            {e.tecnica_superior && (
+                              <span className="px-2 py-0.5 rounded-full text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                                <Mic className="w-3 h-3" /> Téc. Superior
+                              </span>
+                            )}
+                            {e.dj && (
+                              <span className="px-2 py-0.5 rounded-full text-xs bg-pink-500/20 text-pink-300 border border-pink-500/30 flex items-center gap-1">
+                                <Music className="w-3 h-3" /> {e.dj}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {/* Total y botones integrados */}
