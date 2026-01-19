@@ -2744,7 +2744,7 @@ export default function App() {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
-      format: 'a4'
+      format: [210, 210]  // Formato cuadrado 210x210mm
     });
 
     // Colores
@@ -3006,7 +3006,7 @@ export default function App() {
     doc.setFontSize(9);
     doc.setTextColor(...GRIS_SEC);
     doc.setFont('helvetica', 'italic');
-    doc.text('Gracias por confiar en Tero', centerX, 285, { align: 'center' });
+    doc.text('Gracias por confiar en Tero', centerX, 200, { align: 'center' });
 
     // Guardar
     const fileName = 'Recibo_' + (evento.cliente || 'pago').replace(/\s+/g, '_') + '_' + pagoData.fecha + '.pdf';
