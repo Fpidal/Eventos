@@ -5514,6 +5514,7 @@ export default function App() {
                       <div className="text-sm text-slate-400 space-y-1">
                         <p>📋 {e.tipoEvento}</p>
                         <p>🍽️ {e.menu} • {e.adultos} personas</p>
+                        <p>🏛️ {e.salon}</p>
                         <p>👤 {e.vendedor}</p>
                       </div>
                       {(e.tecnica || e.tecnica_superior || e.dj) && (
