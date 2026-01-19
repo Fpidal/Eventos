@@ -2811,85 +2811,98 @@ export default function App() {
     doc.text('Fecha: ' + fechaRecibo, pageWidth - marginRight, y, { align: 'right' });
     y += 10;
 
-    // --- DATOS DEL EVENTO ---
-    doc.setFillColor(...VERDE_SUAVE);
-    doc.rect(marginLeft, y, contentWidth, 40, 'F');
-    doc.setDrawColor(...GRIS_LINEA);
-    doc.rect(marginLeft, y, contentWidth, 40, 'S');
-
-    y += 7;
-    doc.setFontSize(11);
-    doc.setTextColor(...NEGRO);
-    doc.setFont('helvetica', 'bold');
-    doc.text('DATOS DEL EVENTO', marginLeft + 5, y);
-    y += 8;
+    // --- DATOS DEL EVENTO (compacto, dos columnas) ---
+    const colEtiqueta = marginLeft;
+    const colValor = marginLeft + 45;
 
     doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...GRIS_OSCURO);
-
-    // Cliente
-    doc.text('Cliente:', marginLeft + 5, y);
+    doc.setTextColor(...VERDE_TERO);
     doc.setFont('helvetica', 'bold');
-    doc.text(evento.cliente || '-', marginLeft + 30, y);
+    doc.text('DATOS DEL EVENTO', marginLeft, y);
+    y += 2;
+    doc.setDrawColor(...VERDE_SUAVE);
+    doc.setLineWidth(0.3);
+    doc.line(marginLeft, y, marginLeft + 50, y);
     y += 6;
 
-    // Fecha del evento
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text('Fecha evento:', marginLeft + 5, y);
-    doc.text(formatDate(evento.fecha), marginLeft + 35, y);
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('Cliente:', colEtiqueta, y);
+    doc.setTextColor(...NEGRO);
+    doc.setFont('helvetica', 'bold');
+    doc.text(evento.cliente || '-', colValor, y);
+    y += 5;
 
-    // Tipo de evento
-    doc.text('Tipo:', centerX + 5, y);
-    doc.text(evento.tipoEvento || evento.tipo_evento || '-', centerX + 20, y);
-    y += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('Evento:', colEtiqueta, y);
+    doc.setTextColor(...GRIS_OSCURO);
+    doc.text(evento.tipoEvento || evento.tipo_evento || '-', colValor, y);
+    y += 5;
 
-    // Salón
-    doc.text('Salón:', marginLeft + 5, y);
-    doc.text(evento.salon || 'Tero', marginLeft + 22, y);
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('Fecha:', colEtiqueta, y);
+    doc.setTextColor(...GRIS_OSCURO);
+    doc.text(formatDate(evento.fecha), colValor, y);
+    y += 5;
 
-    // Personas
     const totalPersonas = (evento.adultos || 0) + (evento.menores || 0);
-    doc.text('Personas:', centerX + 5, y);
-    doc.text(totalPersonas + ' (' + (evento.adultos || 0) + ' adultos, ' + (evento.menores || 0) + ' menores)', centerX + 28, y);
-    y += 15;
-
-    // --- DETALLE DEL PAGO ---
-    doc.setFillColor(248, 250, 245);
-    doc.rect(marginLeft, y, contentWidth, 35, 'F');
-    doc.setDrawColor(...GRIS_LINEA);
-    doc.rect(marginLeft, y, contentWidth, 35, 'S');
-
-    y += 7;
-    doc.setFontSize(11);
-    doc.setTextColor(...NEGRO);
-    doc.setFont('helvetica', 'bold');
-    doc.text('DETALLE DEL PAGO', marginLeft + 5, y);
-    y += 8;
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
+    const personasTexto = evento.menores > 0
+      ? totalPersonas + ' (' + evento.adultos + ' adultos, ' + evento.menores + ' menores)'
+      : (evento.adultos || 0) + ' adultos';
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('Personas:', colEtiqueta, y);
     doc.setTextColor(...GRIS_OSCURO);
+    doc.text(personasTexto, colValor, y);
+    y += 5;
 
-    // Fecha de pago
-    doc.text('Fecha de pago:', marginLeft + 5, y);
-    doc.text(formatDate(pagoData.fecha), marginLeft + 38, y);
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('Salón:', colEtiqueta, y);
+    doc.setTextColor(...GRIS_OSCURO);
+    doc.text(evento.salon || 'Tero', colValor, y);
+    y += 12;
 
-    // Cobrado por
-    doc.text('Cobrado por:', centerX + 5, y);
-    doc.text(pagoData.cobrador || '-', centerX + 35, y);
+    // --- DETALLE DEL PAGO (compacto, dos columnas) ---
+    doc.setFontSize(10);
+    doc.setTextColor(...VERDE_TERO);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DETALLE DEL PAGO', marginLeft, y);
+    y += 2;
+    doc.setDrawColor(...VERDE_SUAVE);
+    doc.setLineWidth(0.3);
+    doc.line(marginLeft, y, marginLeft + 50, y);
     y += 6;
 
-    // Concepto
     const conceptoTexto = pagoData.concepto === 'seña' ? 'Seña' : pagoData.concepto === 'ajuste_ipc' ? 'Ajuste IPC' : 'Pago';
-    doc.text('Concepto:', marginLeft + 5, y);
-    doc.text(conceptoTexto, marginLeft + 28, y);
 
-    // Moneda
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('Fecha pago:', colEtiqueta, y);
+    doc.setTextColor(...GRIS_OSCURO);
+    doc.text(formatDate(pagoData.fecha), colValor, y);
+    y += 5;
+
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('Concepto:', colEtiqueta, y);
+    doc.setTextColor(...GRIS_OSCURO);
+    doc.text(conceptoTexto, colValor, y);
+    y += 5;
+
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('Cobrado por:', colEtiqueta, y);
+    doc.setTextColor(...GRIS_OSCURO);
+    doc.text(pagoData.cobrador || '-', colValor, y);
+
     if (pagoData.moneda === 'USD') {
-      doc.text('Moneda: USD (TC: $' + (pagoData.cotizacion || '-') + ')', centerX + 5, y);
+      y += 5;
+      doc.setTextColor(...GRIS_SEC);
+      doc.text('Moneda:', colEtiqueta, y);
+      doc.setTextColor(...GRIS_OSCURO);
+      doc.text('USD (TC: $' + (pagoData.cotizacion || '-') + ')', colValor, y);
     }
-    y += 15;
+    y += 12;
 
     // --- IMPORTE RECIBIDO (elegante, sin borde grueso) ---
     doc.setFillColor(240, 248, 240);  // Verde muy suave
