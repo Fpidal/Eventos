@@ -2855,9 +2855,9 @@ export default function App() {
 
     const totalPersonas = (evento.adultos || 0) + (evento.menores || 0);
     doc.setTextColor(...GRIS_SEC);
-    doc.text('Cant. pers. aprox.:', colEtiquetaL, yLeft);
+    doc.text('Personas aprox.:', colEtiquetaL, yLeft);
     doc.setTextColor(...GRIS_OSCURO);
-    doc.text(String(totalPersonas), colValorL + 3, yLeft);
+    doc.text(String(totalPersonas), colValorL, yLeft);
     yLeft += 4.5;
 
     doc.setTextColor(...GRIS_SEC);
