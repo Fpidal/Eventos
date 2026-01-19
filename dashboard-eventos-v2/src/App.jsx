@@ -2811,98 +2811,105 @@ export default function App() {
     doc.text('Fecha: ' + fechaRecibo, pageWidth - marginRight, y, { align: 'right' });
     y += 10;
 
-    // --- DATOS DEL EVENTO (compacto, dos columnas) ---
-    const colEtiqueta = marginLeft;
-    const colValor = marginLeft + 45;
+    // --- DOS COLUMNAS: DATOS DEL EVENTO + DETALLE DEL PAGO ---
+    const TERRACOTA_SUAVE = [255, 248, 243];  // Terracota muy suave
+    const boxWidth = (contentWidth - 4) / 2;  // Ancho de cada caja
+    const boxHeight = 36;
+    const boxPadding = 4;
 
-    doc.setFontSize(10);
-    doc.setTextColor(...VERDE_TERO);
+    // Caja izquierda: DATOS DEL EVENTO
+    doc.setFillColor(...TERRACOTA_SUAVE);
+    doc.roundedRect(marginLeft, y, boxWidth, boxHeight, 2, 2, 'F');
+
+    let yLeft = y + 5;
+    const colEtiquetaL = marginLeft + boxPadding;
+    const colValorL = marginLeft + boxPadding + 32;
+
+    doc.setFontSize(8);
+    doc.setTextColor(...TERRACOTA);
     doc.setFont('helvetica', 'bold');
-    doc.text('DATOS DEL EVENTO', marginLeft, y);
-    y += 2;
-    doc.setDrawColor(...VERDE_SUAVE);
-    doc.setLineWidth(0.3);
-    doc.line(marginLeft, y, marginLeft + 50, y);
-    y += 6;
+    doc.text('DATOS DEL EVENTO', colEtiquetaL, yLeft);
+    yLeft += 5;
 
-    doc.setFontSize(9);
+    doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...GRIS_SEC);
-    doc.text('Cliente:', colEtiqueta, y);
+    doc.text('Cliente:', colEtiquetaL, yLeft);
     doc.setTextColor(...NEGRO);
     doc.setFont('helvetica', 'bold');
-    doc.text(evento.cliente || '-', colValor, y);
-    y += 5;
+    doc.text((evento.cliente || '-').substring(0, 18), colValorL, yLeft);
+    yLeft += 4.5;
 
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...GRIS_SEC);
-    doc.text('Evento:', colEtiqueta, y);
+    doc.text('Evento:', colEtiquetaL, yLeft);
     doc.setTextColor(...GRIS_OSCURO);
-    doc.text(evento.tipoEvento || evento.tipo_evento || '-', colValor, y);
-    y += 5;
+    doc.text((evento.tipoEvento || evento.tipo_evento || '-').substring(0, 16), colValorL, yLeft);
+    yLeft += 4.5;
 
     doc.setTextColor(...GRIS_SEC);
-    doc.text('Fecha:', colEtiqueta, y);
+    doc.text('Fecha:', colEtiquetaL, yLeft);
     doc.setTextColor(...GRIS_OSCURO);
-    doc.text(formatDate(evento.fecha), colValor, y);
-    y += 5;
+    doc.text(formatDate(evento.fecha), colValorL, yLeft);
+    yLeft += 4.5;
 
     const totalPersonas = (evento.adultos || 0) + (evento.menores || 0);
-    const personasTexto = evento.menores > 0
-      ? totalPersonas + ' (' + evento.adultos + ' adultos, ' + evento.menores + ' menores)'
-      : (evento.adultos || 0) + ' adultos';
     doc.setTextColor(...GRIS_SEC);
-    doc.text('Personas:', colEtiqueta, y);
+    doc.text('Cant. pers. aprox.:', colEtiquetaL, yLeft);
     doc.setTextColor(...GRIS_OSCURO);
-    doc.text(personasTexto, colValor, y);
-    y += 5;
+    doc.text(String(totalPersonas), colValorL + 3, yLeft);
+    yLeft += 4.5;
 
     doc.setTextColor(...GRIS_SEC);
-    doc.text('Salón:', colEtiqueta, y);
+    doc.text('Salón:', colEtiquetaL, yLeft);
     doc.setTextColor(...GRIS_OSCURO);
-    doc.text(evento.salon || 'Tero', colValor, y);
-    y += 12;
+    doc.text(evento.salon || 'Tero', colValorL, yLeft);
 
-    // --- DETALLE DEL PAGO (compacto, dos columnas) ---
-    doc.setFontSize(10);
-    doc.setTextColor(...VERDE_TERO);
+    // Caja derecha: DETALLE DEL PAGO
+    const rightBoxX = marginLeft + boxWidth + 4;
+    doc.setFillColor(...TERRACOTA_SUAVE);
+    doc.roundedRect(rightBoxX, y, boxWidth, boxHeight, 2, 2, 'F');
+
+    let yRight = y + 5;
+    const colEtiquetaR = rightBoxX + boxPadding;
+    const colValorR = rightBoxX + boxPadding + 28;
+
+    doc.setFontSize(8);
+    doc.setTextColor(...TERRACOTA);
     doc.setFont('helvetica', 'bold');
-    doc.text('DETALLE DEL PAGO', marginLeft, y);
-    y += 2;
-    doc.setDrawColor(...VERDE_SUAVE);
-    doc.setLineWidth(0.3);
-    doc.line(marginLeft, y, marginLeft + 50, y);
-    y += 6;
+    doc.text('DETALLE DEL PAGO', colEtiquetaR, yRight);
+    yRight += 5;
 
     const conceptoTexto = pagoData.concepto === 'seña' ? 'Seña' : pagoData.concepto === 'ajuste_ipc' ? 'Ajuste IPC' : 'Pago';
 
-    doc.setFontSize(9);
+    doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...GRIS_SEC);
-    doc.text('Fecha pago:', colEtiqueta, y);
+    doc.text('Fecha pago:', colEtiquetaR, yRight);
     doc.setTextColor(...GRIS_OSCURO);
-    doc.text(formatDate(pagoData.fecha), colValor, y);
-    y += 5;
+    doc.text(formatDate(pagoData.fecha), colValorR, yRight);
+    yRight += 4.5;
 
     doc.setTextColor(...GRIS_SEC);
-    doc.text('Concepto:', colEtiqueta, y);
+    doc.text('Concepto:', colEtiquetaR, yRight);
     doc.setTextColor(...GRIS_OSCURO);
-    doc.text(conceptoTexto, colValor, y);
-    y += 5;
+    doc.text(conceptoTexto, colValorR, yRight);
+    yRight += 4.5;
 
     doc.setTextColor(...GRIS_SEC);
-    doc.text('Cobrado por:', colEtiqueta, y);
+    doc.text('Cobrado por:', colEtiquetaR, yRight);
     doc.setTextColor(...GRIS_OSCURO);
-    doc.text(pagoData.cobrador || '-', colValor, y);
+    doc.text((pagoData.cobrador || '-').substring(0, 12), colValorR, yRight);
+    yRight += 4.5;
 
     if (pagoData.moneda === 'USD') {
-      y += 5;
       doc.setTextColor(...GRIS_SEC);
-      doc.text('Moneda:', colEtiqueta, y);
+      doc.text('Moneda:', colEtiquetaR, yRight);
       doc.setTextColor(...GRIS_OSCURO);
-      doc.text('USD (TC: $' + (pagoData.cotizacion || '-') + ')', colValor, y);
+      doc.text('USD ($' + (pagoData.cotizacion || '-') + ')', colValorR, yRight);
     }
-    y += 12;
+
+    y += boxHeight + 6;
 
     // --- IMPORTE RECIBIDO (elegante, sin borde grueso) ---
     doc.setFillColor(240, 248, 240);  // Verde muy suave
@@ -2930,9 +2937,9 @@ export default function App() {
     const colLabel = marginLeft;
     const colValue = pageWidth - marginRight;
 
-    // Total del evento (gris oscuro)
+    // Total evento aprox. (gris oscuro)
     doc.setTextColor(...GRIS_OSCURO);
-    doc.text('Total del evento:', colLabel, y);
+    doc.text('Total evento aprox.:', colLabel, y);
     doc.text(formatMoneyPDF(evento.totalEvento || evento.total_evento || 0), colValue, y, { align: 'right' });
     y += 7;
 
