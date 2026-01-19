@@ -2744,7 +2744,7 @@ export default function App() {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
-      format: [210, 210]  // Formato cuadrado 210x210mm
+      format: [210, 220]  // Formato 210x220mm
     });
 
     // Colores
