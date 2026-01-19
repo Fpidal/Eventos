@@ -2773,43 +2773,47 @@ export default function App() {
       return '$' + Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     };
 
-    // --- LOGO ---
-    try {
-      doc.addImage('/logo-tero.jpg', 'JPEG', centerX - 18, y, 36, 25);
-      y += 32;
-    } catch (e) {
-      doc.setFontSize(20);
-      doc.setTextColor(...VERDE_TERO);
-      doc.setFont('helvetica', 'bold');
-      doc.text('TERO RESTÓ', centerX, y + 10, { align: 'center' });
-      y += 20;
-    }
-
-    // --- TÍTULO RECIBO ---
-    doc.setFontSize(16);
+    // --- ENCABEZADO: TÍTULO (izq) + LOGO (der) ---
+    // Título a la izquierda
+    doc.setFontSize(14);
     doc.setTextColor(...NEGRO);
     doc.setFont('helvetica', 'bold');
-    doc.text('RECIBO DE PAGO', centerX, y, { align: 'center' });
-    y += 5;
+    doc.text('RECIBO DE SEÑA - EVENTO', marginLeft, y + 8);
 
-    // Línea decorativa
-    doc.setDrawColor(...VERDE_TERO);
-    doc.setLineWidth(0.8);
-    doc.line(centerX - 35, y, centerX + 35, y);
-    y += 12;
+    // Logo a la derecha
+    try {
+      doc.addImage('/logo-tero.jpg', 'JPEG', pageWidth - marginRight - 28, y, 28, 20);
+    } catch (e) {
+      doc.setFontSize(12);
+      doc.setTextColor(...VERDE_TERO);
+      doc.setFont('helvetica', 'bold');
+      doc.text('TERO', pageWidth - marginRight, y + 10, { align: 'right' });
+    }
+    y += 22;
 
     // --- NÚMERO DE RECIBO Y FECHA ---
     const numeroRecibo = Date.now().toString().slice(-8);
-    const fechaRecibo = new Date().toLocaleDateString('es-AR', {
-      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-    });
+    const ahora = new Date();
+    const hora = ahora.getHours();
+    const minutos = ahora.getMinutes().toString().padStart(2, '0');
+    const ampm = hora >= 12 ? 'p.m.' : 'a.m.';
+    const hora12 = hora % 12 || 12;
+    const fechaRecibo = ahora.toLocaleDateString('es-AR', {
+      day: '2-digit', month: '2-digit', year: 'numeric'
+    }) + ', ' + hora12 + ':' + minutos + ' ' + ampm;
 
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setTextColor(...GRIS_SEC);
     doc.setFont('helvetica', 'normal');
     doc.text('Recibo N°: ' + numeroRecibo, marginLeft, y);
     doc.text('Fecha: ' + fechaRecibo, pageWidth - marginRight, y, { align: 'right' });
-    y += 10;
+    y += 4;
+
+    // Línea divisoria terracota
+    doc.setDrawColor(...TERRACOTA);
+    doc.setLineWidth(0.8);
+    doc.line(marginLeft, y, pageWidth - marginRight, y);
+    y += 8;
 
     // --- DOS COLUMNAS: DATOS DEL EVENTO + DETALLE DEL PAGO ---
     const TERRACOTA_SUAVE = [255, 248, 243];  // Terracota muy suave
@@ -3002,7 +3006,7 @@ export default function App() {
     doc.setFontSize(9);
     doc.setTextColor(...GRIS_SEC);
     doc.setFont('helvetica', 'italic');
-    doc.text('Gracias por confiar en Tero Restó', centerX, 285, { align: 'center' });
+    doc.text('Gracias por confiar en Tero', centerX, 285, { align: 'center' });
 
     // Guardar
     const fileName = 'Recibo_' + (evento.cliente || 'pago').replace(/\s+/g, '_') + '_' + pagoData.fecha + '.pdf';
