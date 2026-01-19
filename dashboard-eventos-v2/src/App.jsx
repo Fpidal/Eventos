@@ -5815,16 +5815,28 @@ export default function App() {
                       <th className="text-right px-5 py-4 text-sm font-medium text-slate-300 cursor-pointer hover:text-white" onClick={() => handleSort('totalEvento')}>
                         <div className="flex items-center justify-end gap-1">Total <SortIcon columnKey="totalEvento" /></div>
                       </th>
+                      <th className="text-center px-5 py-4 text-sm font-medium text-slate-300">Estado</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredEventos.map((e, i) => (
-                      <tr 
-                        key={e.id || i} 
+                    {filteredEventos.map((e, i) => {
+                      const hoy = new Date();
+                      hoy.setHours(0, 0, 0, 0);
+                      const fechaEvento = new Date(e.fecha + 'T12:00:00');
+                      const esTerminado = fechaEvento < hoy;
+                      const estado = esTerminado ? 'Terminado' : (e.confirmado ? 'Confirmado' : 'A confirmar');
+                      const estadoColor = esTerminado
+                        ? 'bg-slate-500/20 text-slate-300 border-slate-500/30'
+                        : e.confirmado
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                          : 'bg-amber-500/20 text-amber-300 border-amber-500/30';
+                      return (
+                      <tr
+                        key={e.id || i}
                         className="border-b border-white/5 row-hover transition-colors cursor-pointer"
                         onClick={() => setSelectedEvento(e)}
                       >
-                        <td className="px-5 py-4text-sm">{formatDate(e.fecha)}</td>
+                        <td className="px-5 py-4 text-sm">{formatDate(e.fecha)}</td>
                         <td className="px-5 py-4 font-medium">{e.cliente}</td>
                         <td className="px-5 py-4 hidden md:table-cell">
                           <span className="px-3 py-1 rounded-full text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30">
@@ -5838,10 +5850,16 @@ export default function App() {
                           </span>
                         </td>
                         <td className="px-5 py-4 text-slate-300 hidden lg:table-cell">{e.vendedor}</td>
-                        <td className="px-5 py-4 text-righthidden sm:table-cell">{e.adultos + (e.menores || 0)}</td>
+                        <td className="px-5 py-4 text-right hidden sm:table-cell">{e.adultos + (e.menores || 0)}</td>
                         <td className="px-5 py-4 text-right font-semibold text-emerald-400">{displayPrice(e.totalEvento)}</td>
+                        <td className="px-5 py-4 text-center">
+                          <span className={`px-3 py-1 rounded-full text-xs border ${estadoColor}`}>
+                            {estado}
+                          </span>
+                        </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
