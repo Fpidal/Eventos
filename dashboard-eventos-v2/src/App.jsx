@@ -2998,8 +2998,7 @@ export default function App() {
     doc.text('La seña confirma la reserva de fecha y salón.', centerX, y, { align: 'center' });
     y += 3.5;
     doc.text('El saldo deberá abonarse previo al evento.', centerX, y, { align: 'center' });
-    y += 8;  // 30px
-
+    y += 3.5;
     doc.setFont('helvetica', 'italic');
     doc.text('Este comprobante no constituye factura.', centerX, y, { align: 'center' });
     y += 5;  // 20px
