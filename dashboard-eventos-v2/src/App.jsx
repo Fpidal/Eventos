@@ -1105,6 +1105,15 @@ export default function App() {
   };
 
   const handleConfirmarEvento = async (evento, confirmar = true) => {
+    // Si se intenta desconfirmar, verificar que no tenga pagos
+    if (!confirmar) {
+      const pagosDelEvento = pagos.filter(p => p.evento_id === evento.id);
+      if (pagosDelEvento.length > 0) {
+        alert(`No se puede desconfirmar este evento porque tiene ${pagosDelEvento.length} pago(s) registrado(s).\n\nPrimero debe anular los pagos en Cobranzas → Detalle de Pagos.`);
+        return;
+      }
+    }
+
     const { error } = await supabase
       .from('eventos')
       .update({ confirmado: confirmar })
