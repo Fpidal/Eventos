@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed, ClipboardList, XCircle, Banknote, ArrowLeftRight, Contact, RefreshCw, Monitor, Check, Eye, EyeOff, Download } from 'lucide-react';
+import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed, ClipboardList, XCircle, Banknote, ArrowLeftRight, Contact, RefreshCw, Monitor, Check, Eye, EyeOff, Download, Save, Pencil } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar } from 'recharts';
 import { supabase } from './supabase';
 import { jsPDF } from 'jspdf';
@@ -265,6 +265,7 @@ export default function App() {
   const [ipcAñoSeleccionado, setIpcAñoSeleccionado] = useState(new Date().getFullYear());
   const [nuevoIPC, setNuevoIPC] = useState({ mes: '', ipc_indec: '', ipc_aplicado: '' });
   const [ipcPreview, setIpcPreview] = useState({ eventos: 0, totalSaldos: 0, incremento: 0 });
+  const [editingIPC, setEditingIPC] = useState(null); // null o { id, año, mes, ipc_indec, ipc_aplicado }
 
   const [selectedDate, setSelectedDate] = useState(null);
   const [calendarDate, setCalendarDate] = useState(new Date());
@@ -792,7 +793,9 @@ export default function App() {
             concepto: 'ajuste_ipc',
             cobrador: user?.email || 'Sistema',
             ipc_indec: ipcIndec,
-            ipc_aplicado: ipcAplicado
+            ipc_aplicado: ipcAplicado,
+            año_ipc: año,
+            mes_ipc: mes
           }]);
 
         if (pagoError) {
@@ -973,16 +976,16 @@ export default function App() {
     } else {
       // Si es un pago de IPC, actualizar el registro de ipc_mensual
       if (pago?.concepto === 'ajuste_ipc') {
-        const fechaPago = new Date(pago.fecha);
-        const mesPago = fechaPago.getMonth() + 1;
-        const añoPago = fechaPago.getFullYear();
+        // Usar año_ipc y mes_ipc del pago (si existen), o inferir de la fecha
+        const añoIPC = pago.año_ipc || new Date(pago.fecha).getFullYear();
+        const mesIPC = pago.mes_ipc || (new Date(pago.fecha).getMonth() + 1);
 
         // Buscar el registro de ipc_mensual correspondiente
         const { data: ipcRegistro } = await supabase
           .from('ipc_mensual')
           .select('*')
-          .eq('año', añoPago)
-          .eq('mes', mesPago)
+          .eq('año', añoIPC)
+          .eq('mes', mesIPC)
           .single();
 
         if (ipcRegistro) {
@@ -4967,14 +4970,24 @@ export default function App() {
           <div className="glass rounded-2xl p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold">
-                Cargar IPC - {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][nuevoIPC.mes - 1]} {ipcAñoSeleccionado}
+                {editingIPC ? 'Editar' : 'Cargar'} IPC - {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][nuevoIPC.mes - 1]} {ipcAñoSeleccionado}
               </h2>
-              <button onClick={() => setShowIPCModal(false)} className="p-2 hover:bg-white/10 rounded-xl">
+              <button onClick={() => { setShowIPCModal(false); setEditingIPC(null); }} className="p-2 hover:bg-white/10 rounded-xl">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="space-y-4">
+              {/* Info si es edición */}
+              {editingIPC && (
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 text-sm text-blue-300">
+                  <p><strong>Modo edición:</strong> Podés actualizar los valores sin re-aplicar, o aplicar nuevamente para crear ajustes adicionales.</p>
+                  {editingIPC.aplicado && (
+                    <p className="mt-1 text-blue-400">Aplicado: {new Date(editingIPC.fecha_aplicacion).toLocaleDateString('es-AR')} • {editingIPC.eventos_afectados} eventos • +${Math.round(editingIPC.total_ajustado || 0).toLocaleString('es-AR')}</p>
+                  )}
+                </div>
+              )}
+
               {/* IPC INDEC */}
               <div>
                 <label className="block text-sm text-slate-400 mb-1">IPC INDEC (referencia)</label>
@@ -5018,44 +5031,76 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Preview */}
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">Eventos que serán actualizados:</span>
-                  <span className="text-white font-medium">{ipcPreview.eventos}</span>
+              {/* Preview - solo mostrar si NO está editando o si quiere re-aplicar */}
+              {!editingIPC && (
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">Eventos que serán actualizados:</span>
+                    <span className="text-white font-medium">{ipcPreview.eventos}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">Total saldos a ajustar:</span>
+                    <span className="text-white font-medium">${Math.round(ipcPreview.totalSaldos).toLocaleString('es-AR')}</span>
+                  </div>
+                  <div className="flex justify-between text-sm border-t border-amber-500/30 pt-2">
+                    <span className="text-amber-400 font-medium">Incremento estimado:</span>
+                    <span className="text-amber-400 font-bold">+${Math.round(ipcPreview.incremento).toLocaleString('es-AR')}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">Total saldos a ajustar:</span>
-                  <span className="text-white font-medium">${Math.round(ipcPreview.totalSaldos).toLocaleString('es-AR')}</span>
-                </div>
-                <div className="flex justify-between text-sm border-t border-amber-500/30 pt-2">
-                  <span className="text-amber-400 font-medium">Incremento estimado:</span>
-                  <span className="text-amber-400 font-bold">+${Math.round(ipcPreview.incremento).toLocaleString('es-AR')}</span>
-                </div>
-              </div>
+              )}
 
               {/* Botones */}
               <div className="flex gap-3 pt-2">
                 <button
-                  onClick={() => setShowIPCModal(false)}
+                  onClick={() => { setShowIPCModal(false); setEditingIPC(null); }}
                   className="flex-1 py-2.5 rounded-xl border border-white/10 text-slate-400 hover:bg-white/5"
                 >
                   Cancelar
                 </button>
-                <button
-                  onClick={async () => {
-                    if (!nuevoIPC.ipc_aplicado) {
-                      alert('Ingresá el IPC a aplicar');
-                      return;
-                    }
-                    await aplicarIPCMensual();
-                  }}
-                  disabled={saving || !nuevoIPC.ipc_aplicado}
-                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 text-white font-semibold hover:from-amber-700 hover:to-orange-700 disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
-                  {saving ? 'Aplicando...' : 'Aplicar Ajuste'}
-                </button>
+                {editingIPC && (
+                  <button
+                    onClick={async () => {
+                      setSaving(true);
+                      const { error } = await supabase
+                        .from('ipc_mensual')
+                        .update({
+                          ipc_indec: parseFloat(nuevoIPC.ipc_indec) || 0,
+                          ipc_aplicado: parseFloat(nuevoIPC.ipc_aplicado) || 0
+                        })
+                        .eq('id', editingIPC.id);
+                      setSaving(false);
+                      if (error) {
+                        alert('Error al guardar');
+                      } else {
+                        setShowIPCModal(false);
+                        setEditingIPC(null);
+                        fetchIPCMensual();
+                      }
+                    }}
+                    disabled={saving}
+                    className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Solo Guardar
+                  </button>
+                )}
+                {!editingIPC && (
+                  <button
+                    onClick={async () => {
+                      if (!nuevoIPC.ipc_aplicado) {
+                        alert('Ingresá el IPC a aplicar');
+                        return;
+                      }
+                      await aplicarIPCMensual();
+                      setEditingIPC(null);
+                    }}
+                    disabled={saving || !nuevoIPC.ipc_aplicado}
+                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 text-white font-semibold hover:from-amber-700 hover:to-orange-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
+                    {saving ? 'Aplicando...' : 'Aplicar Ajuste'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -6604,33 +6649,69 @@ export default function App() {
                               ) : '-'}
                             </td>
                             <td className="p-4 text-center">
-                              {!ipcDelMes?.aplicado && !esFuturo && canCreate && (
-                                <button
-                                  onClick={() => {
-                                    setNuevoIPC({ mes: mesNum, ipc_indec: '', ipc_aplicado: '' });
-                                    // Calcular preview
-                                    const eventosConSaldo = cobranzasData.filter(e => {
-                                      const fechaEvento = new Date(e.fecha);
-                                      const inicioMes = new Date(ipcAñoSeleccionado, mesNum - 1, 1);
-                                      return e.saldo > 0 && fechaEvento >= inicioMes;
-                                    });
-                                    setIpcPreview({
-                                      eventos: eventosConSaldo.length,
-                                      totalSaldos: eventosConSaldo.reduce((sum, e) => sum + e.saldo, 0),
-                                      incremento: 0
-                                    });
-                                    setShowIPCModal(true);
-                                  }}
-                                  className="px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 text-sm font-medium"
-                                >
-                                  Cargar IPC
-                                </button>
-                              )}
-                              {ipcDelMes?.aplicado && (
-                                <span className="text-slate-500 text-sm">
-                                  {new Date(ipcDelMes.fecha_aplicacion).toLocaleDateString('es-AR')}
-                                </span>
-                              )}
+                              <div className="flex items-center justify-center gap-2">
+                                {!ipcDelMes?.aplicado && !esFuturo && canCreate && (
+                                  <button
+                                    onClick={() => {
+                                      setEditingIPC(null);
+                                      setNuevoIPC({ mes: mesNum, ipc_indec: '', ipc_aplicado: '' });
+                                      // Calcular preview
+                                      const inicioMesIPC = new Date(ipcAñoSeleccionado, mesNum - 1, 1);
+                                      const eventosConSaldo = cobranzasData.filter(e => {
+                                        if (e.saldo <= 0) return false;
+                                        const pagosDelEvento = e.pagos.filter(p => p.concepto === 'pago' || p.concepto === 'seña');
+                                        if (pagosDelEvento.length === 0) return false;
+                                        const primerPago = pagosDelEvento.reduce((min, p) =>
+                                          new Date(p.fecha) < new Date(min.fecha) ? p : min
+                                        );
+                                        return new Date(primerPago.fecha) < inicioMesIPC;
+                                      });
+                                      setIpcPreview({
+                                        eventos: eventosConSaldo.length,
+                                        totalSaldos: eventosConSaldo.reduce((sum, e) => sum + e.saldo, 0),
+                                        incremento: 0
+                                      });
+                                      setShowIPCModal(true);
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 text-sm font-medium"
+                                  >
+                                    Cargar IPC
+                                  </button>
+                                )}
+                                {ipcDelMes && canCreate && (
+                                  <button
+                                    onClick={() => {
+                                      setEditingIPC(ipcDelMes);
+                                      setNuevoIPC({
+                                        mes: mesNum,
+                                        ipc_indec: String(ipcDelMes.ipc_indec || ''),
+                                        ipc_aplicado: String(ipcDelMes.ipc_aplicado || '')
+                                      });
+                                      setShowIPCModal(true);
+                                    }}
+                                    className="p-1.5 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
+                                    title="Editar IPC"
+                                  >
+                                    <Pencil className="w-4 h-4" />
+                                  </button>
+                                )}
+                                {ipcDelMes && canCreate && (
+                                  <button
+                                    onClick={async () => {
+                                      if (!confirm(`¿Eliminar registro de IPC de ${mesNombre} ${ipcAñoSeleccionado}?\n\nEsto NO elimina los pagos de ajuste ya creados.`)) return;
+                                      await supabase
+                                        .from('ipc_mensual')
+                                        .delete()
+                                        .eq('id', ipcDelMes.id);
+                                      fetchIPCMensual();
+                                    }}
+                                    className="p-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30"
+                                    title="Eliminar registro IPC"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );
