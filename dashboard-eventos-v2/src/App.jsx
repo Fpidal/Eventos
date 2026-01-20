@@ -748,11 +748,25 @@ export default function App() {
     const nombreMes = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][mes - 1];
 
     try {
-      // 1. Obtener eventos con saldo pendiente y fecha >= mes
+      // 1. Obtener eventos con saldo pendiente donde el primer pago fue ANTES del mes seleccionado
+      const inicioMesIPC = new Date(año, mes - 1, 1); // Primer día del mes del IPC
+
       const eventosConSaldo = cobranzasData.filter(e => {
-        const fechaEvento = new Date(e.fecha);
-        const inicioMes = new Date(año, mes - 1, 1);
-        return e.saldo > 0 && fechaEvento >= inicioMes;
+        if (e.saldo <= 0) return false;
+
+        // Obtener el primer pago (seña o pago) del evento
+        const pagosDelEvento = e.pagos.filter(p => p.concepto === 'pago' || p.concepto === 'seña');
+        if (pagosDelEvento.length === 0) return false; // Sin pagos, no aplica IPC
+
+        // Encontrar la fecha del primer pago
+        const primerPago = pagosDelEvento.reduce((min, p) =>
+          new Date(p.fecha) < new Date(min.fecha) ? p : min
+        );
+        const fechaPrimerPago = new Date(primerPago.fecha);
+
+        // El IPC solo aplica si el primer pago fue ANTES del mes del IPC
+        // (es decir, si el primer pago fue en enero, el IPC empieza en febrero)
+        return fechaPrimerPago < inicioMesIPC;
       });
 
       if (eventosConSaldo.length === 0) {
@@ -957,6 +971,46 @@ export default function App() {
       console.error('Error:', error);
       alert('Error al eliminar el pago');
     } else {
+      // Si es un pago de IPC, actualizar el registro de ipc_mensual
+      if (pago?.concepto === 'ajuste_ipc') {
+        const fechaPago = new Date(pago.fecha);
+        const mesPago = fechaPago.getMonth() + 1;
+        const añoPago = fechaPago.getFullYear();
+
+        // Buscar el registro de ipc_mensual correspondiente
+        const { data: ipcRegistro } = await supabase
+          .from('ipc_mensual')
+          .select('*')
+          .eq('año', añoPago)
+          .eq('mes', mesPago)
+          .single();
+
+        if (ipcRegistro) {
+          const nuevosEventosAfectados = Math.max(0, (ipcRegistro.eventos_afectados || 1) - 1);
+          const nuevoTotalAjustado = Math.max(0, (ipcRegistro.total_ajustado || pago.monto) - pago.monto);
+
+          await supabase
+            .from('ipc_mensual')
+            .update({
+              eventos_afectados: nuevosEventosAfectados,
+              total_ajustado: nuevoTotalAjustado,
+              aplicado: nuevosEventosAfectados > 0
+            })
+            .eq('id', ipcRegistro.id);
+
+          fetchIPCMensual();
+        }
+
+        // Actualizar también el total_ajustes_ipc del evento
+        if (evento?.id) {
+          const nuevoTotalIPC = Math.max(0, (evento.ajustesIPC || pago.monto) - pago.monto);
+          await supabase
+            .from('eventos')
+            .update({ total_ajustes_ipc: nuevoTotalIPC })
+            .eq('id', evento.id);
+        }
+      }
+
       // Eliminar también el movimiento de caja correspondiente
       if (evento?.id && pago?.fecha) {
         console.log('Buscando movimiento de caja:', { evento_id: evento.id, fecha: pago.fecha, monto: pago.monto });
