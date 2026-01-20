@@ -444,6 +444,19 @@ export default function App() {
     setAuthLoading(false);
   }, []);
 
+  // Bloquear scroll del body cuando hay modal abierto
+  useEffect(() => {
+    const isModalOpen = selectedEvento || showModal || showPagoModal || showMenuModal || showIPCModal || editingEvento;
+    if (isModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [selectedEvento, showModal, showPagoModal, showMenuModal, showIPCModal, editingEvento]);
+
   // Session timeout (30 minutos = 1800000 ms)
   const sessionTimeoutRef = React.useRef(null);
   const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutos
@@ -4172,8 +4185,8 @@ export default function App() {
 
       {/* Modal Detalle Evento */}
       {selectedEvento && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="glass rounded-2xl p-5 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={(e) => e.target === e.currentTarget && setSelectedEvento(null)}>
+          <div className="glass rounded-2xl p-5 w-full max-w-md max-h-[90vh] overflow-y-auto my-auto">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-xl font-bold">{selectedEvento.cliente}</h2>
               <button onClick={() => setSelectedEvento(null)} className="p-2 hover:bg-white/10 rounded-xl">
