@@ -280,7 +280,7 @@ export default function App() {
   const [pagos, setPagos] = useState([]);
   const [showPagoModal, setShowPagoModal] = useState(false);
   const [selectedEventoPago, setSelectedEventoPago] = useState(null);
-  const [nuevoPago, setNuevoPago] = useState({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '' });
+  const [nuevoPago, setNuevoPago] = useState({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '', observaciones: '' });
   const [editingPagoId, setEditingPagoId] = useState(null);
   const [auditoriaPagos, setAuditoriaPagos] = useState([]);
   const [auditoriaEventos, setAuditoriaEventos] = useState([]);
@@ -859,7 +859,8 @@ export default function App() {
       fecha: nuevoPago.fecha,
       monto: montoEnPesos,
       concepto: nuevoPago.concepto,
-      cobrador: nuevoPago.cobrador
+      cobrador: nuevoPago.cobrador,
+      observaciones: nuevoPago.observaciones || null
     };
 
     // Solo agregar campos de moneda si es USD (para compatibilidad)
@@ -930,7 +931,7 @@ export default function App() {
       alert(editingPagoId ? 'Error al actualizar el pago' : 'Error al registrar el pago');
     } else {
       setShowPagoModal(false);
-      setNuevoPago({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '' });
+      setNuevoPago({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '', observaciones: '' });
       setSelectedEventoPago(null);
       setEditingPagoId(null);
       fetchPagos();
@@ -948,7 +949,8 @@ export default function App() {
       moneda: pago.moneda || 'ARS',
       cotizacionDolar: pago.cotizacion_dolar ? String(pago.cotizacion_dolar) : '',
       porcentajeIPC: '',
-      cobrador: pago.cobrador || ''
+      cobrador: pago.cobrador || '',
+      observaciones: pago.observaciones || ''
     });
     setShowPagoModal(true);
   };
@@ -4772,7 +4774,7 @@ export default function App() {
           <div className="glass rounded-2xl p-4 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-bold">{editingPagoId ? 'Editar Pago' : 'Registrar Pago'}</h2>
-              <button onClick={() => { setShowPagoModal(false); setSelectedEventoPago(null); setEditingPagoId(null); setNuevoPago({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '' }); }} className="p-1.5 hover:bg-white/10 rounded-lg">
+              <button onClick={() => { setShowPagoModal(false); setSelectedEventoPago(null); setEditingPagoId(null); setNuevoPago({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '', observaciones: '' }); }} className="p-1.5 hover:bg-white/10 rounded-lg">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -4936,6 +4938,18 @@ export default function App() {
                   />
                 </div>
               )}
+
+              {/* Observaciones */}
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Observaciones</label>
+                <textarea
+                  placeholder="Notas adicionales sobre el pago..."
+                  value={nuevoPago.observaciones}
+                  onChange={(e) => setNuevoPago({...nuevoPago, observaciones: e.target.value})}
+                  rows={2}
+                  className="w-full px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50 resize-none"
+                />
+              </div>
 
               {editingPagoId && (
                 <div>
