@@ -446,7 +446,7 @@ export default function App() {
 
   // Bloquear scroll del body cuando hay modal abierto
   useEffect(() => {
-    const isModalOpen = selectedEvento || showModal || showPagoModal || showMenuModal || showIPCModal || editingEvento;
+    const isModalOpen = selectedEvento || showModal || showPagoModal || showMenuModal || showIPCModal || editMode;
     if (isModalOpen) {
       document.body.style.overflow = 'hidden';
     } else {
@@ -455,7 +455,7 @@ export default function App() {
     return () => {
       document.body.style.overflow = '';
     };
-  }, [selectedEvento, showModal, showPagoModal, showMenuModal, showIPCModal, editingEvento]);
+  }, [selectedEvento, showModal, showPagoModal, showMenuModal, showIPCModal, editMode]);
 
   // Session timeout (30 minutos = 1800000 ms)
   const sessionTimeoutRef = React.useRef(null);
