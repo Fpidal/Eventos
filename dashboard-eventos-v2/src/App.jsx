@@ -334,6 +334,7 @@ export default function App() {
   const [nuevoItem, setNuevoItem] = useState('');
   const [nuevoExtra, setNuevoExtra] = useState('');
   const [menuTipoOtro, setMenuTipoOtro] = useState(false);
+  const [menuOtroBase, setMenuOtroBase] = useState(''); // Base structure when "Otro" is selected
 
   // Estados para catálogo de platos y bebidas
   const [menuTab, setMenuTab] = useState('plantillas');
@@ -1553,6 +1554,7 @@ export default function App() {
     });
     setEditingMenu(null);
     setMenuTipoOtro(false);
+    setMenuOtroBase('');
   };
 
   const handleAddItemToCategory = (categoriaIndex) => {
@@ -9136,33 +9138,58 @@ export default function App() {
               </div>
 
               <form onSubmit={handleSaveMenu} className="space-y-6">
-                <div>
-                  <label className="block text-sm text-slate-400 mb-1">Tipo de Menú</label>
-                  <select
-                    value={menuTipoOtro ? 'Otro' : (TIPOS_MENU.find(t => nuevoMenu.nombre.startsWith(t)) || '')}
-                    onChange={(e) => {
-                      const tipoSeleccionado = e.target.value;
-                      if (tipoSeleccionado === 'Otro') {
-                        setMenuTipoOtro(true);
-                        const categorias = CATEGORIAS_POR_MENU['Otro'].map(cat => ({ nombre: cat, items: [] }));
-                        setNuevoMenu({...nuevoMenu, nombre: '', categorias});
-                      } else if (tipoSeleccionado) {
-                        setMenuTipoOtro(false);
-                        const categorias = CATEGORIAS_POR_MENU[tipoSeleccionado].map(cat => ({ nombre: cat, items: [] }));
-                        // Calcular número de opción
-                        const menusDelMismoTipo = menus.filter(m => m.nombre.startsWith(tipoSeleccionado)).length;
-                        const numeroOpcion = menusDelMismoTipo + 1;
-                        const nombreConOpcion = `${tipoSeleccionado} - Opción ${numeroOpcion}`;
-                        setNuevoMenu({...nuevoMenu, nombre: nombreConOpcion, categorias});
-                      }
-                    }}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
-                  >
-                    <option value="" className="bg-slate-900">Seleccionar tipo de menú...</option>
-                    {TIPOS_MENU.map(tipo => (
-                      <option key={tipo} value={tipo} className="bg-slate-900">{tipo}</option>
-                    ))}
-                  </select>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Tipo de Menú</label>
+                    <select
+                      value={menuTipoOtro ? 'Otro' : (TIPOS_MENU.find(t => nuevoMenu.nombre.startsWith(t)) || '')}
+                      onChange={(e) => {
+                        const tipoSeleccionado = e.target.value;
+                        if (tipoSeleccionado === 'Otro') {
+                          setMenuTipoOtro(true);
+                          setMenuOtroBase('');
+                          setNuevoMenu({...nuevoMenu, nombre: '', categorias: []});
+                        } else if (tipoSeleccionado) {
+                          setMenuTipoOtro(false);
+                          setMenuOtroBase('');
+                          const categorias = CATEGORIAS_POR_MENU[tipoSeleccionado].map(cat => ({ nombre: cat, items: [] }));
+                          // Calcular número de opción
+                          const menusDelMismoTipo = menus.filter(m => m.nombre.startsWith(tipoSeleccionado)).length;
+                          const numeroOpcion = menusDelMismoTipo + 1;
+                          const nombreConOpcion = `${tipoSeleccionado} - Opción ${numeroOpcion}`;
+                          setNuevoMenu({...nuevoMenu, nombre: nombreConOpcion, categorias});
+                        }
+                      }}
+                      className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                    >
+                      <option value="" className="bg-slate-900">Seleccionar tipo de menú...</option>
+                      {TIPOS_MENU.map(tipo => (
+                        <option key={tipo} value={tipo} className="bg-slate-900">{tipo}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {menuTipoOtro && (
+                    <div>
+                      <label className="block text-sm text-slate-400 mb-1">Basar estructura en</label>
+                      <select
+                        value={menuOtroBase}
+                        onChange={(e) => {
+                          const baseSeleccionada = e.target.value;
+                          setMenuOtroBase(baseSeleccionada);
+                          if (baseSeleccionada) {
+                            const categorias = CATEGORIAS_POR_MENU[baseSeleccionada].map(cat => ({ nombre: cat, items: [] }));
+                            setNuevoMenu({...nuevoMenu, categorias});
+                          }
+                        }}
+                        className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                      >
+                        <option value="" className="bg-slate-900">Seleccionar estructura...</option>
+                        {TIPOS_MENU.filter(t => t !== 'Otro').map(tipo => (
+                          <option key={tipo} value={tipo} className="bg-slate-900">{tipo}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
                 {editingMenu && (
                   <div>
@@ -9216,7 +9243,7 @@ export default function App() {
                         <div className="space-y-2">
                           {/* Select de platos del catálogo */}
                           {(() => {
-                            const tipoMenu = menuTipoOtro ? 'Otro' : (TIPOS_MENU.find(t => nuevoMenu.nombre.startsWith(t)) || nuevoMenu.nombre);
+                            const tipoMenu = menuTipoOtro ? (menuOtroBase || 'Otro') : (TIPOS_MENU.find(t => nuevoMenu.nombre.startsWith(t)) || nuevoMenu.nombre);
                             // Obtener platos del catálogo según tipo de menú y categoría
                             let platosDisponibles = [];
                             if (categoria.nombre === 'Bebidas') {
