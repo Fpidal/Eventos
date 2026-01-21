@@ -280,7 +280,7 @@ export default function App() {
   const [pagos, setPagos] = useState([]);
   const [showPagoModal, setShowPagoModal] = useState(false);
   const [selectedEventoPago, setSelectedEventoPago] = useState(null);
-  const [nuevoPago, setNuevoPago] = useState({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '', observaciones: '', destino: 'Efectivo' });
+  const [nuevoPago, setNuevoPago] = useState({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '', observaciones: '' });
   const [editingPagoId, setEditingPagoId] = useState(null);
   const [auditoriaPagos, setAuditoriaPagos] = useState([]);
   const [auditoriaEventos, setAuditoriaEventos] = useState([]);
@@ -874,8 +874,7 @@ export default function App() {
       monto: montoEnPesos,
       concepto: nuevoPago.concepto,
       cobrador: nuevoPago.cobrador,
-      observaciones: nuevoPago.observaciones || null,
-      destino: nuevoPago.destino || 'Efectivo'
+      observaciones: nuevoPago.observaciones || null
     };
 
     // Solo agregar campos de moneda si es USD (para compatibilidad)
@@ -924,8 +923,8 @@ export default function App() {
         }]);
       error = result.error;
 
-      // Guardar en caja_movimientos SOLO si es efectivo
-      if (!error && nuevoPago.destino === 'Efectivo') {
+      // Guardar en caja_movimientos SOLO si NO es Banco (efectivo va a caja)
+      if (!error && nuevoPago.cobrador !== 'Banco') {
         supabase.from('caja_movimientos').insert({
           tipo: 'ingreso',
           concepto: selectedEventoPago.cliente,
@@ -946,7 +945,7 @@ export default function App() {
       alert(editingPagoId ? 'Error al actualizar el pago' : 'Error al registrar el pago');
     } else {
       setShowPagoModal(false);
-      setNuevoPago({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '', observaciones: '', destino: 'Efectivo' });
+      setNuevoPago({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '', observaciones: '' });
       setSelectedEventoPago(null);
       setEditingPagoId(null);
       fetchPagos();
@@ -965,8 +964,7 @@ export default function App() {
       cotizacionDolar: pago.cotizacion_dolar ? String(pago.cotizacion_dolar) : '',
       porcentajeIPC: '',
       cobrador: pago.cobrador || '',
-      observaciones: pago.observaciones || '',
-      destino: pago.destino || 'Efectivo'
+      observaciones: pago.observaciones || ''
     });
     setShowPagoModal(true);
   };
@@ -4791,7 +4789,7 @@ export default function App() {
           <div className="glass rounded-2xl p-4 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-bold">{editingPagoId ? 'Editar Pago' : 'Registrar Pago'}</h2>
-              <button onClick={() => { setShowPagoModal(false); setSelectedEventoPago(null); setEditingPagoId(null); setNuevoPago({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '', observaciones: '', destino: 'Efectivo' }); }} className="p-1.5 hover:bg-white/10 rounded-lg">
+              <button onClick={() => { setShowPagoModal(false); setSelectedEventoPago(null); setEditingPagoId(null); setNuevoPago({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '', observaciones: '' }); }} className="p-1.5 hover:bg-white/10 rounded-lg">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -4865,7 +4863,7 @@ export default function App() {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Concepto</label>
                   <select
@@ -4887,17 +4885,6 @@ export default function App() {
                   >
                     <option value="ARS">Pesos (ARS)</option>
                     <option value="USD">Dólares (USD)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Destino</label>
-                  <select
-                    value={nuevoPago.destino}
-                    onChange={(e) => setNuevoPago({...nuevoPago, destino: e.target.value})}
-                    className="w-full px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
-                  >
-                    <option value="Efectivo">Efectivo</option>
-                    <option value="Banco">Banco</option>
                   </select>
                 </div>
               </div>
