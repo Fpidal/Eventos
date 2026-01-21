@@ -923,10 +923,13 @@ export default function App() {
         }]);
       error = result.error;
 
-      // Guardar en caja_movimientos SOLO si NO es Banco (efectivo va a caja)
-      if (!error && nuevoPago.cobrador !== 'Banco') {
+      // Guardar en caja_movimientos
+      // Si es Banco: tipo='ingreso_banco' (no afecta saldo de caja)
+      // Si es efectivo: tipo='ingreso' (suma al saldo de caja)
+      if (!error) {
+        const tipoMovimiento = nuevoPago.cobrador === 'Banco' ? 'ingreso_banco' : 'ingreso';
         supabase.from('caja_movimientos').insert({
-          tipo: 'ingreso',
+          tipo: tipoMovimiento,
           concepto: selectedEventoPago.cliente,
           monto_pesos: montoEnPesos,
           monto_dolares: esUSD ? montoOriginal : null,
@@ -7996,10 +7999,14 @@ export default function App() {
           <div className="space-y-6">
             {/* Resumen Fijo Arriba */}
             <div className="glass rounded-xl p-3">
-              <div className="grid grid-cols-5 gap-4 text-center">
+              <div className="grid grid-cols-6 gap-4 text-center">
                 <div>
-                  <p className="text-xs text-slate-400">Ingresos</p>
+                  <p className="text-xs text-slate-400">Ingresos Efectivo</p>
                   <p className="text-lg font-bold text-green-400">${cajaMovimientos.filter(m => m.tipo === 'ingreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400">Ingresos Banco</p>
+                  <p className="text-lg font-bold text-cyan-400">${cajaMovimientos.filter(m => m.tipo === 'ingreso_banco').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-400">Egresos</p>
@@ -8019,9 +8026,9 @@ export default function App() {
                   })()}
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400">Pagos en USD (ref.)</p>
+                  <p className="text-xs text-slate-400">USD (ref.)</p>
                   <p className="text-lg font-bold text-blue-400">
-                    {cajaMovimientos.filter(m => m.tipo === 'ingreso' && m.monto_dolares > 0).reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                    {cajaMovimientos.filter(m => (m.tipo === 'ingreso' || m.tipo === 'ingreso_banco') && m.monto_dolares > 0).reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
                   </p>
                 </div>
               </div>
@@ -8070,7 +8077,7 @@ export default function App() {
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center flex-wrap">
               <button
                 onClick={() => setCajaTab('ingresos')}
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
@@ -8079,7 +8086,17 @@ export default function App() {
                     : 'bg-white/5 text-slate-400 hover:bg-white/10'
                 }`}
               >
-                Ingresos
+                Ingresos Efectivo
+              </button>
+              <button
+                onClick={() => setCajaTab('banco')}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                  cajaTab === 'banco'
+                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50'
+                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                }`}
+              >
+                Banco
               </button>
               <button
                 onClick={() => setCajaTab('egresos')}
@@ -8527,6 +8544,70 @@ export default function App() {
                 <div className="mt-4 pt-4 border-t border-white/10 flex justify-end gap-6 text-sm">
                   <span className="text-slate-400">Total $: <span className="text-green-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'ingreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span></span>
                   <span className="text-slate-400">Total USD: <span className="text-blue-400 font-bold">{cajaMovimientos.filter(m => m.tipo === 'ingreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span></span>
+                </div>
+              </div>
+            )}
+
+            {/* Contenido de Banco */}
+            {cajaTab === 'banco' && (
+              <div className="glass rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-cyan-400">Ingresos Banco</h3>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/10 text-slate-400 text-xs">
+                        <th className="text-left py-2 px-3">Fecha</th>
+                        <th className="text-left py-2 px-3">Cliente</th>
+                        <th className="text-left py-2 px-3">Recibido por</th>
+                        <th className="text-right py-2 px-3">Pesos</th>
+                        <th className="text-right py-2 px-3">USD</th>
+                        <th className="w-20"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cajaMovimientos.filter(m => m.tipo === 'ingreso_banco').map(item => (
+                        <tr key={item.id} className="border-b border-white/5 hover:bg-white/5">
+                          <td className="py-2 px-3 text-slate-400">{item.fecha}</td>
+                          <td className="py-2 px-3 text-cyan-400 font-medium">{item.concepto || '-'}</td>
+                          <td className="py-2 px-3 text-slate-400">{item.persona}</td>
+                          <td className="py-2 px-3 text-right text-cyan-400">${(item.monto_pesos || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</td>
+                          <td className="py-2 px-3 text-right text-blue-400">{item.monto_dolares ? item.monto_dolares.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '-'}</td>
+                          <td className="py-2 px-3">
+                            <button onClick={async () => {
+                              const clave = prompt('Ingrese clave para eliminar:');
+                              if (clave !== '1970') {
+                                if (clave !== null) alert('Clave incorrecta');
+                                return;
+                              }
+                              const motivo = prompt('Detalle por qué se elimina este ingreso:');
+                              if (!motivo || motivo.trim() === '') {
+                                alert('Debe ingresar un motivo');
+                                return;
+                              }
+                              const { error } = await supabase.from('caja_movimientos').delete().eq('id', item.id);
+                              if (error) {
+                                alert('Error al eliminar: ' + error.message);
+                              } else {
+                                fetchCajaMovimientos();
+                              }
+                            }} className="p-1 text-red-400 hover:text-red-300">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {cajaMovimientos.filter(m => m.tipo === 'ingreso_banco').length === 0 && (
+                        <tr><td colSpan="6" className="py-8 text-center text-slate-500">Sin ingresos en banco registrados</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-4 pt-4 border-t border-white/10 flex justify-end gap-6 text-sm">
+                  <span className="text-slate-400">Total $: <span className="text-cyan-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'ingreso_banco').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span></span>
+                  <span className="text-slate-400">Total USD: <span className="text-blue-400 font-bold">{cajaMovimientos.filter(m => m.tipo === 'ingreso_banco').reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span></span>
                 </div>
               </div>
             )}
