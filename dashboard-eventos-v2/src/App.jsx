@@ -4153,9 +4153,9 @@ export default function App() {
                   />
                 </div>
                 <div className="flex flex-col justify-end">
-                  <label className="block text-xs text-slate-400 mb-1">Total</label>
-                  <div className="px-2 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold text-sm text-center">
-                    {displayPrice(calcularTotal())}
+                  <label className="block text-xs text-slate-400 mb-1">Subtotal</label>
+                  <div className="px-2 py-2 rounded-lg bg-blue-500/20 border border-blue-500/30 text-blue-400 font-bold text-sm text-center">
+                    {displayPrice((parseInt(nuevoEvento.adultos) || 0) * (parseFloat(nuevoEvento.precio_adulto) || 0) + (parseInt(nuevoEvento.menores) || 0) * (parseFloat(nuevoEvento.precio_menor) || 0))}
                   </div>
                 </div>
               </div>
@@ -4244,6 +4244,11 @@ export default function App() {
                 ))}
               </div>
 
+              {/* Total Evento */}
+              <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
+                <p className="text-xs text-slate-400">Total Evento</p>
+                <p className="text-xl font-bold text-emerald-400">{displayPrice(calcularTotal())}</p>
+              </div>
 
               {/* Otros */}
               <div>
@@ -4764,9 +4769,9 @@ export default function App() {
                   />
                 </div>
                 <div className="flex flex-col justify-end">
-                  <label className="block text-sm text-slate-400 mb-1">Total</label>
-                  <div className="px-3 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold text-center">
-                    {displayPrice(calcularTotalEdit())}
+                  <label className="block text-sm text-slate-400 mb-1">Subtotal</label>
+                  <div className="px-3 py-2.5 rounded-xl bg-blue-500/20 border border-blue-500/30 text-blue-400 font-bold text-center">
+                    {displayPrice((parseInt(eventoEdit.adultos) || 0) * (parseFloat(eventoEdit.precio_adulto) || 0) + (parseInt(eventoEdit.menores) || 0) * (parseFloat(eventoEdit.precio_menor) || 0))}
                   </div>
                 </div>
               </div>
@@ -4855,6 +4860,11 @@ export default function App() {
                 ))}
               </div>
 
+              {/* Total Evento */}
+              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
+                <p className="text-sm text-slate-400">Total Evento</p>
+                <p className="text-2xl font-bold text-emerald-400">{displayPrice(calcularTotalEdit())}</p>
+              </div>
 
               {/* Otros */}
               <div>
