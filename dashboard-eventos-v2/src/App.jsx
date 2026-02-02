@@ -3371,6 +3371,35 @@ export default function App() {
       console.error('Error:', error);
       alert('Error al actualizar el evento');
     } else {
+      // Actualizar selectedEvento con los nuevos valores
+      if (selectedEvento && selectedEvento.id === eventoEdit.id) {
+        setSelectedEvento({
+          ...selectedEvento,
+          totalEvento: total,
+          tecnica: eventoEdit.tecnica,
+          tecnica_precio: parseFloat(eventoEdit.tecnica_precio) || 0,
+          tecnica_superior: eventoEdit.tecnica_superior,
+          tecnica_superior_precio: parseFloat(eventoEdit.tecnica_superior_precio) || 0,
+          ceremonia: eventoEdit.ceremonia,
+          ceremonia_precio: parseFloat(eventoEdit.ceremonia_precio) || 0,
+          extra1_desc: eventoEdit.extra1_desc,
+          extra1_valor: parseFloat(eventoEdit.extra1_valor) || 0,
+          extra1_tipo: eventoEdit.extra1_tipo,
+          extra1_confirmado: eventoEdit.extra1_confirmado || false,
+          extra2_desc: eventoEdit.extra2_desc,
+          extra2_valor: parseFloat(eventoEdit.extra2_valor) || 0,
+          extra2_tipo: eventoEdit.extra2_tipo,
+          extra2_confirmado: eventoEdit.extra2_confirmado || false,
+          extra3_desc: eventoEdit.extra3_desc,
+          extra3_valor: parseFloat(eventoEdit.extra3_valor) || 0,
+          extra3_tipo: eventoEdit.extra3_tipo,
+          extra3_confirmado: eventoEdit.extra3_confirmado || false,
+          adultos: parseInt(eventoEdit.adultos) || 0,
+          precio_adulto: parseFloat(eventoEdit.precio_adulto) || 0,
+          menores: parseInt(eventoEdit.menores) || 0,
+          precio_menor: parseFloat(eventoEdit.precio_menor) || 0
+        });
+      }
       setEditMode(false);
       setEventoEdit(null);
       fetchEventos();
