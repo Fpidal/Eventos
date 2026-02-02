@@ -4277,159 +4277,130 @@ export default function App() {
 
       {/* Modal Detalle Evento */}
       {selectedEvento && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={(e) => e.target === e.currentTarget && setSelectedEvento(null)}>
-          <div className="glass rounded-2xl p-5 w-full max-w-md max-h-[90vh] overflow-y-auto my-auto">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xl font-bold">{selectedEvento.cliente}</h2>
-              <button onClick={() => setSelectedEvento(null)} className="p-2 hover:bg-white/10 rounded-xl">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2" onClick={(e) => e.target === e.currentTarget && setSelectedEvento(null)}>
+          <div className="glass rounded-2xl p-4 w-full max-w-md">
+            {/* Header con cliente y botón cerrar */}
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-bold truncate">{selectedEvento.cliente}</h2>
+              <button onClick={() => setSelectedEvento(null)} className="p-1 hover:bg-white/10 rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Botones PDF y Cotización arriba - solo si puede ver precios */}
-            {userVerPrecios && (
-              <div className="flex gap-2 mb-4">
-                <button
-                  onClick={() => generarCotizacion(selectedEvento)}
-                  className="px-3 py-2 rounded-lg bg-blue-500/20 text-blue-400 text-sm font-medium hover:bg-blue-500/30 transition-all border border-blue-500/30 flex items-center gap-1"
-                >
-                  <FileText className="w-3 h-3" />
-                  Cotización
-                </button>
-                <button
-                  onClick={() => generarPDF(selectedEvento)}
-                  className="px-3 py-2 rounded-lg bg-emerald-500/20 text-emerald-400 text-sm font-medium hover:bg-emerald-500/30 transition-all border border-emerald-500/30 flex items-center gap-1"
-                >
-                  <FileText className="w-3 h-3" />
-                  Resumen
-                </button>
-              </div>
-            )}
-
-            {/* Estado de confirmación */}
-            <div className={`mb-3 p-2 rounded-xl flex items-center justify-between ${selectedEvento.confirmado ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-amber-500/10 border border-amber-500/30'}`}>
-              <div className="flex items-center gap-2">
-                {selectedEvento.confirmado ? (
-                  <>
-                    <CheckCircle className="w-4 h-4 text-emerald-400" />
-                    <span className="text-emerald-400 text-sm font-medium">Confirmado</span>
-                  </>
-                ) : (
-                  <>
-                    <AlertCircle className="w-4 h-4 text-amber-400" />
-                    <span className="text-amber-400 text-sm font-medium">Pendiente</span>
-                  </>
+            {/* Estado + Botones PDF en una fila */}
+            <div className="flex items-center gap-2 mb-2">
+              <div className={`flex-1 px-2 py-1.5 rounded-lg flex items-center justify-between ${selectedEvento.confirmado ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-amber-500/10 border border-amber-500/30'}`}>
+                <div className="flex items-center gap-1">
+                  {selectedEvento.confirmado ? (
+                    <><CheckCircle className="w-3 h-3 text-emerald-400" /><span className="text-emerald-400 text-xs font-medium">Confirmado</span></>
+                  ) : (
+                    <><AlertCircle className="w-3 h-3 text-amber-400" /><span className="text-amber-400 text-xs font-medium">Pendiente</span></>
+                  )}
+                </div>
+                {canEdit && (
+                  <button
+                    onClick={() => handleConfirmarEvento(selectedEvento, !selectedEvento.confirmado)}
+                    className={`px-2 py-0.5 rounded text-xs font-medium ${selectedEvento.confirmado ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}`}
+                  >
+                    {selectedEvento.confirmado ? 'Desconfirmar' : 'Confirmar'}
+                  </button>
                 )}
               </div>
-              {canEdit && (
-                <button
-                  onClick={() => handleConfirmarEvento(selectedEvento, !selectedEvento.confirmado)}
-                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-all border ${
-                    selectedEvento.confirmado
-                      ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border-amber-500/30'
-                      : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border-emerald-500/30'
-                  }`}
-                >
-                  {selectedEvento.confirmado ? 'Desconfirmar' : 'Confirmar'}
-                </button>
+              {userVerPrecios && (
+                <>
+                  <button onClick={() => generarCotizacion(selectedEvento)} className="px-2 py-1.5 rounded-lg bg-blue-500/20 text-blue-400 text-xs hover:bg-blue-500/30 border border-blue-500/30">
+                    Cotización
+                  </button>
+                  <button onClick={() => generarPDF(selectedEvento)} className="px-2 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs hover:bg-emerald-500/30 border border-emerald-500/30">
+                    Resumen
+                  </button>
+                </>
               )}
             </div>
 
-            <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-2">
-                <div className="bg-white/5 rounded-xl p-2">
-                  <p className="text-xs text-slate-400">Fecha</p>
-                  <p className="text-sm font-medium">{formatDate(selectedEvento.fecha)}</p>
+            {/* Info compacta */}
+            <div className="space-y-2">
+              {/* Fila 1: Fecha, Turno, Salón, Teléfono */}
+              <div className="grid grid-cols-4 gap-1.5">
+                <div className="bg-white/5 rounded-lg p-1.5">
+                  <p className="text-[10px] text-slate-400">Fecha</p>
+                  <p className="text-xs font-medium">{formatDate(selectedEvento.fecha)}</p>
                 </div>
-                <div className="bg-white/5 rounded-xl p-2">
-                  <p className="text-xs text-slate-400">Turno</p>
-                  <p className="text-sm font-medium">{selectedEvento.turno}</p>
+                <div className="bg-white/5 rounded-lg p-1.5">
+                  <p className="text-[10px] text-slate-400">Turno</p>
+                  <p className="text-xs font-medium">{selectedEvento.turno}</p>
                 </div>
-                <div className="bg-white/5 rounded-xl p-2">
-                  <p className="text-xs text-slate-400">Salón</p>
-                  <p className="text-sm font-medium">{selectedEvento.salon || 'Tero'}</p>
+                <div className="bg-white/5 rounded-lg p-1.5">
+                  <p className="text-[10px] text-slate-400">Salón</p>
+                  <p className="text-xs font-medium">{selectedEvento.salon || 'Tero'}</p>
                 </div>
-              </div>
-
-              {selectedEvento.telefono && (
-                <div className="bg-white/5 rounded-xl p-2 flex items-center gap-2">
-                  <Phone className="w-3 h-3 text-slate-400" />
-                  <span className="text-sm">{selectedEvento.telefono}</span>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-white/5 rounded-xl p-2">
-                  <p className="text-xs text-slate-400">Tipo</p>
-                  <p className="text-sm font-medium">{selectedEvento.tipoEvento}</p>
-                </div>
-                <div className="bg-white/5 rounded-xl p-2">
-                  <p className="text-xs text-slate-400">Menú</p>
-                  <p className="text-sm font-medium">{selectedEvento.menu}</p>
+                <div className="bg-white/5 rounded-lg p-1.5">
+                  <p className="text-[10px] text-slate-400">Teléfono</p>
+                  <p className="text-xs font-medium truncate">{selectedEvento.telefono || '-'}</p>
                 </div>
               </div>
 
-              {(selectedEvento.tecnica || selectedEvento.tecnica_superior || selectedEvento.dj) && (
-                <div className="flex gap-2 flex-wrap">
-                  {selectedEvento.tecnica && (
-                    <span className="px-2 py-1 rounded-full text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
-                      <Mic className="w-3 h-3" /> Técnica
-                    </span>
-                  )}
-                  {selectedEvento.tecnica_superior && (
-                    <span className="px-2 py-1 rounded-full text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                      <Mic className="w-3 h-3" /> Téc. Superior
-                    </span>
-                  )}
-                  {selectedEvento.dj && (
-                    <span className="px-2 py-1 rounded-full text-xs bg-pink-500/20 text-pink-300 border border-pink-500/30 flex items-center gap-1">
-                      <Music className="w-3 h-3" /> DJ
-                    </span>
-                  )}
+              {/* Fila 2: Tipo, Menú + Tags técnica */}
+              <div className="flex gap-1.5 items-stretch">
+                <div className="bg-white/5 rounded-lg p-1.5 flex-1">
+                  <p className="text-[10px] text-slate-400">Tipo</p>
+                  <p className="text-xs font-medium">{selectedEvento.tipoEvento}</p>
                 </div>
-              )}
+                <div className="bg-white/5 rounded-lg p-1.5 flex-1">
+                  <p className="text-[10px] text-slate-400">Menú</p>
+                  <p className="text-xs font-medium">{selectedEvento.menu}</p>
+                </div>
+                {(selectedEvento.tecnica || selectedEvento.tecnica_superior || selectedEvento.dj) && (
+                  <div className="flex gap-1 items-center">
+                    {selectedEvento.tecnica && <span className="px-1.5 py-0.5 rounded text-[10px] bg-purple-500/20 text-purple-300">Téc</span>}
+                    {selectedEvento.tecnica_superior && <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300">Sup</span>}
+                    {selectedEvento.dj && <span className="px-1.5 py-0.5 rounded text-[10px] bg-pink-500/20 text-pink-300">DJ</span>}
+                  </div>
+                )}
+              </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-white/5 rounded-xl p-2">
-                  <p className="text-xs text-slate-400">Adultos</p>
-                  <p className="text-sm font-medium">{selectedEvento.adultos} × {formatCurrency(selectedEvento.precio_adulto || 0)}</p>
+              {/* Fila 3: Adultos, Menores, Total */}
+              <div className="grid grid-cols-3 gap-1.5">
+                <div className="bg-white/5 rounded-lg p-1.5">
+                  <p className="text-[10px] text-slate-400">Adultos</p>
+                  <p className="text-xs font-medium">{selectedEvento.adultos} × {formatCurrency(selectedEvento.precio_adulto || 0)}</p>
                 </div>
-                <div className="bg-white/5 rounded-xl p-2">
-                  <p className="text-xs text-slate-400">Menores</p>
-                  <p className="text-sm font-medium">{selectedEvento.menores || 0} × {formatCurrency(selectedEvento.precio_menor || 0)}</p>
+                <div className="bg-white/5 rounded-lg p-1.5">
+                  <p className="text-[10px] text-slate-400">Menores</p>
+                  <p className="text-xs font-medium">{selectedEvento.menores || 0} × {formatCurrency(selectedEvento.precio_menor || 0)}</p>
+                </div>
+                <div className="bg-emerald-500/10 rounded-lg p-1.5 border border-emerald-500/30">
+                  <p className="text-[10px] text-slate-400">Total</p>
+                  <p className="text-sm font-bold text-emerald-400">{displayPrice(selectedEvento.totalEvento)}</p>
                 </div>
               </div>
 
+              {/* Notas (solo si hay) */}
               {selectedEvento.otros && (
-                <div className="bg-white/5 rounded-xl p-2">
-                  <p className="text-xs text-slate-400">Notas</p>
-                  <p className="text-xs">{selectedEvento.otros}</p>
+                <div className="bg-white/5 rounded-lg p-1.5">
+                  <p className="text-[10px] text-slate-400">Notas</p>
+                  <p className="text-xs line-clamp-2">{selectedEvento.otros}</p>
                 </div>
               )}
-
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-                <p className="text-xs text-slate-400">Total Evento</p>
-                <p className="text-xl font-bold text-emerald-400">{displayPrice(selectedEvento.totalEvento)}</p>
-              </div>
 
               {/* Botones Editar y Eliminar */}
               {(canEdit || canDelete) && (
-                <div className="flex gap-3 pt-2">
+                <div className="flex gap-2 pt-1">
                   {canEdit && (
                     <button
                       onClick={() => handleEdit(selectedEvento)}
-                      className="flex-1 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-2"
+                      className="flex-1 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-1"
                     >
-                      <Edit3 className="w-4 h-4" />
+                      <Edit3 className="w-3 h-3" />
                       Editar
                     </button>
                   )}
                   {canDelete && (
                     <button
                       onClick={() => handleAnularEvento(selectedEvento)}
-                      className="px-6 py-3 rounded-xl bg-red-500/20 text-red-400 font-semibold hover:bg-red-500/30 transition-all border border-red-500/30 flex items-center justify-center gap-2"
+                      className="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 text-sm font-semibold hover:bg-red-500/30 transition-all border border-red-500/30 flex items-center justify-center"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3 h-3" />
                     </button>
                   )}
                 </div>
