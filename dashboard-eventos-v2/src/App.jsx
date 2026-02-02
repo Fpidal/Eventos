@@ -4422,8 +4422,8 @@ export default function App() {
             </div>
 
             <form onSubmit={handleUpdate} className="space-y-1.5">
-              {/* Fecha y Cliente */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {/* Fecha, Cliente y Salón */}
+              <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Fecha *</label>
                   <input
@@ -4477,103 +4477,6 @@ export default function App() {
                     </div>
                   )}
                 </div>
-              </div>
-
-              {/* Teléfono, Vendedor, Turno en una fila */}
-              <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                <div>
-                  <label className="block text-xs text-slate-400 mb-0.5">Teléfono</label>
-                  <input
-                    type="tel"
-                    value={eventoEdit.telefono}
-                    onChange={(e) => setEventoEdit({...eventoEdit, telefono: e.target.value})}
-                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-0.5">Vendedor</label>
-                  <select
-                    value={eventoEdit.vendedor}
-                    onChange={(e) => setEventoEdit({...eventoEdit, vendedor: e.target.value})}
-                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
-                  >
-                    {VENDEDORES.map(v => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-0.5">Turno</label>
-                  <select
-                    value={eventoEdit.turno}
-                    onChange={(e) => setEventoEdit({...eventoEdit, turno: e.target.value})}
-                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
-                  >
-                    {TURNOS.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-0.5">Hora Inicio</label>
-                  <div className="flex gap-1">
-                    <select
-                      value={eventoEdit.hora_inicio?.split(':')[0] || ''}
-                      onChange={(e) => {
-                        const mins = eventoEdit.hora_inicio?.split(':')[1] || '00';
-                        setEventoEdit({...eventoEdit, hora_inicio: e.target.value ? `${e.target.value}:${mins}` : ''});
-                      }}
-                      className="flex-1 px-1 py-1.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none"
-                    >
-                      <option value="">--</option>
-                      {Array.from({length: 24}, (_, i) => i.toString().padStart(2, '0')).map(h => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                    <span className="text-white self-center text-xs">:</span>
-                    <select
-                      value={eventoEdit.hora_inicio?.split(':')[1] || ''}
-                      onChange={(e) => {
-                        const hrs = eventoEdit.hora_inicio?.split(':')[0] || '12';
-                        setEventoEdit({...eventoEdit, hora_inicio: `${hrs}:${e.target.value}`});
-                      }}
-                      className="flex-1 px-1 py-1.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none"
-                    >
-                      <option value="00">00</option>
-                      <option value="15">15</option>
-                      <option value="30">30</option>
-                      <option value="45">45</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-0.5">Hora Fin</label>
-                  <div className="flex gap-1">
-                    <select
-                      value={eventoEdit.hora_fin?.split(':')[0] || ''}
-                      onChange={(e) => {
-                        const mins = eventoEdit.hora_fin?.split(':')[1] || '00';
-                        setEventoEdit({...eventoEdit, hora_fin: e.target.value ? `${e.target.value}:${mins}` : ''});
-                      }}
-                      className="flex-1 px-1 py-1.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none"
-                    >
-                      <option value="">--</option>
-                      {Array.from({length: 24}, (_, i) => i.toString().padStart(2, '0')).map(h => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                    <span className="text-white self-center text-xs">:</span>
-                    <select
-                      value={eventoEdit.hora_fin?.split(':')[1] || ''}
-                      onChange={(e) => {
-                        const hrs = eventoEdit.hora_fin?.split(':')[0] || '12';
-                        setEventoEdit({...eventoEdit, hora_fin: `${hrs}:${e.target.value}`});
-                      }}
-                      className="flex-1 px-1 py-1.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none"
-                    >
-                      <option value="00">00</option>
-                      <option value="15">15</option>
-                      <option value="30">30</option>
-                      <option value="45">45</option>
-                    </select>
-                  </div>
-                </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Salón</label>
                   <select
@@ -4583,6 +4486,52 @@ export default function App() {
                   >
                     {SALONES.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
+                </div>
+              </div>
+
+              {/* Teléfono, Vendedor, Turno, Horarios */}
+              <div className="grid grid-cols-5 gap-2">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-0.5">Teléfono</label>
+                  <input type="tel" value={eventoEdit.telefono} onChange={(e) => setEventoEdit({...eventoEdit, telefono: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-0.5">Vendedor</label>
+                  <select value={eventoEdit.vendedor} onChange={(e) => setEventoEdit({...eventoEdit, vendedor: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none">
+                    {VENDEDORES.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-0.5">Turno</label>
+                  <select value={eventoEdit.turno} onChange={(e) => setEventoEdit({...eventoEdit, turno: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none">
+                    {TURNOS.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-0.5">Hora Inicio</label>
+                  <div className="flex gap-1">
+                    <select value={eventoEdit.hora_inicio?.split(':')[0] || ''} onChange={(e) => { const mins = eventoEdit.hora_inicio?.split(':')[1] || '00'; setEventoEdit({...eventoEdit, hora_inicio: e.target.value ? `${e.target.value}:${mins}` : ''}); }} className="flex-1 px-1 py-1.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none">
+                      <option value="">--</option>
+                      {Array.from({length: 24}, (_, i) => i.toString().padStart(2, '0')).map(h => (<option key={h} value={h}>{h}</option>))}
+                    </select>
+                    <span className="text-white self-center text-xs">:</span>
+                    <select value={eventoEdit.hora_inicio?.split(':')[1] || ''} onChange={(e) => { const hrs = eventoEdit.hora_inicio?.split(':')[0] || '12'; setEventoEdit({...eventoEdit, hora_inicio: `${hrs}:${e.target.value}`}); }} className="flex-1 px-1 py-1.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none">
+                      <option value="00">00</option><option value="15">15</option><option value="30">30</option><option value="45">45</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-0.5">Hora Fin</label>
+                  <div className="flex gap-1">
+                    <select value={eventoEdit.hora_fin?.split(':')[0] || ''} onChange={(e) => { const mins = eventoEdit.hora_fin?.split(':')[1] || '00'; setEventoEdit({...eventoEdit, hora_fin: e.target.value ? `${e.target.value}:${mins}` : ''}); }} className="flex-1 px-1 py-1.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none">
+                      <option value="">--</option>
+                      {Array.from({length: 24}, (_, i) => i.toString().padStart(2, '0')).map(h => (<option key={h} value={h}>{h}</option>))}
+                    </select>
+                    <span className="text-white self-center text-xs">:</span>
+                    <select value={eventoEdit.hora_fin?.split(':')[1] || ''} onChange={(e) => { const hrs = eventoEdit.hora_fin?.split(':')[0] || '12'; setEventoEdit({...eventoEdit, hora_fin: `${hrs}:${e.target.value}`}); }} className="flex-1 px-1 py-1.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none">
+                      <option value="00">00</option><option value="15">15</option><option value="30">30</option><option value="45">45</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -4624,8 +4573,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Técnica, Técnica Superior, DJ, Ceremonia en línea */}
-              <div className="grid grid-cols-4 gap-2">
+              {/* Técnica, Técnica Superior, DJ */}
+              <div className="grid grid-cols-3 gap-2">
                 <div className="p-2 rounded-lg border border-white/10 bg-white/5">
                   <div className="flex items-center gap-1 mb-1">
                     <input type="checkbox" id="tecnica_edit" checked={eventoEdit.tecnica} onChange={(e) => setEventoEdit({...eventoEdit, tecnica: e.target.checked, tecnica_precio: e.target.checked ? eventoEdit.tecnica_precio : ''})} className="w-3 h-3 rounded accent-purple-500" />
@@ -4645,22 +4594,13 @@ export default function App() {
                   )}
                 </div>
                 <div className="p-2 rounded-lg border border-white/10 bg-white/5">
-                  <div className="flex items-center gap-1 mb-1">
-                    <input type="checkbox" id="ceremonia_edit" checked={eventoEdit.ceremonia} onChange={(e) => setEventoEdit({...eventoEdit, ceremonia: e.target.checked, ceremonia_precio: e.target.checked ? eventoEdit.ceremonia_precio : ''})} className="w-3 h-3 rounded accent-purple-500" />
-                    <label htmlFor="ceremonia_edit" className="text-[10px] cursor-pointer">Ceremonia</label>
-                  </div>
-                  {eventoEdit.ceremonia && (
-                    <input type="text" inputMode="numeric" placeholder="$200.000" value={formatNumberInput(eventoEdit.ceremonia_precio)} onChange={(e) => setEventoEdit({...eventoEdit, ceremonia_precio: parseNumberInput(e.target.value)})} className="w-full px-2 py-1 rounded border border-white/10 bg-white/5 text-white text-xs focus:outline-none" />
-                  )}
-                </div>
-                <div className="p-2 rounded-lg border border-white/10 bg-white/5">
                   <label className="block text-[10px] text-slate-400 mb-1">DJ</label>
                   <input type="text" placeholder="Nombre DJ" value={eventoEdit.dj} onChange={(e) => setEventoEdit({...eventoEdit, dj: e.target.value})} className="w-full px-2 py-1 rounded border border-white/10 bg-white/5 text-white text-xs focus:outline-none" />
                 </div>
               </div>
 
-              {/* Adultos, Menores, Subtotal + Dietas en una fila */}
-              <div className="grid grid-cols-8 gap-1.5">
+              {/* Adultos, Menores, Subtotal */}
+              <div className="grid grid-cols-5 gap-2">
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Adultos*</label>
                   <input type="number" required min="0" value={eventoEdit.adultos} onChange={(e) => setEventoEdit({...eventoEdit, adultos: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none" />
@@ -4683,17 +4623,21 @@ export default function App() {
                     {displayPrice((parseInt(eventoEdit.adultos) || 0) * (parseFloat(eventoEdit.precio_adulto) || 0) + (parseInt(eventoEdit.menores) || 0) * (parseFloat(eventoEdit.precio_menor) || 0))}
                   </div>
                 </div>
-                <div className="bg-amber-500/10 rounded-lg p-1 border border-amber-500/20">
-                  <label className="block text-[10px] text-amber-400/80">Celíacos</label>
-                  <input type="number" min="0" placeholder="0" value={eventoEdit.celiacos} onChange={(e) => setEventoEdit({...eventoEdit, celiacos: e.target.value})} className="w-full px-1 py-0.5 rounded border border-amber-500/20 bg-white/5 text-white text-xs focus:outline-none" />
+              </div>
+
+              {/* Dietas especiales */}
+              <div className="grid grid-cols-3 gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <div>
+                  <label className="block text-[10px] text-amber-400/80 mb-0.5">Celíacos</label>
+                  <input type="number" min="0" placeholder="0" value={eventoEdit.celiacos} onChange={(e) => setEventoEdit({...eventoEdit, celiacos: e.target.value})} className="w-full px-2 py-1 rounded border border-amber-500/20 bg-white/5 text-white text-xs focus:outline-none" />
                 </div>
-                <div className="bg-amber-500/10 rounded-lg p-1 border border-amber-500/20">
-                  <label className="block text-[10px] text-amber-400/80">Vegetar.</label>
-                  <input type="number" min="0" placeholder="0" value={eventoEdit.vegetarianos} onChange={(e) => setEventoEdit({...eventoEdit, vegetarianos: e.target.value})} className="w-full px-1 py-0.5 rounded border border-amber-500/20 bg-white/5 text-white text-xs focus:outline-none" />
+                <div>
+                  <label className="block text-[10px] text-amber-400/80 mb-0.5">Vegetarianos</label>
+                  <input type="number" min="0" placeholder="0" value={eventoEdit.vegetarianos} onChange={(e) => setEventoEdit({...eventoEdit, vegetarianos: e.target.value})} className="w-full px-2 py-1 rounded border border-amber-500/20 bg-white/5 text-white text-xs focus:outline-none" />
                 </div>
-                <div className="bg-amber-500/10 rounded-lg p-1 border border-amber-500/20">
-                  <label className="block text-[10px] text-amber-400/80">Veganos</label>
-                  <input type="number" min="0" placeholder="0" value={eventoEdit.veganos} onChange={(e) => setEventoEdit({...eventoEdit, veganos: e.target.value})} className="w-full px-1 py-0.5 rounded border border-amber-500/20 bg-white/5 text-white text-xs focus:outline-none" />
+                <div>
+                  <label className="block text-[10px] text-amber-400/80 mb-0.5">Veganos</label>
+                  <input type="number" min="0" placeholder="0" value={eventoEdit.veganos} onChange={(e) => setEventoEdit({...eventoEdit, veganos: e.target.value})} className="w-full px-2 py-1 rounded border border-amber-500/20 bg-white/5 text-white text-xs focus:outline-none" />
                 </div>
               </div>
 
