@@ -3055,14 +3055,16 @@ export default function App() {
     doc.line(marginLeft, y, pageWidth - marginRight, y);
     y += 10;
 
-    // Saldo pendiente (grande, terracota)
+    // Saldo pendiente con IVA (grande, terracota)
     const nuevoSaldo = (evento.totalEvento || evento.total_evento || 0) - (saldoAnterior.pagadoAntes || 0) - pagoData.monto;
+    const iva = nuevoSaldo * 0.21;
+    const saldoConIva = nuevoSaldo + iva;
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     if (nuevoSaldo > 0) {
       doc.setTextColor(...TERRACOTA);
-      doc.text('SALDO PENDIENTE:', colLabel, y);
-      doc.text(formatMoneyPDF(nuevoSaldo), colValue, y, { align: 'right' });
+      doc.text('SALDO PENDIENTE + IVA (21%):', colLabel, y);
+      doc.text(formatMoneyPDF(saldoConIva), colValue, y, { align: 'right' });
     } else {
       doc.setTextColor(...VERDE_FUERTE);
       doc.text('EVENTO CANCELADO', colLabel, y);
