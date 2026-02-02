@@ -8694,9 +8694,11 @@ export default function App() {
                         };
 
                         if (editingCajaEgreso) {
-                          await supabase.from('caja_movimientos').update(data).eq('id', editingCajaEgreso);
+                          const { error } = await supabase.from('caja_movimientos').update(data).eq('id', editingCajaEgreso);
+                          if (error) { alert('Error al actualizar: ' + error.message); return; }
                         } else {
-                          await supabase.from('caja_movimientos').insert(data);
+                          const { error } = await supabase.from('caja_movimientos').insert(data);
+                          if (error) { alert('Error al guardar: ' + error.message); return; }
                         }
                       }
 
