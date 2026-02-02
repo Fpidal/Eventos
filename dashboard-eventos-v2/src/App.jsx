@@ -4105,8 +4105,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Adultos y Menores */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {/* Adultos y Menores con Total */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Adultos *</label>
                   <input
@@ -4116,18 +4116,18 @@ export default function App() {
                     placeholder="Cant."
                     value={nuevoEvento.adultos}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, adultos: e.target.value})}
-                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-2 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Precio Adulto $</label>
+                  <label className="block text-xs text-slate-400 mb-1">$ Adulto</label>
                   <input
                     type="text"
                     inputMode="numeric"
                     placeholder="Precio"
                     value={formatNumberInput(nuevoEvento.precio_adulto)}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, precio_adulto: parseNumberInput(e.target.value)})}
-                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-2 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
                 <div>
@@ -4138,19 +4138,25 @@ export default function App() {
                     placeholder="Cant."
                     value={nuevoEvento.menores}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, menores: e.target.value})}
-                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-2 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Precio Menor $</label>
+                  <label className="block text-xs text-slate-400 mb-1">$ Menor</label>
                   <input
                     type="text"
                     inputMode="numeric"
                     placeholder="Precio"
                     value={formatNumberInput(nuevoEvento.precio_menor)}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, precio_menor: parseNumberInput(e.target.value)})}
-                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-2 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
+                </div>
+                <div className="flex flex-col justify-end">
+                  <label className="block text-xs text-slate-400 mb-1">Total</label>
+                  <div className="px-2 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold text-sm text-center">
+                    {displayPrice(calcularTotal())}
+                  </div>
                 </div>
               </div>
 
@@ -4238,11 +4244,6 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Total calculado */}
-              <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
-                <p className="text-xs text-slate-400">Total Evento</p>
-                <p className="text-xl font-bold text-emerald-400">{displayPrice(calcularTotal())}</p>
-              </div>
 
               {/* Otros */}
               <div>
@@ -4719,8 +4720,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Adultos y Menores */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* Adultos y Menores con Total */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Adultos *</label>
                   <input
@@ -4729,17 +4730,17 @@ export default function App() {
                     min="0"
                     value={eventoEdit.adultos}
                     onChange={(e) => setEventoEdit({...eventoEdit, adultos: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Precio Adulto $</label>
+                  <label className="block text-sm text-slate-400 mb-1">$ Adulto</label>
                   <input
                     type="text"
                     inputMode="numeric"
                     value={formatNumberInput(eventoEdit.precio_adulto)}
                     onChange={(e) => setEventoEdit({...eventoEdit, precio_adulto: parseNumberInput(e.target.value)})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
                 <div>
@@ -4749,18 +4750,24 @@ export default function App() {
                     min="0"
                     value={eventoEdit.menores}
                     onChange={(e) => setEventoEdit({...eventoEdit, menores: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Precio Menor $</label>
+                  <label className="block text-sm text-slate-400 mb-1">$ Menor</label>
                   <input
                     type="text"
                     inputMode="numeric"
                     value={formatNumberInput(eventoEdit.precio_menor)}
                     onChange={(e) => setEventoEdit({...eventoEdit, precio_menor: parseNumberInput(e.target.value)})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50"
                   />
+                </div>
+                <div className="flex flex-col justify-end">
+                  <label className="block text-sm text-slate-400 mb-1">Total</label>
+                  <div className="px-3 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold text-center">
+                    {displayPrice(calcularTotalEdit())}
+                  </div>
                 </div>
               </div>
 
@@ -4848,11 +4855,6 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Total calculado */}
-              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-                <p className="text-sm text-slate-400">Total Evento</p>
-                <p className="text-2xl font-bold text-emerald-400">{displayPrice(calcularTotalEdit())}</p>
-              </div>
 
               {/* Otros */}
               <div>
