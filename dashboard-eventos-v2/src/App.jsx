@@ -381,12 +381,15 @@ export default function App() {
     extra1_desc: '',
     extra1_valor: '',
     extra1_tipo: 'total',
+    extra1_confirmado: false,
     extra2_desc: '',
     extra2_valor: '',
     extra2_tipo: 'total',
+    extra2_confirmado: false,
     extra3_desc: '',
     extra3_valor: '',
     extra3_tipo: 'total',
+    extra3_confirmado: false,
     confirmado: false,
     menu_detalle: null
   });
@@ -3108,9 +3111,12 @@ export default function App() {
 
     let totalExtras = 0;
     [1, 2, 3].forEach(i => {
-      const valor = parseFloat(nuevoEvento[`extra${i}_valor`]) || 0;
-      const tipo = nuevoEvento[`extra${i}_tipo`];
-      totalExtras += tipo === 'por_persona' ? valor * adultos : valor;
+      const confirmado = nuevoEvento[`extra${i}_confirmado`];
+      if (confirmado) {
+        const valor = parseFloat(nuevoEvento[`extra${i}_valor`]) || 0;
+        const tipo = nuevoEvento[`extra${i}_tipo`];
+        totalExtras += tipo === 'por_persona' ? valor * adultos : valor;
+      }
     });
 
     return (adultos * precioAdulto) + (menores * precioMenor) + totalExtras;
@@ -3153,12 +3159,15 @@ export default function App() {
         extra1_desc: nuevoEvento.extra1_desc,
         extra1_valor: parseFloat(nuevoEvento.extra1_valor) || 0,
         extra1_tipo: nuevoEvento.extra1_tipo,
+        extra1_confirmado: nuevoEvento.extra1_confirmado || false,
         extra2_desc: nuevoEvento.extra2_desc,
         extra2_valor: parseFloat(nuevoEvento.extra2_valor) || 0,
         extra2_tipo: nuevoEvento.extra2_tipo,
+        extra2_confirmado: nuevoEvento.extra2_confirmado || false,
         extra3_desc: nuevoEvento.extra3_desc,
         extra3_valor: parseFloat(nuevoEvento.extra3_valor) || 0,
         extra3_tipo: nuevoEvento.extra3_tipo,
+        extra3_confirmado: nuevoEvento.extra3_confirmado || false,
         total_evento: total,
         confirmado: nuevoEvento.confirmado,
         menu_detalle: nuevoEvento.menu_detalle
@@ -3198,12 +3207,15 @@ export default function App() {
         extra1_desc: '',
         extra1_valor: '',
         extra1_tipo: 'total',
+        extra1_confirmado: false,
         extra2_desc: '',
         extra2_valor: '',
         extra2_tipo: 'total',
+        extra2_confirmado: false,
         extra3_desc: '',
         extra3_valor: '',
         extra3_tipo: 'total',
+        extra3_confirmado: false,
         confirmado: false,
         menu_detalle: null
       });
@@ -3243,12 +3255,15 @@ export default function App() {
       extra1_desc: evento.extra1_desc || '',
       extra1_valor: evento.extra1_valor?.toString() || '',
       extra1_tipo: evento.extra1_tipo || 'total',
+      extra1_confirmado: evento.extra1_confirmado || false,
       extra2_desc: evento.extra2_desc || '',
       extra2_valor: evento.extra2_valor?.toString() || '',
       extra2_tipo: evento.extra2_tipo || 'total',
+      extra2_confirmado: evento.extra2_confirmado || false,
       extra3_desc: evento.extra3_desc || '',
       extra3_valor: evento.extra3_valor?.toString() || '',
       extra3_tipo: evento.extra3_tipo || 'total',
+      extra3_confirmado: evento.extra3_confirmado || false,
       confirmado: evento.confirmado || false,
       menu_detalle: evento.menu_detalle || null
     });
@@ -3265,9 +3280,12 @@ export default function App() {
 
     let totalExtras = 0;
     [1, 2, 3].forEach(i => {
-      const valor = parseFloat(eventoEdit[`extra${i}_valor`]) || 0;
-      const tipo = eventoEdit[`extra${i}_tipo`];
-      totalExtras += tipo === 'por_persona' ? valor * adultos : valor;
+      const confirmado = eventoEdit[`extra${i}_confirmado`];
+      if (confirmado) {
+        const valor = parseFloat(eventoEdit[`extra${i}_valor`]) || 0;
+        const tipo = eventoEdit[`extra${i}_tipo`];
+        totalExtras += tipo === 'por_persona' ? valor * adultos : valor;
+      }
     });
 
     return (adultos * precioAdulto) + (menores * precioMenor) + totalExtras;
@@ -3310,12 +3328,15 @@ export default function App() {
         extra1_desc: eventoEdit.extra1_desc,
         extra1_valor: parseFloat(eventoEdit.extra1_valor) || 0,
         extra1_tipo: eventoEdit.extra1_tipo,
+        extra1_confirmado: eventoEdit.extra1_confirmado || false,
         extra2_desc: eventoEdit.extra2_desc,
         extra2_valor: parseFloat(eventoEdit.extra2_valor) || 0,
         extra2_tipo: eventoEdit.extra2_tipo,
+        extra2_confirmado: eventoEdit.extra2_confirmado || false,
         extra3_desc: eventoEdit.extra3_desc,
         extra3_valor: parseFloat(eventoEdit.extra3_valor) || 0,
         extra3_tipo: eventoEdit.extra3_tipo,
+        extra3_confirmado: eventoEdit.extra3_confirmado || false,
         total_evento: total,
         confirmado: eventoEdit.confirmado,
         menu_detalle: eventoEdit.menu_detalle
@@ -4121,8 +4142,17 @@ export default function App() {
               <div className="space-y-2">
                 <label className="block text-xs text-slate-400">Extras</label>
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="grid grid-cols-1 md:grid-cols-12 gap-2 p-2 rounded-lg bg-white/5 border border-white/10">
-                    <div className="md:col-span-5">
+                  <div key={i} className="grid grid-cols-1 md:grid-cols-12 gap-2 p-2 rounded-lg bg-white/5 border border-white/10 items-center">
+                    <div className="md:col-span-1 flex justify-center">
+                      <input
+                        type="checkbox"
+                        checked={nuevoEvento[`extra${i}_confirmado`] || false}
+                        onChange={(e) => setNuevoEvento({...nuevoEvento, [`extra${i}_confirmado`]: e.target.checked})}
+                        className="w-4 h-4 rounded border-white/20 bg-white/5 text-emerald-500 focus:ring-emerald-500/50"
+                        title="Confirmar extra (suma al total)"
+                      />
+                    </div>
+                    <div className="md:col-span-4">
                       <input
                         type="text"
                         placeholder={`Extra ${i}`}
@@ -4722,8 +4752,17 @@ export default function App() {
               <div className="space-y-3">
                 <label className="block text-sm text-slate-400">Extras</label>
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="grid grid-cols-1 md:grid-cols-12 gap-2 p-3 rounded-xl bg-white/5 border border-white/10">
-                    <div className="md:col-span-5">
+                  <div key={i} className="grid grid-cols-1 md:grid-cols-12 gap-2 p-3 rounded-xl bg-white/5 border border-white/10 items-center">
+                    <div className="md:col-span-1 flex justify-center">
+                      <input
+                        type="checkbox"
+                        checked={eventoEdit[`extra${i}_confirmado`] || false}
+                        onChange={(e) => setEventoEdit({...eventoEdit, [`extra${i}_confirmado`]: e.target.checked})}
+                        className="w-5 h-5 rounded border-white/20 bg-white/5 text-emerald-500 focus:ring-emerald-500/50"
+                        title="Confirmar extra (suma al total)"
+                      />
+                    </div>
+                    <div className="md:col-span-4">
                       <input
                         type="text"
                         placeholder={`Descripción extra ${i}`}
