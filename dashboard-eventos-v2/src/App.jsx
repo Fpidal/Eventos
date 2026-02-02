@@ -3119,7 +3119,19 @@ export default function App() {
       }
     });
 
-    return (adultos * precioAdulto) + (menores * precioMenor) + totalExtras;
+    // Servicios adicionales
+    let totalServicios = 0;
+    if (nuevoEvento.tecnica) {
+      totalServicios += parseFloat(nuevoEvento.tecnica_precio) || 0;
+    }
+    if (nuevoEvento.tecnica_superior) {
+      totalServicios += parseFloat(nuevoEvento.tecnica_superior_precio) || 0;
+    }
+    if (nuevoEvento.ceremonia) {
+      totalServicios += parseFloat(nuevoEvento.ceremonia_precio) || 0;
+    }
+
+    return (adultos * precioAdulto) + (menores * precioMenor) + totalExtras + totalServicios;
   };
 
   const handleSubmit = async (e) => {
@@ -3288,7 +3300,19 @@ export default function App() {
       }
     });
 
-    return (adultos * precioAdulto) + (menores * precioMenor) + totalExtras;
+    // Servicios adicionales
+    let totalServicios = 0;
+    if (eventoEdit.tecnica) {
+      totalServicios += parseFloat(eventoEdit.tecnica_precio) || 0;
+    }
+    if (eventoEdit.tecnica_superior) {
+      totalServicios += parseFloat(eventoEdit.tecnica_superior_precio) || 0;
+    }
+    if (eventoEdit.ceremonia) {
+      totalServicios += parseFloat(eventoEdit.ceremonia_precio) || 0;
+    }
+
+    return (adultos * precioAdulto) + (menores * precioMenor) + totalExtras + totalServicios;
   };
 
   const handleUpdate = async (e) => {
