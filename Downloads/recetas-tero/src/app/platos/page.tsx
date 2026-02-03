@@ -6,10 +6,14 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui'
 import Link from 'next/link'
 
+const SECCIONES_ORDEN = ['Entradas', 'Principales', 'Pastas y Arroces', 'Ensaladas', 'Postres']
+
 interface PlatoConCosto {
   id: string
   nombre: string
   descripcion: string | null
+  seccion: string
+  ingredientes_texto: string
   costo_total: number
 }
 
@@ -28,11 +32,13 @@ export default function PlatosPage() {
     const { data: platosData, error } = await supabase
       .from('platos')
       .select(`
-        id, nombre, descripcion,
+        id, nombre, descripcion, seccion,
         plato_ingredientes (
           insumo_id,
           receta_base_id,
-          cantidad
+          cantidad,
+          insumos (nombre),
+          recetas_base (nombre)
         )
       `)
       .eq('activo', true)
@@ -95,10 +101,16 @@ export default function PlatosPage() {
         }
       }
 
+      const nombres = (plato.plato_ingredientes || [])
+        .map((ing: any) => ing.insumos?.nombre || ing.recetas_base?.nombre || '')
+        .filter(Boolean)
+
       return {
         id: plato.id,
         nombre: plato.nombre,
         descripcion: plato.descripcion,
+        seccion: plato.seccion || 'Principales',
+        ingredientes_texto: nombres.join(' · '),
         costo_total: costoTotal,
       }
     })
@@ -122,12 +134,20 @@ export default function PlatosPage() {
     }
   }
 
+  // Agrupar platos por sección
+  const platosPorSeccion = SECCIONES_ORDEN
+    .map(seccion => ({
+      seccion,
+      platos: platos.filter(p => p.seccion === seccion),
+    }))
+    .filter(grupo => grupo.platos.length > 0)
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Platos</h1>
-          <p className="text-gray-600">Recetas de platos principales</p>
+          <h1 className="text-2xl font-bold text-gray-900">Recetas</h1>
+          <p className="text-gray-600">Recetas de platos agrupadas por sección</p>
         </div>
         <Link href="/platos/nuevo">
           <Button>
@@ -156,39 +176,51 @@ export default function PlatosPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {platos.map((p) => (
-                <tr key={p.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-orange-100 rounded-lg">
-                        <UtensilsCrossed className="w-5 h-5 text-orange-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{p.nombre}</p>
-                        {p.descripcion && (
-                          <p className="text-sm text-gray-500 truncate max-w-xs">
-                            {p.descripcion}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm font-bold text-green-700 bg-green-50 tabular-nums">
-                    <span className="text-green-500 font-normal">$</span><span className="ml-1">{p.costo_total.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-2">
-                      <Link href={`/platos/${p.id}`}>
-                        <Button variant="ghost" size="sm">
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                      </Link>
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(p.id)}>
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
+              {platosPorSeccion.map((grupo) => (
+                <>
+                  <tr key={`seccion-${grupo.seccion}`} className="bg-gray-100">
+                    <td colSpan={3} className="px-4 py-2">
+                      <span className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                        {grupo.seccion}
+                      </span>
+                      <span className="ml-2 text-xs text-gray-400">({grupo.platos.length})</span>
+                    </td>
+                  </tr>
+                  {grupo.platos.map((p) => (
+                    <tr key={p.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-orange-100 rounded-lg">
+                            <UtensilsCrossed className="w-5 h-5 text-orange-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{p.nombre}</p>
+                            {p.ingredientes_texto && (
+                              <p className="text-xs text-gray-400 truncate max-w-md">
+                                {p.ingredientes_texto}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right text-sm font-bold text-green-700 bg-green-50 tabular-nums">
+                        <span className="text-green-500 font-normal">$</span><span className="ml-1">{p.costo_total.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-2">
+                          <Link href={`/platos/${p.id}`}>
+                            <Button variant="ghost" size="sm">
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                          </Link>
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(p.id)}>
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </>
               ))}
             </tbody>
           </table>

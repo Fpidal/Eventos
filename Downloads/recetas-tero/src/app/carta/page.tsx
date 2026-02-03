@@ -5,9 +5,14 @@ import { Plus, AlertTriangle, CheckCircle, AlertCircle, Pencil, Trash2, X, Save 
 import { supabase } from '@/lib/supabase'
 import { Button, Input, Select, Modal } from '@/components/ui'
 
+const SECCIONES_ORDEN = ['Entradas', 'Principales', 'Pastas y Arroces', 'Ensaladas', 'Postres']
+
 interface PlatoConCosto {
   id: string
   nombre: string
+  seccion: string
+  ingredientes_texto: string
+  updated_at: string
   costo_total: number
 }
 
@@ -15,6 +20,9 @@ interface CartaItem {
   id: string
   plato_id: string
   plato_nombre: string
+  plato_seccion: string
+  plato_ingredientes: string
+  plato_dias_actualizacion: number
   plato_costo: number
   precio_sugerido: number
   precio_carta: number
@@ -103,22 +111,31 @@ export default function CartaPage() {
     const { data: platosData } = await supabase
       .from('platos')
       .select(`
-        id, nombre,
-        plato_ingredientes (insumo_id, receta_base_id, cantidad)
+        id, nombre, seccion, updated_at,
+        plato_ingredientes (insumo_id, receta_base_id, cantidad, insumos (nombre), recetas_base (nombre))
       `)
       .eq('activo', true)
       .order('nombre')
 
     // Calcular costos reales de cada plato
-    const platosConCosto: PlatoConCosto[] = (platosData || []).map((plato: any) => ({
-      id: plato.id,
-      nombre: plato.nombre,
-      costo_total: calcularCostoPlato(
-        plato.plato_ingredientes || [],
-        insumosData || [],
-        recetasBaseData || []
-      ),
-    }))
+    const platosConCosto: PlatoConCosto[] = (platosData || []).map((plato: any) => {
+      const nombres = (plato.plato_ingredientes || [])
+        .map((ing: any) => ing.insumos?.nombre || ing.recetas_base?.nombre || '')
+        .filter(Boolean)
+
+      return {
+        id: plato.id,
+        nombre: plato.nombre,
+        seccion: plato.seccion || 'Principales',
+        ingredientes_texto: nombres.join(' · '),
+        updated_at: plato.updated_at,
+        costo_total: calcularCostoPlato(
+          plato.plato_ingredientes || [],
+          insumosData || [],
+          recetasBaseData || []
+        ),
+      }
+    })
 
     // Cargar carta
     const { data: cartaData, error: cartaError } = await supabase
@@ -150,6 +167,11 @@ export default function CartaPage() {
         id: item.id,
         plato_id: item.plato_id,
         plato_nombre: plato?.nombre || 'Desconocido',
+        plato_seccion: plato?.seccion || 'Principales',
+        plato_ingredientes: plato?.ingredientes_texto || '',
+        plato_dias_actualizacion: plato?.updated_at
+          ? Math.floor((Date.now() - new Date(plato.updated_at).getTime()) / (1000 * 60 * 60 * 24))
+          : -1,
         plato_costo: costoReal,
         precio_sugerido: precioSugerido,
         precio_carta: item.precio_carta,
@@ -157,7 +179,7 @@ export default function CartaPage() {
         food_cost_real: foodCost,
         estado_margen: estado,
       }
-    }).sort((a, b) => a.plato_nombre.localeCompare(b.plato_nombre))
+    })
 
     setItems(mapped)
 
@@ -301,6 +323,14 @@ export default function CartaPage() {
 
   const fmt = (v: number) => `$${v.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
 
+  // Agrupar items por sección
+  const itemsPorSeccion = SECCIONES_ORDEN
+    .map(seccion => ({
+      seccion,
+      items: items.filter(i => i.plato_seccion === seccion).sort((a, b) => a.plato_nombre.localeCompare(b.plato_nombre)),
+    }))
+    .filter(grupo => grupo.items.length > 0)
+
   // Preview al agregar
   const platoPreview = platosDisponibles.find(p => p.id === selectedPlato)
   const previewPrecio = parseFloat(precioCartaNew) || 0
@@ -373,14 +403,36 @@ export default function CartaPage() {
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">P. Carta</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Margen Obj.</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Food Cost</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Contribución</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {items.map((item) => (
+              {itemsPorSeccion.map((grupo) => (
+                <>
+                  <tr key={`seccion-${grupo.seccion}`} className="bg-gray-100">
+                    <td colSpan={8} className="px-4 py-2">
+                      <span className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                        {grupo.seccion}
+                      </span>
+                      <span className="ml-2 text-xs text-gray-400">({grupo.items.length})</span>
+                    </td>
+                  </tr>
+                  {grupo.items.map((item) => (
                 <tr key={item.id} className={item.estado_margen === 'danger' ? 'bg-red-50' : ''}>
                   <td className="px-4 py-3">
-                    <span className="font-medium text-gray-900">{item.plato_nombre}</span>
+                    <div>
+                      <span className="font-medium text-gray-900">{item.plato_nombre}</span>
+                      <p className="text-xs text-gray-400">
+                        {item.plato_dias_actualizacion === 0
+                          ? 'Costos actualizados hoy'
+                          : item.plato_dias_actualizacion === 1
+                          ? 'Costos actualizados hace 1 día'
+                          : item.plato_dias_actualizacion > 0
+                          ? `Costos actualizados hace ${item.plato_dias_actualizacion} días`
+                          : ''}
+                      </p>
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-right text-sm text-gray-600 tabular-nums">
                     <span className="text-gray-400">$</span><span className="ml-1">{item.plato_costo.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
@@ -422,6 +474,9 @@ export default function CartaPage() {
                       </span>
                     </div>
                   </td>
+                  <td className="px-4 py-3 text-right text-sm font-bold text-green-700 tabular-nums">
+                    <span className="text-green-500 font-normal">$</span><span className="ml-1">{(item.precio_carta - item.plato_costo).toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1">
                       {editingId === item.id ? (
@@ -446,6 +501,8 @@ export default function CartaPage() {
                     </div>
                   </td>
                 </tr>
+                  ))}
+                </>
               ))}
             </tbody>
           </table>

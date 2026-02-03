@@ -49,6 +49,7 @@ interface Ingrediente {
 export default function NuevoPlatoPage() {
   const router = useRouter()
   const [nombre, setNombre] = useState('')
+  const [seccion, setSeccion] = useState('Principales')
   const [descripcion, setDescripcion] = useState('')
   const [ingredientes, setIngredientes] = useState<Ingrediente[]>([])
   const [insumos, setInsumos] = useState<Insumo[]>([])
@@ -199,6 +200,7 @@ export default function NuevoPlatoPage() {
       .from('platos')
       .insert({
         nombre: nombre.trim(),
+        seccion,
         descripcion: descripcion.trim() || null,
         costo_total: costoTotal,
         activo: true,
@@ -268,12 +270,26 @@ export default function NuevoPlatoPage() {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6">
         {/* Datos básicos */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2">
+          <div>
             <Input
               label="Nombre *"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
               placeholder="Ej: Bife de Chorizo con Papas"
+            />
+          </div>
+          <div>
+            <Select
+              label="Sección *"
+              options={[
+                { value: 'Entradas', label: 'Entradas' },
+                { value: 'Principales', label: 'Principales' },
+                { value: 'Pastas y Arroces', label: 'Pastas y Arroces' },
+                { value: 'Ensaladas', label: 'Ensaladas' },
+                { value: 'Postres', label: 'Postres' },
+              ]}
+              value={seccion}
+              onChange={(e) => setSeccion(e.target.value)}
             />
           </div>
           <div className="col-span-2">
