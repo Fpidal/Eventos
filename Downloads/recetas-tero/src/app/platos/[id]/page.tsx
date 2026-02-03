@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { Button, Input, Select } from '@/components/ui'
 
 const CATEGORY_COLORS: Record<string, string> = {
-  'Carnes': '#e57373',
+  'Carnes': '#d98a8a',
   'Pescados_Mariscos': '#64b5f6',
   'Verduras_Frutas': '#ffd54f',
   'Lacteos_Fiambres': '#ffb74d',
@@ -514,11 +514,11 @@ export default function EditarPlatoPage({ params }: { params: { id: string } }) 
                         />
                         <span className="ml-1 text-sm text-gray-500">{ing.unidad}</span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-right text-gray-600">
-                        ${ing.costo_unitario.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                      <td className="px-4 py-3 text-sm text-right text-gray-600 tabular-nums">
+                        <span className="text-gray-400">$</span><span className="ml-1">{ing.costo_unitario.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-right font-bold text-green-700 bg-green-50">
-                        ${ing.costo_linea.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                      <td className="px-4 py-3 text-sm text-right font-bold text-green-700 bg-green-50 tabular-nums">
+                        <span className="text-green-500 font-normal">$</span><span className="ml-1">{ing.costo_linea.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
                       </td>
                       <td className="px-4 py-3 text-sm text-right font-semibold text-blue-700 bg-blue-50">
                         {costoTotal > 0 ? `${((ing.costo_linea / costoTotal) * 100).toFixed(1)}%` : '0%'}
@@ -587,8 +587,8 @@ export default function EditarPlatoPage({ params }: { params: { id: string } }) 
           <div className="bg-gray-50 rounded-lg p-4">
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Costo Total del Plato:</span>
-              <span className="text-2xl font-bold text-green-600">
-                ${costoTotal.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+              <span className="text-2xl font-bold text-green-600 tabular-nums">
+                <span className="text-green-400 font-normal">$</span> {costoTotal.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
               </span>
             </div>
           </div>
