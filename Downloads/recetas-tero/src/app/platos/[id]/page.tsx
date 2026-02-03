@@ -91,14 +91,37 @@ export default function EditarPlatoPage({ params }: { params: { id: string } }) 
 
     if (insumosData) setInsumos(insumosData)
 
-    // Cargar recetas base
+    // Cargar recetas base con ingredientes para recalcular costo real
     const { data: recetasData } = await supabase
       .from('recetas_base')
-      .select('id, nombre, costo_por_porcion')
+      .select(`
+        id, nombre, costo_por_porcion, rendimiento_porciones,
+        receta_base_ingredientes (
+          insumo_id,
+          cantidad
+        )
+      `)
       .eq('activo', true)
       .order('nombre')
 
-    if (recetasData) setRecetasBase(recetasData)
+    // Recalcular costo_por_porcion desde precios actuales de insumos
+    const recetasConCostoReal = (recetasData || []).map((r: any) => {
+      let costoTotal = 0
+      for (const ing of r.receta_base_ingredientes || []) {
+        const insumo = insumosData?.find(i => i.id === ing.insumo_id)
+        if (insumo?.costo_final) {
+          costoTotal += ing.cantidad * insumo.costo_final
+        }
+      }
+      const rendimiento = r.rendimiento_porciones > 0 ? r.rendimiento_porciones : 1
+      return {
+        id: r.id,
+        nombre: r.nombre,
+        costo_por_porcion: costoTotal > 0 ? costoTotal / rendimiento : r.costo_por_porcion,
+      }
+    })
+
+    if (recetasConCostoReal) setRecetasBase(recetasConCostoReal)
 
     // Cargar plato
     const { data: plato, error: platoError } = await supabase
@@ -140,6 +163,7 @@ export default function EditarPlatoPage({ params }: { params: { id: string } }) 
           const insumoInfo = insumosData?.find(i => i.id === ing.insumo_id)
           const costoUnitario = insumoInfo?.costo_final || 0
           const cantidadNum = parseFloat(ing.cantidad)
+          console.log(`[FORM] Insumo: ${ing.insumos?.nombre} | precio: ${insumoInfo?.precio_actual} | iva: ${insumoInfo?.iva_porcentaje}% | merma: ${insumoInfo?.merma_porcentaje}% | costo_final: ${costoUnitario} | cant: ${cantidadNum} | linea: ${cantidadNum * costoUnitario}`)
           return {
             id: ing.id,
             tipo: 'insumo' as const,
@@ -152,9 +176,10 @@ export default function EditarPlatoPage({ params }: { params: { id: string } }) 
             costo_linea: cantidadNum * costoUnitario,
           }
         } else {
-          const recetaInfo = recetasData?.find(r => r.id === ing.receta_base_id)
+          const recetaInfo = recetasConCostoReal?.find(r => r.id === ing.receta_base_id)
           const costoUnitario = recetaInfo?.costo_por_porcion || 0
           const cantidadNum = parseFloat(ing.cantidad)
+          console.log(`[FORM] RecetaBase: ${ing.recetas_base?.nombre} | costo_porcion: ${costoUnitario} | cant: ${cantidadNum} | linea: ${cantidadNum * costoUnitario}`)
           return {
             id: ing.id,
             tipo: 'receta_base' as const,
@@ -168,6 +193,8 @@ export default function EditarPlatoPage({ params }: { params: { id: string } }) 
           }
         }
       })
+      const total = mapped.reduce((s, i) => s + i.costo_linea, 0)
+      console.log(`[FORM] === TOTAL: ${total} ===`)
       setIngredientes(mapped)
     }
 
@@ -376,230 +403,200 @@ export default function EditarPlatoPage({ params }: { params: { id: string } }) 
     const contentWidth = pageWidth - margin * 2
     const GREEN = [45, 59, 45] as const // #2D3B2D
 
-    // Fondo papel suave
-    doc.setFillColor(245, 245, 240) // #F5F5F0
-    doc.rect(0, 0, pageWidth, pageHeight, 'F')
+    // Fondo papel y borde redondeado
+    function drawPageFrame() {
+      doc.setFillColor(245, 245, 240) // #F5F5F0
+      doc.rect(0, 0, pageWidth, pageHeight, 'F')
+      doc.setDrawColor(210, 210, 200)
+      doc.setLineWidth(0.3)
+      doc.roundedRect(3, 3, pageWidth - 6, pageHeight - 6, 3, 3, 'S')
+    }
 
-    // Borde redondeado de la tarjeta
-    doc.setDrawColor(210, 210, 200)
-    doc.setLineWidth(0.3)
-    doc.roundedRect(3, 3, pageWidth - 6, pageHeight - 6, 3, 3, 'S')
+    function addNewPage() {
+      doc.addPage([105, 148])
+      drawPageFrame()
+      return 10
+    }
 
-    let y = 10
+    // Formatear cantidad legible
+    function formatCantidad(ing: Ingrediente): string {
+      if (ing.cantidad <= 0) return 'c/n'
+      const unidad = ing.unidad
+      if (unidad === 'kg' && ing.cantidad < 1) {
+        return `${Math.round(ing.cantidad * 1000)} g`
+      }
+      if (unidad === 'lt' && ing.cantidad < 1) {
+        return `${Math.round(ing.cantidad * 1000)} ml`
+      }
+      const cantStr = ing.cantidad % 1 === 0
+        ? ing.cantidad.toFixed(0)
+        : ing.cantidad.toFixed(1).replace(/\.0$/, '').replace('.', ',')
+      return `${cantStr} ${unidad}`
+    }
 
-    // --- Logo desde Supabase ---
+    // Logo desde Supabase (pre-fetch)
+    let logoDataUrl: string | null = null
     try {
       const { data: urlData } = supabase.storage.from('logo-tero').getPublicUrl('logo.png')
       if (urlData?.publicUrl) {
         const response = await fetch(urlData.publicUrl)
         if (response.ok) {
           const blob = await response.blob()
-          const logoDataUrl = await new Promise<string>((resolve) => {
+          logoDataUrl = await new Promise<string>((resolve) => {
             const reader = new FileReader()
             reader.onload = () => resolve(reader.result as string)
             reader.readAsDataURL(blob)
           })
-          // Logo pequeño centrado
-          const logoSize = 12
-          doc.addImage(logoDataUrl, 'PNG', (pageWidth - logoSize) / 2, y - 3, logoSize, logoSize)
-          y += 11
         }
       }
-    } catch {
-      // Sin logo, continuar con texto
-    }
+    } catch {}
 
-    // Header - Tero Restó
+    // === PÁGINA 1 ===
+    drawPageFrame()
+    let y = 10
+
+    // === HEADER: "Tero Restó" centrado, serif cursiva ===
     doc.setFont('times', 'bolditalic')
     doc.setFontSize(13)
     doc.setTextColor(...GREEN)
     doc.text('Tero Restó', pageWidth / 2, y, { align: 'center' })
     y += 4
 
-    // Línea fina decorativa
-    doc.setDrawColor(...GREEN)
+    // Línea separadora fina
+    doc.setDrawColor(180, 180, 170)
     doc.setLineWidth(0.2)
-    doc.line(margin + 15, y, pageWidth - margin - 15, y)
-    y += 5
+    doc.line(margin + 10, y, pageWidth - margin - 10, y)
+    y += 6
 
-    // Nombre del plato - elegante serif
+    // === NOMBRE DEL PLATO: serif grande, centrado ===
     doc.setFont('times', 'bold')
-    doc.setFontSize(14)
+    doc.setFontSize(15)
     doc.setTextColor(30, 30, 30)
     const nombreLines = doc.splitTextToSize(nombre, contentWidth - 4)
     doc.text(nombreLines, pageWidth / 2, y, { align: 'center' })
-    y += nombreLines.length * 5 + 2
+    y += nombreLines.length * 5.5 + 3
 
-    // Descripción
-    if (descripcion) {
-      doc.setFont('times', 'italic')
-      doc.setFontSize(7)
-      doc.setTextColor(100, 100, 100)
-      const descLines = doc.splitTextToSize(descripcion, contentWidth - 10)
-      doc.text(descLines, pageWidth / 2, y, { align: 'center' })
-      y += descLines.length * 3 + 2
-    }
-
-    // Badge de sección
+    // === BADGE SECCIÓN ===
     const badgeText = seccion.toUpperCase()
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6)
+    doc.setFontSize(5.5)
     const badgeWidth = doc.getTextWidth(badgeText) + 8
     const badgeX = (pageWidth - badgeWidth) / 2
     doc.setFillColor(...GREEN)
     doc.roundedRect(badgeX, y - 2.5, badgeWidth, 5, 2, 2, 'F')
     doc.setTextColor(255, 255, 255)
-    doc.text(badgeText, pageWidth / 2, y + 1, { align: 'center' })
+    doc.text(badgeText, pageWidth / 2, y + 0.8, { align: 'center' })
     y += 7
 
     // === INGREDIENTES ===
-    doc.setDrawColor(200, 200, 190)
-    doc.setLineWidth(0.15)
-    doc.line(margin, y, pageWidth - margin, y)
-    y += 4
-
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(7)
     doc.setTextColor(...GREEN)
     doc.text('INGREDIENTES', margin, y)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(6)
+    doc.setTextColor(120, 120, 120)
     doc.text('Cantidad', pageWidth - margin, y, { align: 'right' })
-    y += 2
+    y += 1.5
 
-    doc.setDrawColor(200, 200, 190)
+    doc.setDrawColor(180, 180, 170)
+    doc.setLineWidth(0.15)
     doc.line(margin, y, pageWidth - margin, y)
     y += 3.5
 
-    doc.setFont('helvetica', 'normal')
     doc.setFontSize(7)
-    doc.setTextColor(50, 50, 50)
 
     for (const ing of ingredientes) {
-      if (y > pageHeight - 30) {
-        doc.addPage([105, 148])
-        doc.setFillColor(245, 245, 240)
-        doc.rect(0, 0, pageWidth, pageHeight, 'F')
-        doc.setDrawColor(210, 210, 200)
-        doc.setLineWidth(0.3)
-        doc.roundedRect(3, 3, pageWidth - 6, pageHeight - 6, 3, 3, 'S')
-        y = 10
-      }
-      const cantText = ing.cantidad > 0
-        ? `${ing.cantidad % 1 === 0 ? ing.cantidad.toFixed(0) : ing.cantidad.toFixed(ing.cantidad < 1 ? 3 : 2)} ${ing.unidad}`
-        : 'c/n'
+      if (y > pageHeight - 25) { y = addNewPage() }
+      // Nombre a la izquierda
       doc.setFont('helvetica', 'normal')
-      doc.setTextColor(50, 50, 50)
+      doc.setTextColor(40, 40, 40)
       doc.text(ing.nombre, margin + 1, y)
+      // Cantidad a la derecha
       doc.setTextColor(80, 80, 80)
-      doc.text(cantText, pageWidth - margin - 1, y, { align: 'right' })
+      doc.text(formatCantidad(ing), pageWidth - margin - 1, y, { align: 'right' })
       y += 3.5
     }
 
-    y += 3
+    y += 4
 
     // === PREPARACIÓN ===
-    if (y > pageHeight - 25) {
-      doc.addPage([105, 148])
-      doc.setFillColor(245, 245, 240)
-      doc.rect(0, 0, pageWidth, pageHeight, 'F')
-      doc.setDrawColor(210, 210, 200)
-      doc.setLineWidth(0.3)
-      doc.roundedRect(3, 3, pageWidth - 6, pageHeight - 6, 3, 3, 'S')
-      y = 10
-    }
-
-    doc.setDrawColor(200, 200, 190)
-    doc.setLineWidth(0.15)
-    doc.line(margin, y, pageWidth - margin, y)
-    y += 4
+    if (y > pageHeight - 20) { y = addNewPage() }
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(7)
     doc.setTextColor(...GREEN)
     doc.text('PREPARACIÓN', margin, y)
-    y += 2
+    y += 1.5
 
-    doc.setDrawColor(200, 200, 190)
+    doc.setDrawColor(180, 180, 170)
+    doc.setLineWidth(0.15)
     doc.line(margin, y, pageWidth - margin, y)
     y += 4
 
     if (pasoAPaso.trim()) {
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(6.5)
-      doc.setTextColor(50, 50, 50)
-
-      // Parsear pasos: separar por líneas que empiecen con número o saltos de línea
       const rawSteps = pasoAPaso.split(/\n/).filter(l => l.trim())
       let stepNum = 1
 
       for (const step of rawSteps) {
-        if (y > pageHeight - 15) {
-          doc.addPage([105, 148])
-          doc.setFillColor(245, 245, 240)
-          doc.rect(0, 0, pageWidth, pageHeight, 'F')
-          doc.setDrawColor(210, 210, 200)
-          doc.setLineWidth(0.3)
-          doc.roundedRect(3, 3, pageWidth - 6, pageHeight - 6, 3, 3, 'S')
-          y = 10
-        }
+        if (y > pageHeight - 15) { y = addNewPage() }
 
-        // Remover numeración existente si la tiene
         const cleanStep = step.replace(/^\d+[\.\)\-]\s*/, '').trim()
         if (!cleanStep) continue
 
-        // Número del paso en verde
+        // Número en verde
         doc.setFont('helvetica', 'bold')
+        doc.setFontSize(6.5)
         doc.setTextColor(...GREEN)
         doc.text(`${stepNum}.`, margin + 1, y)
 
         // Texto del paso
         doc.setFont('helvetica', 'normal')
-        doc.setTextColor(50, 50, 50)
-        const stepLines = doc.splitTextToSize(cleanStep, contentWidth - 8)
+        doc.setTextColor(40, 40, 40)
+        const stepLines = doc.splitTextToSize(cleanStep, contentWidth - 7)
         doc.text(stepLines, margin + 6, y)
         y += stepLines.length * 2.8 + 1.5
 
         stepNum++
       }
     } else {
-      // Líneas vacías para escribir a mano
-      doc.setDrawColor(220, 220, 210)
-      for (let i = 0; i < 6; i++) {
+      doc.setDrawColor(210, 210, 200)
+      for (let i = 0; i < 5; i++) {
         doc.line(margin + 1, y + i * 5, pageWidth - margin - 1, y + i * 5)
       }
-      y += 32
     }
 
-    // === FOOTER ===
+    // === FOOTER (todas las páginas) ===
     const totalPages = (doc as any).internal.getNumberOfPages()
     for (let p = 1; p <= totalPages; p++) {
       doc.setPage(p)
-      const ph = 148
 
-      // Línea separadora del footer
-      doc.setDrawColor(200, 200, 190)
+      // Línea separadora footer
+      doc.setDrawColor(180, 180, 170)
       doc.setLineWidth(0.15)
-      doc.line(margin, ph - 14, pageWidth - margin, ph - 14)
+      doc.line(margin, pageHeight - 16, pageWidth - margin, pageHeight - 16)
 
-      // Rinde y Versión
+      // Rinde y versión
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(5.5)
       doc.setTextColor(120, 120, 120)
-      const rindeText = `Rinde: ${rendimiento} plato${rendimiento !== 1 ? 's' : ''}`
-      const versionText = `Versión receta: ${versionReceta}`
-      doc.text(rindeText, margin, ph - 10)
-      doc.text(versionText, pageWidth - margin, ph - 10, { align: 'right' })
+      const rindeText = `Rinde: ${rendimiento} plato${rendimiento !== 1 ? 's' : ''}  |  Versión receta: ${versionReceta}`
+      doc.text(rindeText, margin, pageHeight - 12)
 
       // Última revisión
-      const fechaRevision = new Date().toLocaleDateString('es-AR', {
-        day: '2-digit', month: 'long', year: 'numeric'
-      })
-      doc.text(`Última revisión: ${fechaRevision}`, margin, ph - 7)
+      const fecha = new Date().toLocaleDateString('es-AR')
+      doc.text(`Última revisión: ${fecha}`, margin, pageHeight - 8.5)
 
-      // Tero Restó en footer
-      doc.setFont('times', 'italic')
-      doc.setFontSize(5.5)
-      doc.setTextColor(...GREEN)
-      doc.text('Tero Restó', pageWidth - margin, ph - 7, { align: 'right' })
+      // Logo Tero
+      if (logoDataUrl) {
+        const logoSize = 8
+        doc.addImage(logoDataUrl, 'PNG', pageWidth - margin - logoSize, pageHeight - 16, logoSize, logoSize)
+      } else {
+        doc.setFont('times', 'bolditalic')
+        doc.setFontSize(6)
+        doc.setTextColor(...GREEN)
+        doc.text('Tero Restó', pageWidth - margin, pageHeight - 10, { align: 'right' })
+      }
     }
 
     doc.save(`Receta - ${nombre}.pdf`)

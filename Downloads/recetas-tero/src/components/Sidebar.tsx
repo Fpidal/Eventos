@@ -12,13 +12,15 @@ import {
   Users,
   LayoutGrid,
   BookOpen,
-  Home
+  Home,
+  TrendingUp
 } from 'lucide-react'
 
 const navigation = [
   { name: 'Inicio', href: '/', icon: Home },
   { name: 'Proveedores', href: '/proveedores', icon: Users },
   { name: 'Insumos', href: '/insumos', icon: Package },
+  { name: 'Evolución Precios', href: '/precios', icon: TrendingUp },
   { name: 'Recetas Base', href: '/recetas-base', icon: BookOpen },
   { name: 'Recetas', href: '/platos', icon: ChefHat },
   { name: 'Menús Ejecutivos', href: '/menus-ejecutivos', icon: UtensilsCrossed },

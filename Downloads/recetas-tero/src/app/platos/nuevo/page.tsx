@@ -89,15 +89,38 @@ export default function NuevoPlatoPage() {
       setInsumos(insumosData)
     }
 
-    // Cargar recetas base
+    // Cargar recetas base con ingredientes para recalcular costo real
     const { data: recetasData } = await supabase
       .from('recetas_base')
-      .select('id, nombre, costo_por_porcion')
+      .select(`
+        id, nombre, costo_por_porcion, rendimiento_porciones,
+        receta_base_ingredientes (
+          insumo_id,
+          cantidad
+        )
+      `)
       .eq('activo', true)
       .order('nombre')
 
-    if (recetasData) {
-      setRecetasBase(recetasData)
+    // Recalcular costo_por_porcion desde precios actuales de insumos
+    const recetasConCostoReal = (recetasData || []).map((r: any) => {
+      let costoTotal = 0
+      for (const ing of r.receta_base_ingredientes || []) {
+        const insumo = insumosData?.find(i => i.id === ing.insumo_id)
+        if (insumo?.costo_final) {
+          costoTotal += ing.cantidad * insumo.costo_final
+        }
+      }
+      const rendimiento = r.rendimiento_porciones > 0 ? r.rendimiento_porciones : 1
+      return {
+        id: r.id,
+        nombre: r.nombre,
+        costo_por_porcion: costoTotal > 0 ? costoTotal / rendimiento : r.costo_por_porcion,
+      }
+    })
+
+    if (recetasConCostoReal) {
+      setRecetasBase(recetasConCostoReal)
     }
 
     setIsLoading(false)

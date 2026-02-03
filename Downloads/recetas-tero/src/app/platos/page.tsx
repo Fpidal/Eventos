@@ -95,11 +95,20 @@ export default function PlatosPage() {
 
       for (const ing of plato.plato_ingredientes || []) {
         if (ing.insumo_id) {
-          costoTotal += ing.cantidad * getCostoFinalInsumo(ing.insumo_id)
+          const costoInsumo = getCostoFinalInsumo(ing.insumo_id)
+          const linea = ing.cantidad * costoInsumo
+          const insumo = insumosData?.find(i => i.id === ing.insumo_id)
+          console.log(`[LISTA] ${plato.nombre} | Insumo: ${ing.insumos?.nombre} | precio: ${insumo?.precio_actual} | iva: ${insumo?.iva_porcentaje}% | merma: ${insumo?.merma_porcentaje}% | costo_final: ${costoInsumo} | cant: ${ing.cantidad} | linea: ${linea}`)
+          costoTotal += linea
         } else if (ing.receta_base_id) {
-          costoTotal += ing.cantidad * getCostoPorcionReceta(ing.receta_base_id)
+          const costoPorcion = getCostoPorcionReceta(ing.receta_base_id)
+          const linea = ing.cantidad * costoPorcion
+          console.log(`[LISTA] ${plato.nombre} | RecetaBase: ${ing.recetas_base?.nombre} | costo_porcion: ${costoPorcion} | cant: ${ing.cantidad} | linea: ${linea}`)
+          costoTotal += linea
         }
       }
+
+      console.log(`[LISTA] === ${plato.nombre} TOTAL: ${costoTotal} ===`)
 
       const nombres = (plato.plato_ingredientes || [])
         .map((ing: any) => ing.insumos?.nombre || ing.recetas_base?.nombre || '')
