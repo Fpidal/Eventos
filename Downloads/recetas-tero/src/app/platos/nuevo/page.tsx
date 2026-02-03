@@ -51,12 +51,15 @@ export default function NuevoPlatoPage() {
   const [nombre, setNombre] = useState('')
   const [seccion, setSeccion] = useState('Principales')
   const [descripcion, setDescripcion] = useState('')
+  const [pasoAPaso, setPasoAPaso] = useState('')
   const [ingredientes, setIngredientes] = useState<Ingrediente[]>([])
   const [insumos, setInsumos] = useState<Insumo[]>([])
   const [recetasBase, setRecetasBase] = useState<RecetaBase[]>([])
   const [tipoIngrediente, setTipoIngrediente] = useState<'insumo' | 'receta_base'>('insumo')
   const [selectedItem, setSelectedItem] = useState('')
   const [cantidad, setCantidad] = useState('')
+  const [rendimiento, setRendimiento] = useState(1)
+  const [versionReceta, setVersionReceta] = useState('1.0')
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -202,6 +205,9 @@ export default function NuevoPlatoPage() {
         nombre: nombre.trim(),
         seccion,
         descripcion: descripcion.trim() || null,
+        paso_a_paso: pasoAPaso.trim() || null,
+        rendimiento_porciones: rendimiento,
+        version_receta: versionReceta.trim() || '1.0',
         costo_total: costoTotal,
         activo: true,
       })
@@ -302,6 +308,36 @@ export default function NuevoPlatoPage() {
               rows={2}
               className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               placeholder="Descripción opcional..."
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Preparación
+            </label>
+            <textarea
+              value={pasoAPaso}
+              onChange={(e) => setPasoAPaso(e.target.value)}
+              rows={6}
+              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="1. Salpimentar el bife&#10;2. Sellar en plancha a fuego fuerte&#10;3. Cocinar las papas en aceite..."
+            />
+          </div>
+          <div>
+            <Input
+              label="Rinde (porciones)"
+              type="number"
+              min="1"
+              value={rendimiento.toString()}
+              onChange={(e) => setRendimiento(parseInt(e.target.value) || 1)}
+              placeholder="1"
+            />
+          </div>
+          <div>
+            <Input
+              label="Versión receta"
+              value={versionReceta}
+              onChange={(e) => setVersionReceta(e.target.value)}
+              placeholder="1.0"
             />
           </div>
         </div>

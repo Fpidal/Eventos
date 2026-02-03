@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2, ArrowLeft, Save, Package, ChefHat, RefreshCw } from 'lucide-react'
+import { Plus, Trash2, ArrowLeft, Save, Package, ChefHat, RefreshCw, FileDown } from 'lucide-react'
+import jsPDF from 'jspdf'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { supabase } from '@/lib/supabase'
 import { Button, Input, Select } from '@/components/ui'
@@ -53,6 +54,7 @@ export default function EditarPlatoPage({ params }: { params: { id: string } }) 
   const [nombre, setNombre] = useState('')
   const [seccion, setSeccion] = useState('Principales')
   const [descripcion, setDescripcion] = useState('')
+  const [pasoAPaso, setPasoAPaso] = useState('')
   const [ingredientes, setIngredientes] = useState<Ingrediente[]>([])
   const [ingredientesEliminados, setIngredientesEliminados] = useState<string[]>([])
   const [insumos, setInsumos] = useState<Insumo[]>([])
@@ -60,6 +62,8 @@ export default function EditarPlatoPage({ params }: { params: { id: string } }) 
   const [tipoIngrediente, setTipoIngrediente] = useState<'insumo' | 'receta_base'>('insumo')
   const [selectedItem, setSelectedItem] = useState('')
   const [cantidad, setCantidad] = useState('')
+  const [rendimiento, setRendimiento] = useState(1)
+  const [versionReceta, setVersionReceta] = useState('1.0')
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -112,6 +116,9 @@ export default function EditarPlatoPage({ params }: { params: { id: string } }) 
     setNombre(plato.nombre)
     setSeccion(plato.seccion || 'Principales')
     setDescripcion(plato.descripcion || '')
+    setPasoAPaso(plato.paso_a_paso || '')
+    setRendimiento(plato.rendimiento_porciones || 1)
+    setVersionReceta(plato.version_receta || '1.0')
 
     // Cargar ingredientes
     const { data: ingredientesData } = await supabase
@@ -296,6 +303,9 @@ export default function EditarPlatoPage({ params }: { params: { id: string } }) 
         nombre: nombre.trim(),
         seccion,
         descripcion: descripcion.trim() || null,
+        paso_a_paso: pasoAPaso.trim() || null,
+        rendimiento_porciones: rendimiento,
+        version_receta: versionReceta.trim() || '1.0',
         costo_total: costoTotal,
       })
       .eq('id', id)
@@ -357,6 +367,244 @@ export default function EditarPlatoPage({ params }: { params: { id: string } }) 
         label: `${r.nombre} - $${r.costo_por_porcion.toLocaleString('es-AR', { maximumFractionDigits: 0 })}/porción`
       }))
 
+  async function handleGenerarPDF() {
+    // A6 vertical: 105 x 148 mm
+    const doc = new jsPDF({ unit: 'mm', format: [105, 148] })
+    const pageWidth = 105
+    const pageHeight = 148
+    const margin = 8
+    const contentWidth = pageWidth - margin * 2
+    const GREEN = [45, 59, 45] as const // #2D3B2D
+
+    // Fondo papel suave
+    doc.setFillColor(245, 245, 240) // #F5F5F0
+    doc.rect(0, 0, pageWidth, pageHeight, 'F')
+
+    // Borde redondeado de la tarjeta
+    doc.setDrawColor(210, 210, 200)
+    doc.setLineWidth(0.3)
+    doc.roundedRect(3, 3, pageWidth - 6, pageHeight - 6, 3, 3, 'S')
+
+    let y = 10
+
+    // --- Logo desde Supabase ---
+    try {
+      const { data: urlData } = supabase.storage.from('logo-tero').getPublicUrl('logo.png')
+      if (urlData?.publicUrl) {
+        const response = await fetch(urlData.publicUrl)
+        if (response.ok) {
+          const blob = await response.blob()
+          const logoDataUrl = await new Promise<string>((resolve) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result as string)
+            reader.readAsDataURL(blob)
+          })
+          // Logo pequeño centrado
+          const logoSize = 12
+          doc.addImage(logoDataUrl, 'PNG', (pageWidth - logoSize) / 2, y - 3, logoSize, logoSize)
+          y += 11
+        }
+      }
+    } catch {
+      // Sin logo, continuar con texto
+    }
+
+    // Header - Tero Restó
+    doc.setFont('times', 'bolditalic')
+    doc.setFontSize(13)
+    doc.setTextColor(...GREEN)
+    doc.text('Tero Restó', pageWidth / 2, y, { align: 'center' })
+    y += 4
+
+    // Línea fina decorativa
+    doc.setDrawColor(...GREEN)
+    doc.setLineWidth(0.2)
+    doc.line(margin + 15, y, pageWidth - margin - 15, y)
+    y += 5
+
+    // Nombre del plato - elegante serif
+    doc.setFont('times', 'bold')
+    doc.setFontSize(14)
+    doc.setTextColor(30, 30, 30)
+    const nombreLines = doc.splitTextToSize(nombre, contentWidth - 4)
+    doc.text(nombreLines, pageWidth / 2, y, { align: 'center' })
+    y += nombreLines.length * 5 + 2
+
+    // Descripción
+    if (descripcion) {
+      doc.setFont('times', 'italic')
+      doc.setFontSize(7)
+      doc.setTextColor(100, 100, 100)
+      const descLines = doc.splitTextToSize(descripcion, contentWidth - 10)
+      doc.text(descLines, pageWidth / 2, y, { align: 'center' })
+      y += descLines.length * 3 + 2
+    }
+
+    // Badge de sección
+    const badgeText = seccion.toUpperCase()
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(6)
+    const badgeWidth = doc.getTextWidth(badgeText) + 8
+    const badgeX = (pageWidth - badgeWidth) / 2
+    doc.setFillColor(...GREEN)
+    doc.roundedRect(badgeX, y - 2.5, badgeWidth, 5, 2, 2, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.text(badgeText, pageWidth / 2, y + 1, { align: 'center' })
+    y += 7
+
+    // === INGREDIENTES ===
+    doc.setDrawColor(200, 200, 190)
+    doc.setLineWidth(0.15)
+    doc.line(margin, y, pageWidth - margin, y)
+    y += 4
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7)
+    doc.setTextColor(...GREEN)
+    doc.text('INGREDIENTES', margin, y)
+    doc.text('Cantidad', pageWidth - margin, y, { align: 'right' })
+    y += 2
+
+    doc.setDrawColor(200, 200, 190)
+    doc.line(margin, y, pageWidth - margin, y)
+    y += 3.5
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7)
+    doc.setTextColor(50, 50, 50)
+
+    for (const ing of ingredientes) {
+      if (y > pageHeight - 30) {
+        doc.addPage([105, 148])
+        doc.setFillColor(245, 245, 240)
+        doc.rect(0, 0, pageWidth, pageHeight, 'F')
+        doc.setDrawColor(210, 210, 200)
+        doc.setLineWidth(0.3)
+        doc.roundedRect(3, 3, pageWidth - 6, pageHeight - 6, 3, 3, 'S')
+        y = 10
+      }
+      const cantText = ing.cantidad > 0
+        ? `${ing.cantidad % 1 === 0 ? ing.cantidad.toFixed(0) : ing.cantidad.toFixed(ing.cantidad < 1 ? 3 : 2)} ${ing.unidad}`
+        : 'c/n'
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(50, 50, 50)
+      doc.text(ing.nombre, margin + 1, y)
+      doc.setTextColor(80, 80, 80)
+      doc.text(cantText, pageWidth - margin - 1, y, { align: 'right' })
+      y += 3.5
+    }
+
+    y += 3
+
+    // === PREPARACIÓN ===
+    if (y > pageHeight - 25) {
+      doc.addPage([105, 148])
+      doc.setFillColor(245, 245, 240)
+      doc.rect(0, 0, pageWidth, pageHeight, 'F')
+      doc.setDrawColor(210, 210, 200)
+      doc.setLineWidth(0.3)
+      doc.roundedRect(3, 3, pageWidth - 6, pageHeight - 6, 3, 3, 'S')
+      y = 10
+    }
+
+    doc.setDrawColor(200, 200, 190)
+    doc.setLineWidth(0.15)
+    doc.line(margin, y, pageWidth - margin, y)
+    y += 4
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7)
+    doc.setTextColor(...GREEN)
+    doc.text('PREPARACIÓN', margin, y)
+    y += 2
+
+    doc.setDrawColor(200, 200, 190)
+    doc.line(margin, y, pageWidth - margin, y)
+    y += 4
+
+    if (pasoAPaso.trim()) {
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(6.5)
+      doc.setTextColor(50, 50, 50)
+
+      // Parsear pasos: separar por líneas que empiecen con número o saltos de línea
+      const rawSteps = pasoAPaso.split(/\n/).filter(l => l.trim())
+      let stepNum = 1
+
+      for (const step of rawSteps) {
+        if (y > pageHeight - 15) {
+          doc.addPage([105, 148])
+          doc.setFillColor(245, 245, 240)
+          doc.rect(0, 0, pageWidth, pageHeight, 'F')
+          doc.setDrawColor(210, 210, 200)
+          doc.setLineWidth(0.3)
+          doc.roundedRect(3, 3, pageWidth - 6, pageHeight - 6, 3, 3, 'S')
+          y = 10
+        }
+
+        // Remover numeración existente si la tiene
+        const cleanStep = step.replace(/^\d+[\.\)\-]\s*/, '').trim()
+        if (!cleanStep) continue
+
+        // Número del paso en verde
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(...GREEN)
+        doc.text(`${stepNum}.`, margin + 1, y)
+
+        // Texto del paso
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(50, 50, 50)
+        const stepLines = doc.splitTextToSize(cleanStep, contentWidth - 8)
+        doc.text(stepLines, margin + 6, y)
+        y += stepLines.length * 2.8 + 1.5
+
+        stepNum++
+      }
+    } else {
+      // Líneas vacías para escribir a mano
+      doc.setDrawColor(220, 220, 210)
+      for (let i = 0; i < 6; i++) {
+        doc.line(margin + 1, y + i * 5, pageWidth - margin - 1, y + i * 5)
+      }
+      y += 32
+    }
+
+    // === FOOTER ===
+    const totalPages = (doc as any).internal.getNumberOfPages()
+    for (let p = 1; p <= totalPages; p++) {
+      doc.setPage(p)
+      const ph = 148
+
+      // Línea separadora del footer
+      doc.setDrawColor(200, 200, 190)
+      doc.setLineWidth(0.15)
+      doc.line(margin, ph - 14, pageWidth - margin, ph - 14)
+
+      // Rinde y Versión
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(5.5)
+      doc.setTextColor(120, 120, 120)
+      const rindeText = `Rinde: ${rendimiento} plato${rendimiento !== 1 ? 's' : ''}`
+      const versionText = `Versión receta: ${versionReceta}`
+      doc.text(rindeText, margin, ph - 10)
+      doc.text(versionText, pageWidth - margin, ph - 10, { align: 'right' })
+
+      // Última revisión
+      const fechaRevision = new Date().toLocaleDateString('es-AR', {
+        day: '2-digit', month: 'long', year: 'numeric'
+      })
+      doc.text(`Última revisión: ${fechaRevision}`, margin, ph - 7)
+
+      // Tero Restó en footer
+      doc.setFont('times', 'italic')
+      doc.setFontSize(5.5)
+      doc.setTextColor(...GREEN)
+      doc.text('Tero Restó', pageWidth - margin, ph - 7, { align: 'right' })
+    }
+
+    doc.save(`Receta - ${nombre}.pdf`)
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -412,6 +660,36 @@ export default function EditarPlatoPage({ params }: { params: { id: string } }) 
               rows={2}
               className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               placeholder="Descripción opcional..."
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Preparación
+            </label>
+            <textarea
+              value={pasoAPaso}
+              onChange={(e) => setPasoAPaso(e.target.value)}
+              rows={6}
+              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="1. Salpimentar el bife&#10;2. Sellar en plancha a fuego fuerte&#10;3. Cocinar las papas en aceite..."
+            />
+          </div>
+          <div>
+            <Input
+              label="Rinde (porciones)"
+              type="number"
+              min="1"
+              value={rendimiento.toString()}
+              onChange={(e) => setRendimiento(parseInt(e.target.value) || 1)}
+              placeholder="1"
+            />
+          </div>
+          <div>
+            <Input
+              label="Versión receta"
+              value={versionReceta}
+              onChange={(e) => setVersionReceta(e.target.value)}
+              placeholder="1.0"
             />
           </div>
         </div>
@@ -615,6 +893,10 @@ export default function EditarPlatoPage({ params }: { params: { id: string } }) 
         <div className="flex justify-end gap-3 border-t pt-6">
           <Button variant="secondary" onClick={() => router.back()}>
             Cancelar
+          </Button>
+          <Button variant="secondary" onClick={handleGenerarPDF} disabled={ingredientes.length === 0}>
+            <FileDown className="w-4 h-4 mr-2" />
+            Exportar PDF
           </Button>
           <Button onClick={handleGuardar} disabled={isSaving}>
             <Save className="w-4 h-4 mr-2" />
