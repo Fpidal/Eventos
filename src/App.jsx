@@ -5163,12 +5163,13 @@ export default function App() {
         {/* Dashboard */}
         {activeTab === 'dashboard' && (
           <div className="space-y-4 sm:space-y-6">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4">
               {[
-                { label: 'Total Eventos', value: stats.totalEventos, icon: Calendar, color: 'from-indigo-500 to-blue-600' },
                 { label: 'Fact. Realizada', value: stats.facturadoRealizado, icon: DollarSign, color: 'from-emerald-500 to-teal-600', format: true },
                 { label: 'Fact. Pendiente', value: stats.facturadoPendiente, icon: TrendingUp, color: 'from-amber-500 to-orange-600', format: true },
+                { label: 'Facturación Total', value: stats.totalFacturado, icon: DollarSign, color: 'from-indigo-500 to-blue-600', format: true },
                 { label: 'Total Invitados', value: stats.totalAdultos, icon: Users, color: 'from-rose-500 to-pink-600' },
+                { label: 'Promedio x Evento', value: stats.totalEventos > 0 ? stats.totalFacturado / stats.totalEventos : 0, icon: Calendar, color: 'from-purple-500 to-violet-600', format: true },
               ].map((stat, i) => (
                 <div key={i} className="stat-card glass rounded-xl sm:rounded-2xl p-3 sm:p-5 glow">
                   <div className="flex items-start justify-between gap-2">
