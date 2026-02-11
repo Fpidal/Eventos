@@ -3487,10 +3487,16 @@ export default function App() {
   const stats = useMemo(() => {
     // Solo contar eventos confirmados (no anulados)
     const eventosActivos = eventosDelAño.filter(e => e.confirmado && !e.anulado);
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const eventosRealizados = eventosActivos.filter(e => new Date(e.fecha) < hoy || e.estado === 'realizado');
+    const eventosPendientes = eventosActivos.filter(e => new Date(e.fecha) >= hoy && e.estado !== 'realizado');
     const totalEventos = eventosActivos.length;
     const totalFacturado = eventosActivos.reduce((sum, e) => sum + e.totalEvento, 0);
+    const facturadoRealizado = eventosRealizados.reduce((sum, e) => sum + e.totalEvento, 0);
+    const facturadoPendiente = eventosPendientes.reduce((sum, e) => sum + e.totalEvento, 0);
     const totalAdultos = eventosActivos.reduce((sum, e) => sum + e.adultos, 0);
-    return { totalEventos, totalFacturado, totalAdultos };
+    return { totalEventos, totalFacturado, facturadoRealizado, facturadoPendiente, totalAdultos };
   }, [eventosDelAño]);
 
   const eventosPorMes = useMemo(() => {
@@ -5160,9 +5166,9 @@ export default function App() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
               {[
                 { label: 'Total Eventos', value: stats.totalEventos, icon: Calendar, color: 'from-indigo-500 to-blue-600' },
-                { label: 'Facturación Total', value: stats.totalFacturado, icon: DollarSign, color: 'from-emerald-500 to-teal-600', format: true },
-                { label: 'Total Invitados', value: stats.totalAdultos, icon: Users, color: 'from-amber-500 to-orange-600' },
-                { label: 'Promedio x Evento', value: stats.totalEventos > 0 ? stats.totalFacturado / stats.totalEventos : 0, icon: TrendingUp, color: 'from-rose-500 to-pink-600', format: true },
+                { label: 'Fact. Realizada', value: stats.facturadoRealizado, icon: DollarSign, color: 'from-emerald-500 to-teal-600', format: true },
+                { label: 'Fact. Pendiente', value: stats.facturadoPendiente, icon: TrendingUp, color: 'from-amber-500 to-orange-600', format: true },
+                { label: 'Total Invitados', value: stats.totalAdultos, icon: Users, color: 'from-rose-500 to-pink-600' },
               ].map((stat, i) => (
                 <div key={i} className="stat-card glass rounded-xl sm:rounded-2xl p-3 sm:p-5 glow">
                   <div className="flex items-start justify-between gap-2">
