@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed, ClipboardList, XCircle, Banknote, ArrowLeftRight, Contact, RefreshCw, Monitor, Check, Eye, EyeOff, Download, Save, Pencil } from 'lucide-react';
+import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, BarChart3, ChevronLeft, ChevronRight, Sun, Moon, Plus, X, Loader2, Phone, Music, Mic, Clock, MapPin, Edit3, Trash2, CheckCircle, AlertCircle, Wallet, Receipt, Percent, LogOut, Lock, Mail, FileText, UtensilsCrossed, ClipboardList, XCircle, Banknote, ArrowLeftRight, Contact, RefreshCw, Monitor, Check, Eye, EyeOff, Download, Save, Pencil, Info } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar } from 'recharts';
 import { supabase } from './supabase';
 import { jsPDF } from 'jspdf';
@@ -263,6 +263,8 @@ export default function App() {
   const [ipcMensual, setIpcMensual] = useState([]);
   const [showIPCModal, setShowIPCModal] = useState(false);
   const [ipcAñoSeleccionado, setIpcAñoSeleccionado] = useState(new Date().getFullYear());
+  const [ipcExpandido, setIpcExpandido] = useState(null); // mes expandido para ver detalle
+  const [ipcDetalleEvento, setIpcDetalleEvento] = useState(null); // evento id para mostrar detalle IPC en estado de cuenta
   const [nuevoIPC, setNuevoIPC] = useState({ mes: '', ipc_indec: '', ipc_aplicado: '' });
   const [ipcPreview, setIpcPreview] = useState({ eventos: 0, totalSaldos: 0, incremento: 0 });
   const [editingIPC, setEditingIPC] = useState(null); // null o { id, año, mes, ipc_indec, ipc_aplicado }
@@ -3623,8 +3625,84 @@ export default function App() {
       .sort((a, b) => new Date(b.fecha) - new Date(a.fecha)); // Más recientes primero
   }, [eventosDelAño]);
 
+  // Función para calcular IPC acumulado de un evento
+  const calcularIPCAcumulado = (evento, pagosEvento, ipcData) => {
+    // Obtener pagos de capital (seña y pago) ordenados por fecha
+    const pagosCapital = pagosEvento
+      .filter(p => p.concepto === 'pago' || p.concepto === 'seña')
+      .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+
+    if (pagosCapital.length === 0) return { ipcAcumulado: 0, detalleIPC: [] };
+
+    // Fecha del primer pago
+    const primerPago = pagosCapital[0];
+    const fechaPrimerPago = new Date(primerPago.fecha);
+    const mesPrimerPago = fechaPrimerPago.getMonth() + 1;
+    const añoPrimerPago = fechaPrimerPago.getFullYear();
+
+    // Fecha actual
+    const hoy = new Date();
+    const mesActual = hoy.getMonth() + 1;
+    const añoActual = hoy.getFullYear();
+
+    // Calcular IPC mes a mes desde el mes siguiente al primer pago
+    let ipcAcumulado = 0;
+    let saldoConIPC = evento.totalEvento;
+    const detalleIPC = [];
+
+    // Iterar mes a mes
+    let mes = mesPrimerPago;
+    let año = añoPrimerPago;
+
+    while (año < añoActual || (año === añoActual && mes <= mesActual)) {
+      // Restar pagos de este mes al saldo
+      const pagosDelMes = pagosCapital.filter(p => {
+        const fechaPago = new Date(p.fecha);
+        return fechaPago.getMonth() + 1 === mes && fechaPago.getFullYear() === año;
+      });
+      const totalPagosDelMes = pagosDelMes.reduce((sum, p) => sum + Number(p.monto), 0);
+      saldoConIPC -= totalPagosDelMes;
+
+      // Si hay saldo pendiente, aplicar IPC del mes siguiente
+      if (saldoConIPC > 0) {
+        // Buscar IPC del mes siguiente
+        let mesSiguiente = mes + 1;
+        let añoSiguiente = año;
+        if (mesSiguiente > 12) {
+          mesSiguiente = 1;
+          añoSiguiente++;
+        }
+
+        const ipcDelMes = ipcData.find(i => i.año === añoSiguiente && i.mes === mesSiguiente && i.aplicado);
+
+        if (ipcDelMes && ipcDelMes.ipc_aplicado > 0) {
+          const interes = saldoConIPC * (ipcDelMes.ipc_aplicado / 100);
+          ipcAcumulado += interes;
+          saldoConIPC += interes;
+
+          detalleIPC.push({
+            mes: mesSiguiente,
+            año: añoSiguiente,
+            ipc: ipcDelMes.ipc_aplicado,
+            saldoBase: saldoConIPC - interes,
+            interes: interes
+          });
+        }
+      }
+
+      // Siguiente mes
+      mes++;
+      if (mes > 12) {
+        mes = 1;
+        año++;
+      }
+    }
+
+    return { ipcAcumulado: Math.round(ipcAcumulado), detalleIPC };
+  };
+
   // Cobranzas: eventos con pagos y saldos
-  // IPC se suma al saldo (cargo adicional), pagos y señas restan del saldo
+  // IPC acumulado se calcula dinámicamente basado en historial de pagos
   // Solo eventos confirmados (los pendientes no van a cobranzas)
   const cobranzasData = useMemo(() => {
     return eventosDelAño.filter(evento => evento.confirmado && !evento.anulado).map(evento => {
@@ -3633,25 +3711,30 @@ export default function App() {
       const pagosYSenas = pagosEvento
         .filter(p => p.concepto === 'pago' || p.concepto === 'seña')
         .reduce((sum, p) => sum + Number(p.monto), 0);
-      // Ajustes IPC (pagos extra)
-      const ajustesIPC = pagosEvento
-        .filter(p => p.concepto === 'ajuste_ipc')
-        .reduce((sum, p) => sum + Number(p.monto), 0);
-      // Saldo = lo que falta pagar del evento (sin considerar IPC)
-      const saldo = evento.totalEvento - pagosYSenas;
-      // Total Pagado = todo lo cobrado (pagos + señas + IPC)
-      const totalPagado = pagosYSenas + ajustesIPC;
+
+      // Calcular IPC acumulado dinámicamente
+      const { ipcAcumulado, detalleIPC } = calcularIPCAcumulado(evento, pagosEvento, ipcMensual);
+
+      // Saldo Capital = lo que falta pagar del evento (sin IPC)
+      const saldoCapital = evento.totalEvento - pagosYSenas;
+      // Saldo Total = Capital + IPC acumulado
+      const saldoTotal = saldoCapital + ipcAcumulado;
+      // Total Pagado = pagos + señas
+      const totalPagado = pagosYSenas;
 
       return {
         ...evento,
         pagos: pagosEvento,
         pagosYSenas,
         totalPagado,
-        ajustesIPC,
-        saldo
+        ipcAcumulado,
+        detalleIPC,
+        saldoCapital,
+        saldoTotal,
+        saldo: saldoCapital // mantener compatibilidad
       };
     }).sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-  }, [eventosDelAño, pagos]);
+  }, [eventosDelAño, pagos, ipcMensual]);
 
   // Filtrado de cobranzas
   const cobranzasDataFiltrado = useMemo(() => {
@@ -4928,6 +5011,44 @@ export default function App() {
                   )}
                 </div>
               )}
+
+              {/* Listado de eventos afectados */}
+              {editingIPC && editingIPC.aplicado && (() => {
+                // Buscar pagos de IPC - primero por año_ipc/mes_ipc, si no por fecha de aplicación
+                let pagosIPC = pagos.filter(p =>
+                  p.concepto === 'ajuste_ipc' &&
+                  Number(p.año_ipc) === Number(editingIPC.año) &&
+                  Number(p.mes_ipc) === Number(editingIPC.mes)
+                );
+                // Si no hay, buscar por fecha de aplicación (mismo día que se aplicó el IPC)
+                if (pagosIPC.length === 0 && editingIPC.fecha_aplicacion) {
+                  const fechaAplicacion = new Date(editingIPC.fecha_aplicacion).toISOString().split('T')[0];
+                  pagosIPC = pagos.filter(p =>
+                    p.concepto === 'ajuste_ipc' &&
+                    p.fecha === fechaAplicacion
+                  );
+                }
+                if (pagosIPC.length === 0) return null;
+                return (
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 max-h-48 overflow-y-auto">
+                    <p className="text-xs text-slate-400 mb-2 font-medium">Eventos afectados:</p>
+                    <div className="space-y-2">
+                      {pagosIPC.map(pago => {
+                        const evento = eventos.find(e => e.id === pago.evento_id);
+                        return (
+                          <div key={pago.id} className="flex items-center justify-between text-sm bg-white/5 rounded-lg px-3 py-2">
+                            <div>
+                              <p className="text-white font-medium">{evento?.cliente || 'Sin cliente'}</p>
+                              <p className="text-xs text-slate-400">{evento?.tipo_evento || ''} • {evento?.fecha ? new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR') : ''}</p>
+                            </div>
+                            <span className="text-amber-400 font-medium">+${Math.round(pago.monto).toLocaleString('es-AR')}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* IPC INDEC */}
               <div>
@@ -6348,40 +6469,83 @@ export default function App() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-white/10 bg-white/5">
-                      <th className="text-left px-5 py-4 text-sm font-medium text-slate-300">Fecha</th>
-                      <th className="text-left px-5 py-4 text-sm font-medium text-slate-300">Cliente</th>
-                      <th className="text-right px-5 py-4 text-sm font-medium text-slate-300">Evento</th>
-                      <th className="text-right px-5 py-4 text-sm font-medium text-slate-300">Pagos</th>
-                      <th className="text-right px-5 py-4 text-sm font-medium text-slate-300">IPC</th>
-                      <th className="text-right px-5 py-4 text-sm font-medium text-slate-300">Total Cobrado</th>
-                      <th className="text-right px-5 py-4 text-sm font-medium text-slate-300">Saldo</th>
-                      <th className="text-center px-5 py-4 text-sm font-medium text-slate-300">Acciones</th>
+                      <th className="text-left px-4 py-4 text-sm font-medium text-slate-300">Fecha</th>
+                      <th className="text-left px-4 py-4 text-sm font-medium text-slate-300">Cliente</th>
+                      <th className="text-right px-4 py-4 text-sm font-medium text-slate-300">Evento</th>
+                      <th className="text-right px-4 py-4 text-sm font-medium text-slate-300">Pagos</th>
+                      <th className="text-right px-4 py-4 text-sm font-medium text-slate-300">Saldo Capital</th>
+                      <th className="text-right px-4 py-4 text-sm font-medium text-slate-300">IPC Acum.</th>
+                      <th className="text-right px-4 py-4 text-sm font-medium text-slate-300">Saldo Total</th>
+                      <th className="text-center px-4 py-4 text-sm font-medium text-slate-300">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     {cobranzasDataFiltrado.map((evento) => (
                       <tr key={evento.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                        <td className="px-5 py-4 text-sm">{formatDate(evento.fecha)}</td>
-                        <td className="px-5 py-4">
+                        <td className="px-4 py-4 text-sm">{formatDate(evento.fecha)}</td>
+                        <td className="px-4 py-4">
                           <p className="font-medium">{evento.cliente}</p>
                           <p className="text-xs text-slate-400">{evento.tipoEvento}</p>
                         </td>
-                        <td className="px-5 py-4 text-right">{displayPrice(evento.totalEvento)}</td>
-                        <td className="px-5 py-4 text-right text-emerald-400">{formatCurrency(evento.pagosYSenas)}</td>
-                        <td className="px-5 py-4 text-right">
-                          {evento.ajustesIPC > 0 ? (
-                            <span className="text-amber-400">+{formatCurrency(evento.ajustesIPC)}</span>
+                        <td className="px-4 py-4 text-right">{displayPrice(evento.totalEvento)}</td>
+                        <td className="px-4 py-4 text-right text-emerald-400">{formatCurrency(evento.pagosYSenas)}</td>
+                        <td className="px-4 py-4 text-right">
+                          <span className={evento.saldoCapital > 0 ? 'text-slate-300' : 'text-emerald-400'}>
+                            {displayPrice(evento.saldoCapital)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-right relative">
+                          {evento.ipcAcumulado > 0 ? (
+                            <div className="relative inline-block">
+                              <button
+                                onClick={() => setIpcDetalleEvento(ipcDetalleEvento === evento.id ? null : evento.id)}
+                                className="text-amber-400 hover:text-amber-300 font-medium flex items-center gap-1"
+                              >
+                                +{formatCurrency(evento.ipcAcumulado)}
+                                <Info className="w-3 h-3" />
+                              </button>
+                              {ipcDetalleEvento === evento.id && evento.detalleIPC?.length > 0 && (
+                                <div className="absolute right-0 top-full mt-2 z-50 bg-slate-800 border border-white/20 rounded-xl p-4 shadow-2xl min-w-[320px]">
+                                  <div className="flex items-center justify-between mb-3">
+                                    <p className="text-sm font-semibold text-white">Detalle IPC Acumulado</p>
+                                    <button onClick={() => setIpcDetalleEvento(null)} className="text-slate-400 hover:text-white">
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                  <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                                    {evento.detalleIPC.map((d, idx) => (
+                                      <div key={idx} className="flex items-center justify-between text-sm py-1 border-b border-white/5">
+                                        <span className="text-slate-400">
+                                          {['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][d.mes-1]} {d.año}
+                                        </span>
+                                        <div className="text-right">
+                                          <span className="text-slate-500 text-xs">
+                                            ${Math.round(d.saldoBase).toLocaleString('es-AR')} × {d.ipc}%
+                                          </span>
+                                          <span className="text-amber-400 ml-2">
+                                            +${Math.round(d.interes).toLocaleString('es-AR')}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <div className="mt-3 pt-3 border-t border-white/10 flex justify-between">
+                                    <span className="text-sm font-medium text-white">Total IPC:</span>
+                                    <span className="text-amber-400 font-bold">+${evento.ipcAcumulado.toLocaleString('es-AR')}</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-slate-500">-</span>
                           )}
                         </td>
-                        <td className="px-5 py-4 text-rightfont-medium">{displayPrice(evento.totalPagado)}</td>
-                        <td className="px-5 py-4 text-right">
-                          <span className={`font-semibold${evento.saldo > 0 ? 'text-amber-400' : evento.saldo < 0 ? 'text-blue-400' : 'text-emerald-400'}`}>
-                            {displayPrice(evento.saldo)}
+                        <td className="px-4 py-4 text-right">
+                          <span className={`font-semibold ${evento.saldoTotal > 0 ? 'text-amber-400' : evento.saldoTotal < 0 ? 'text-blue-400' : 'text-emerald-400'}`}>
+                            {displayPrice(evento.saldoTotal)}
                           </span>
                         </td>
-                        <td className="px-5 py-4">
+                        <td className="px-4 py-4">
                           {canCreate && (
                             <div className="flex items-center justify-center gap-2">
                               <button
@@ -6558,7 +6722,7 @@ export default function App() {
                         const ipcDelMes = ipcMensual.find(i => i.año === ipcAñoSeleccionado && i.mes === mesNum);
                         const esFuturo = new Date(ipcAñoSeleccionado, mesNum - 1) > new Date();
 
-                        return (
+                        return [
                           <tr key={mesNum} className="border-b border-white/5 hover:bg-white/5">
                             <td className="p-4 font-medium">{mesNombre}</td>
                             <td className="p-4 text-right text-slate-400">
@@ -6653,11 +6817,81 @@ export default function App() {
                                     <Trash2 className="w-4 h-4" />
                                   </button>
                                 )}
+                                {ipcDelMes?.aplicado && (
+                                  <button
+                                    onClick={() => setIpcExpandido(ipcExpandido === mesNum ? null : mesNum)}
+                                    className={`p-1.5 rounded-lg ${ipcExpandido === mesNum ? 'bg-emerald-500/30 text-emerald-400' : 'bg-slate-500/20 text-slate-400 hover:bg-slate-500/30'}`}
+                                    title="Ver eventos afectados"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </button>
+                                )}
                               </div>
                             </td>
-                          </tr>
-                        );
-                      })}
+                          </tr>,
+                          /* Fila expandible con detalle de eventos */
+                          ipcExpandido === mesNum && ipcDelMes?.aplicado && (() => {
+                            // Buscar pagos de IPC de este mes - múltiples estrategias
+                            let pagosIPC = pagos.filter(p =>
+                              p.concepto === 'ajuste_ipc' &&
+                              Number(p.año_ipc) === Number(ipcAñoSeleccionado) &&
+                              Number(p.mes_ipc) === Number(mesNum)
+                            );
+                            // Si no hay, buscar por fecha de aplicación
+                            if (pagosIPC.length === 0 && ipcDelMes.fecha_aplicacion) {
+                              const fechaAplicacion = new Date(ipcDelMes.fecha_aplicacion).toISOString().split('T')[0];
+                              pagosIPC = pagos.filter(p =>
+                                p.concepto === 'ajuste_ipc' &&
+                                p.fecha === fechaAplicacion
+                              );
+                            }
+                            // Si aún no hay, buscar todos los ajuste_ipc con el % aplicado similar
+                            if (pagosIPC.length === 0 && ipcDelMes.ipc_aplicado) {
+                              pagosIPC = pagos.filter(p =>
+                                p.concepto === 'ajuste_ipc' &&
+                                Math.abs(Number(p.ipc_aplicado) - Number(ipcDelMes.ipc_aplicado)) < 0.1
+                              );
+                            }
+                            // Última opción: todos los ajuste_ipc
+                            if (pagosIPC.length === 0) {
+                              pagosIPC = pagos.filter(p => p.concepto === 'ajuste_ipc');
+                            }
+
+                            return (
+                              <tr key={`${mesNum}-detalle`} className="bg-white/5">
+                                <td colSpan="7" className="p-4">
+                                  <div className="rounded-xl bg-white/5 p-4">
+                                    <p className="text-sm font-medium text-slate-300 mb-3">Eventos afectados por IPC {mesNombre} {ipcAñoSeleccionado}:</p>
+                                    {pagosIPC.length === 0 ? (
+                                      <p className="text-sm text-slate-500">No se encontraron registros de pagos IPC para este mes.</p>
+                                    ) : (
+                                      <div className="grid gap-2">
+                                        {pagosIPC.map(pago => {
+                                          const evento = eventos.find(e => e.id === pago.evento_id);
+                                          return (
+                                            <div key={pago.id} className="flex items-center justify-between bg-white/5 rounded-lg px-4 py-2">
+                                              <div>
+                                                <p className="font-medium text-white">{evento?.cliente || 'Cliente desconocido'}</p>
+                                                <p className="text-xs text-slate-400">
+                                                  {evento?.tipo_evento || ''} • {evento?.fecha ? new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR') : ''}
+                                                </p>
+                                              </div>
+                                              <div className="text-right">
+                                                <p className="text-amber-400 font-medium">+${Math.round(pago.monto).toLocaleString('es-AR')}</p>
+                                                <p className="text-xs text-slate-500">IPC: {pago.ipc_aplicado || ipcDelMes.ipc_aplicado}%</p>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })()
+                        ].filter(Boolean)
+                      }).flat()}
                     </tbody>
                   </table>
                 </div>
