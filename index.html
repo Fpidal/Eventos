@@ -2,9 +2,94 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dashboard Eventos</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
+    <!-- PWA Meta Tags -->
+    <title>El Tero Eventos</title>
+    <meta name="description" content="Sistema de gestión de eventos premium - El Tero" />
+    <meta name="theme-color" content="#0891B2" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="El Tero Eventos" />
+
+    <!-- iOS Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="El Tero" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Favicon & Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-96x96.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-72x72.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180x180.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-180x180.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-192x192.png" />
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- iOS Splash Screens -->
+    <meta name="apple-mobile-web-app-orientations" content="portrait" />
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://ykirofgvxwqnicrhrlxe.supabase.co" />
+
+    <!-- Safe area for notch devices -->
+    <style>
+      :root {
+        --sat: env(safe-area-inset-top);
+        --sar: env(safe-area-inset-right);
+        --sab: env(safe-area-inset-bottom);
+        --sal: env(safe-area-inset-left);
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      /* Prevent pull-to-refresh on iOS */
+      html, body {
+        overscroll-behavior-y: contain;
+      }
+
+      /* Fix iOS input zoom */
+      input, select, textarea {
+        font-size: 16px !important;
+      }
+
+      /* Splash screen style */
+      #root:empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #0891B2 0%, #0E7490 100%);
+      }
+
+      #root:empty::after {
+        content: '';
+        width: 80px;
+        height: 80px;
+        background-image: url('/icons/icon-192x192.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.7; transform: scale(0.95); }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
