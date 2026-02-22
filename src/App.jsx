@@ -5296,7 +5296,7 @@ export default function App() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="text-slate-400 text-[10px] sm:text-xs lg:text-sm mb-0.5 sm:mb-1 truncate">{stat.label}</p>
-                      <p className="text-sm sm:text-lg lg:text-2xl font-bold truncate">
+                      <p className="text-xs sm:text-base lg:text-xl font-bold truncate">
                         {stat.format ? displayPrice(stat.value) : stat.value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
                       </p>
                     </div>
