@@ -527,13 +527,22 @@ export default function App() {
         password: loginForm.password
       });
 
+      // DEBUG: Log para diagnosticar
+      console.log('=== DEBUG LOGIN ===');
+      console.log('Email ingresado (normalizado):', emailNormalizado);
+      console.log('Usuario encontrado en DB:', usuarios?.email);
+      console.log('Auth error:', authError?.message);
+      console.log('Auth user email:', authData?.user?.email);
+      console.log('===================');
+
       if (!authError && authData.user) {
         // Verificar que el email autenticado coincida con el email ingresado
         const authEmail = authData.user.email?.toLowerCase();
         if (authEmail !== emailNormalizado) {
           // El usuario autenticado no coincide con el email ingresado
+          console.log('ERROR: Email mismatch! Auth:', authEmail, 'vs Ingresado:', emailNormalizado);
           await supabase.auth.signOut();
-          setLoginError('Error de autenticación. Intente nuevamente.');
+          setLoginError('Error de autenticación: el email no coincide. Intente nuevamente.');
           setLoginLoading(false);
           return;
         }
