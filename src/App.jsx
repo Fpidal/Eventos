@@ -8310,19 +8310,19 @@ export default function App() {
               <div className="grid grid-cols-6 gap-4 text-center">
                 <div>
                   <p className="text-xs text-slate-400">Ingresos Efectivo</p>
-                  <p className="text-lg font-bold text-green-400">${cajaMovimientos.filter(m => m.tipo === 'ingreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</p>
+                  <p className="text-lg font-bold text-green-400">{formatCurrency(cajaMovimientos.filter(m => m.tipo === 'ingreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0))}</p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-400">Ingresos Banco</p>
-                  <p className="text-lg font-bold text-cyan-400">${cajaMovimientos.filter(m => m.tipo === 'ingreso_banco').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</p>
+                  <p className="text-lg font-bold text-cyan-400">{formatCurrency(cajaMovimientos.filter(m => m.tipo === 'ingreso_banco').reduce((sum, i) => sum + (i.monto_pesos || 0), 0))}</p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-400">Egresos</p>
-                  <p className="text-lg font-bold text-red-400">${cajaMovimientos.filter(m => m.tipo === 'egreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</p>
+                  <p className="text-lg font-bold text-red-400">{formatCurrency(cajaMovimientos.filter(m => m.tipo === 'egreso').reduce((sum, i) => sum + (i.monto_pesos || 0), 0))}</p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-400">Retiros Socios</p>
-                  <p className="text-lg font-bold text-yellow-400">${cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</p>
+                  <p className="text-lg font-bold text-yellow-400">{formatCurrency(cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_pesos || 0), 0))}</p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-400">Saldo Caja $</p>
@@ -8336,7 +8336,7 @@ export default function App() {
                 <div>
                   <p className="text-xs text-slate-400">USD (ref.)</p>
                   <p className="text-lg font-bold text-blue-400">
-                    {cajaMovimientos.filter(m => (m.tipo === 'ingreso' || m.tipo === 'ingreso_banco') && m.monto_dolares > 0).reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                    {formatNumber(cajaMovimientos.filter(m => (m.tipo === 'ingreso' || m.tipo === 'ingreso_banco') && m.monto_dolares > 0).reduce((sum, i) => sum + (i.monto_dolares || 0), 0))}
                   </p>
                 </div>
               </div>
@@ -8849,8 +8849,8 @@ export default function App() {
                   </table>
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/10 flex justify-end gap-6 text-sm">
-                  <span className="text-slate-400">Total $: <span className="text-green-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'ingreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span></span>
-                  <span className="text-slate-400">Total USD: <span className="text-blue-400 font-bold">{cajaMovimientos.filter(m => m.tipo === 'ingreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span></span>
+                  <span className="text-slate-400">Total $: <span className="text-green-400 font-bold">{formatCurrency(cajaMovimientos.filter(m => m.tipo === 'ingreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_pesos || 0), 0))}</span></span>
+                  <span className="text-slate-400">Total USD: <span className="text-blue-400 font-bold">{formatNumber(cajaMovimientos.filter(m => m.tipo === 'ingreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_dolares || 0), 0))}</span></span>
                 </div>
               </div>
             )}
@@ -8913,8 +8913,8 @@ export default function App() {
                   </table>
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/10 flex justify-end gap-6 text-sm">
-                  <span className="text-slate-400">Total $: <span className="text-cyan-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'ingreso_banco').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span></span>
-                  <span className="text-slate-400">Total USD: <span className="text-blue-400 font-bold">{cajaMovimientos.filter(m => m.tipo === 'ingreso_banco').reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span></span>
+                  <span className="text-slate-400">Total $: <span className="text-cyan-400 font-bold">{formatCurrency(cajaMovimientos.filter(m => m.tipo === 'ingreso_banco').reduce((sum, i) => sum + (i.monto_pesos || 0), 0))}</span></span>
+                  <span className="text-slate-400">Total USD: <span className="text-blue-400 font-bold">{formatNumber(cajaMovimientos.filter(m => m.tipo === 'ingreso_banco').reduce((sum, i) => sum + (i.monto_dolares || 0), 0))}</span></span>
                 </div>
               </div>
             )}
@@ -9281,8 +9281,8 @@ export default function App() {
                   </table>
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/10 flex justify-end gap-6 text-sm">
-                  <span className="text-slate-400">Total $: <span className="text-red-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'egreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span></span>
-                  <span className="text-slate-400">Total USD: <span className="text-blue-400 font-bold">{cajaMovimientos.filter(m => m.tipo === 'egreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span></span>
+                  <span className="text-slate-400">Total $: <span className="text-red-400 font-bold">{formatCurrency(cajaMovimientos.filter(m => m.tipo === 'egreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_pesos || 0), 0))}</span></span>
+                  <span className="text-slate-400">Total USD: <span className="text-blue-400 font-bold">{formatNumber(cajaMovimientos.filter(m => m.tipo === 'egreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).reduce((sum, i) => sum + (i.monto_dolares || 0), 0))}</span></span>
                 </div>
               </div>
             )}
@@ -9418,7 +9418,7 @@ export default function App() {
                   </table>
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/10 flex justify-end gap-6 text-sm">
-                  <span className="text-slate-400">Total Transferido: <span className="text-purple-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'ingreso' && m.concepto && m.concepto.startsWith('Transferencia interna')).reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span></span>
+                  <span className="text-slate-400">Total Transferido: <span className="text-purple-400 font-bold">{formatCurrency(cajaMovimientos.filter(m => m.tipo === 'ingreso' && m.concepto && m.concepto.startsWith('Transferencia interna')).reduce((sum, i) => sum + (i.monto_pesos || 0), 0))}</span></span>
                 </div>
               </div>
             )}
@@ -9547,8 +9547,8 @@ export default function App() {
                   </table>
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/10 flex justify-end gap-6 text-sm">
-                  <span className="text-slate-400">Total $: <span className="text-yellow-400 font-bold">${cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_pesos || 0), 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</span></span>
-                  <span className="text-slate-400">Total USD: <span className="text-blue-400 font-bold">{cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_dolares || 0), 0).toFixed(2)}</span></span>
+                  <span className="text-slate-400">Total $: <span className="text-yellow-400 font-bold">{formatCurrency(cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_pesos || 0), 0))}</span></span>
+                  <span className="text-slate-400">Total USD: <span className="text-blue-400 font-bold">{formatNumber(cajaMovimientos.filter(m => m.tipo === 'retiro').reduce((sum, i) => sum + (i.monto_dolares || 0), 0))}</span></span>
                 </div>
               </div>
             )}
