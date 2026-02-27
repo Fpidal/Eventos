@@ -485,9 +485,13 @@ export default function App() {
     setLoginError('');
     setLoginLoading(true);
 
+    // IMPORTANTE: Limpiar cualquier sesión previa de Supabase Auth para evitar conflictos
+    await supabase.auth.signOut();
+
     // Login con clave única (admin)
     if (loginForm.password === 'admin1234') {
-      const userData = { email: loginForm.email, id: 'temp-user', nombre: loginForm.email.split('@')[0] };
+      const emailAdmin = loginForm.email.trim().toLowerCase();
+      const userData = { email: emailAdmin, id: 'temp-user', nombre: emailAdmin.split('@')[0] };
       const allTabs = ['dashboard', 'proximos', 'aconfirmar', 'realizados', 'calendario', 'eventos', 'cobranzas', 'menus', 'informes', 'agenda', 'usuarios', 'caja'];
       setUser(userData);
       setUserRole('admin');
@@ -506,21 +510,34 @@ export default function App() {
       return;
     }
 
+    // Normalizar email: lowercase y sin espacios
+    const emailNormalizado = loginForm.email.trim().toLowerCase();
+
     // Buscar usuario en la base de datos
     const { data: usuarios } = await supabase
       .from('usuarios')
       .select('*')
-      .eq('email', loginForm.email)
+      .ilike('email', emailNormalizado)
       .single();
 
     if (usuarios && loginForm.password) {
       // Intentar login con Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: loginForm.email,
+        email: emailNormalizado,
         password: loginForm.password
       });
 
       if (!authError && authData.user) {
+        // Verificar que el email autenticado coincida con el email ingresado
+        const authEmail = authData.user.email?.toLowerCase();
+        if (authEmail !== emailNormalizado) {
+          // El usuario autenticado no coincide con el email ingresado
+          await supabase.auth.signOut();
+          setLoginError('Error de autenticación. Intente nuevamente.');
+          setLoginLoading(false);
+          return;
+        }
+
         const userData = { email: usuarios.email, id: authData.user.id, nombre: usuarios.nombre };
         const tabs = usuarios.tabs_permitidas || ['dashboard', 'calendario', 'eventos'];
         const verPrecios = usuarios.ver_precios !== false;
@@ -8182,13 +8199,12 @@ export default function App() {
             <div className="glass rounded-xl p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-slate-400 mb-2">Dinero por caja (ingresos - egresos - retiros)</p>
+                  <p className="text-xs text-slate-400 mb-2">Dinero por caja (ingresos - egresos)</p>
                   <div className="flex flex-wrap gap-4">
                     {CAJAS.map(caja => {
                       const ingresos = cajaMovimientos.filter(m => m.tipo === 'ingreso' && m.persona === caja).reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
                       const egresos = cajaMovimientos.filter(m => m.tipo === 'egreso' && m.persona === caja).reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
-                      const retiros = cajaMovimientos.filter(m => m.tipo === 'retiro' && m.persona === caja).reduce((sum, i) => sum + (i.monto_pesos || 0), 0);
-                      const saldo = ingresos - egresos - retiros;
+                      const saldo = ingresos - egresos;
                       return (
                         <div key={caja} className="bg-white/5 rounded-lg px-3 py-2 min-w-[100px] text-center">
                           <p className="text-xs text-slate-400">{caja}</p>
@@ -8800,29 +8816,55 @@ export default function App() {
 
                       if (esRetiro) {
                         // Retiro de socio:
-                        // 1. Egreso del aportante (baja su caja)
-                        // 2. Retiro para el socio (registro de retiro)
-                        await supabase.from('caja_movimientos').insert({
+                        // 1. Egreso: resta de la caja del aportante (afecta saldo)
+                        // 2. Retiro: registro informativo del socio (NO afecta saldo)
+                        const egresoData = {
                           tipo: 'egreso',
                           concepto: `R. Socios a ${cajaEgresoForm.receptor}${cajaEgresoForm.observacion ? ' | ' + cajaEgresoForm.observacion : ''}`,
                           monto_pesos: totalPesos,
-                          monto_dolares: dolares || (totalPesos / tc),
+                          monto_dolares: dolares || null,
                           cotizacion: tc,
                           persona: cajaEgresoForm.aportante,
                           aportante: cajaEgresoForm.aportante,
                           fecha: cajaEgresoForm.fecha
-                        });
-                        // Registro de retiro para el socio
-                        await supabase.from('caja_movimientos').insert({
+                        };
+                        const retiroData = {
                           tipo: 'retiro',
-                          concepto: cajaEgresoForm.observacion || cajaEgresoForm.concepto,
+                          concepto: cajaEgresoForm.observacion || 'R. Socios',
                           monto_pesos: totalPesos,
-                          monto_dolares: dolares || (totalPesos / tc),
+                          monto_dolares: dolares || null,
                           cotizacion: tc,
                           persona: cajaEgresoForm.receptor,
                           aportante: cajaEgresoForm.aportante,
                           fecha: cajaEgresoForm.fecha
-                        });
+                        };
+
+                        if (editingCajaEgreso) {
+                          // Buscar egreso ANTES de actualizar
+                          const { data: egresoOriginal } = await supabase.from('caja_movimientos').select('*').eq('id', editingCajaEgreso).single();
+
+                          // Actualizar egreso
+                          await supabase.from('caja_movimientos').update(egresoData).eq('id', editingCajaEgreso);
+
+                          // Buscar y actualizar retiro correspondiente
+                          if (egresoOriginal) {
+                            const receptorOriginal = egresoOriginal.concepto.replace('R. Socios a ', '').split(' | ')[0];
+                            const { data: retiros } = await supabase.from('caja_movimientos')
+                              .select('*')
+                              .eq('tipo', 'retiro')
+                              .eq('fecha', egresoOriginal.fecha)
+                              .eq('persona', receptorOriginal);
+                            if (retiros && retiros.length > 0) {
+                              await supabase.from('caja_movimientos').update(retiroData).eq('id', retiros[0].id);
+                            } else {
+                              await supabase.from('caja_movimientos').insert(retiroData);
+                            }
+                          }
+                        } else {
+                          // Nuevo: crear egreso + retiro
+                          await supabase.from('caja_movimientos').insert(egresoData);
+                          await supabase.from('caja_movimientos').insert(retiroData);
+                        }
                       } else {
                         // Egreso normal (Pagos extras, Otros, etc.)
                         // persona = aportante (de qué caja sale el dinero)
@@ -9005,10 +9047,10 @@ export default function App() {
                                 concepto: esRetiroSocios ? 'R. Socios' : (CONCEPTOS_EGRESO.includes(item.concepto) ? item.concepto : 'Otros'),
                                 receptor: receptor,
                                 aportante: item.persona || item.aportante || '',
-                                monto_pesos: item.monto_dolares ? '' : (item.monto_pesos || '').toString(),
+                                monto_pesos: (item.monto_pesos || '').toString(),
                                 monto_dolares: (item.monto_dolares || '').toString(),
                                 cotizacion: (item.cotizacion || '').toString(),
-                                observacion: esRetiroSocios ? '' : (CONCEPTOS_EGRESO.includes(item.concepto) ? '' : item.concepto)
+                                observacion: esRetiroSocios ? (item.concepto.includes(' | ') ? item.concepto.split(' | ')[1] : '') : (CONCEPTOS_EGRESO.includes(item.concepto) ? '' : item.concepto)
                               });
                               setShowCajaEgresoForm(true);
                             }} className="p-1 text-blue-400 hover:text-blue-300">
