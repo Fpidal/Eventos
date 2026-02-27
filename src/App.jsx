@@ -316,6 +316,11 @@ export default function App() {
     ver_precios: true
   });
   const [userError, setUserError] = useState('');
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [newPassword2, setNewPassword2] = useState('');
+  const [passwordResetLoading, setPasswordResetLoading] = useState(false);
+  const [passwordResetError, setPasswordResetError] = useState('');
 
   // Estados para menús
   const [menus, setMenus] = useState([]);
@@ -422,6 +427,34 @@ export default function App() {
     if (!userVerPrecios) return '---';
     return formatCurrency(value);
   };
+
+  // Detectar token de recuperación de contraseña en la URL
+  useEffect(() => {
+    const handlePasswordRecovery = async () => {
+      const hash = window.location.hash;
+      if (hash && hash.includes('type=recovery')) {
+        // Extraer el access_token del hash
+        const params = new URLSearchParams(hash.substring(1));
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+
+        if (accessToken) {
+          // Establecer la sesión con el token de recovery
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || ''
+          });
+
+          if (!error) {
+            setShowPasswordReset(true);
+            // Limpiar el hash de la URL
+            window.history.replaceState(null, '', window.location.pathname);
+          }
+        }
+      }
+    };
+    handlePasswordRecovery();
+  }, []);
 
   // Auth: verificar sesión guardada en localStorage
   useEffect(() => {
@@ -571,6 +604,42 @@ export default function App() {
 
     setLoginError('Contraseña incorrecta');
     setLoginLoading(false);
+  };
+
+  // Cambiar contraseña (desde recovery)
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setPasswordResetError('');
+
+    if (newPassword.length < 6) {
+      setPasswordResetError('La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
+    if (newPassword !== newPassword2) {
+      setPasswordResetError('Las contraseñas no coinciden');
+      return;
+    }
+
+    setPasswordResetLoading(true);
+
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+
+    if (error) {
+      setPasswordResetError('Error al cambiar la contraseña: ' + error.message);
+      setPasswordResetLoading(false);
+      return;
+    }
+
+    // Éxito - limpiar y cerrar
+    await supabase.auth.signOut();
+    setShowPasswordReset(false);
+    setNewPassword('');
+    setNewPassword2('');
+    setPasswordResetLoading(false);
+    alert('Contraseña cambiada exitosamente. Por favor, ingresá con tu nueva contraseña.');
   };
 
   // Logout
@@ -3826,6 +3895,85 @@ export default function App() {
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-purple-500 animate-spin mx-auto mb-4" />
           <p className="text-slate-400">Verificando sesión...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Password Reset screen
+  if (showPasswordReset) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 flex items-center justify-center p-4">
+        <div className="glass rounded-2xl p-8 w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center mx-auto mb-4 glow">
+              <Lock className="w-8 h-8" />
+            </div>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-emerald-200 bg-clip-text text-transparent">
+              Cambiar Contraseña
+            </h1>
+            <p className="text-slate-400 text-sm mt-2">Ingresá tu nueva contraseña</p>
+          </div>
+
+          <form onSubmit={handlePasswordChange} className="space-y-4">
+            {passwordResetError && (
+              <div className="p-3 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-sm text-center">
+                {passwordResetError}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm text-slate-400 mb-1">Nueva Contraseña</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="password"
+                  required
+                  placeholder="Mínimo 6 caracteres"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm text-slate-400 mb-1">Confirmar Contraseña</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="password"
+                  required
+                  placeholder="Repetí la contraseña"
+                  value={newPassword2}
+                  onChange={(e) => setNewPassword2(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={passwordResetLoading}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold hover:from-green-700 hover:to-emerald-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {passwordResetLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+              {passwordResetLoading ? 'Guardando...' : 'Cambiar Contraseña'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowPasswordReset(false);
+                setNewPassword('');
+                setNewPassword2('');
+                setPasswordResetError('');
+              }}
+              className="w-full py-2 text-slate-400 hover:text-white transition-colors text-sm"
+            >
+              Cancelar
+            </button>
+          </form>
         </div>
       </div>
     );
