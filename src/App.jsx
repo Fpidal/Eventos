@@ -4667,16 +4667,16 @@ export default function App() {
 
       {/* Modal Editar Evento */}
       {editMode && eventoEdit && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 overflow-y-auto">
-          <div className="glass rounded-2xl p-3 w-full max-w-2xl max-h-[90vh] overflow-y-auto my-auto">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-base font-bold">Editar Evento</h2>
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-1 overflow-y-auto">
+          <div className="glass rounded-xl p-2 w-full max-w-xl max-h-[90vh] overflow-y-auto my-auto scale-[0.92] origin-center">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-sm font-bold">Editar Evento</h2>
               <button onClick={() => { setEditMode(false); setEventoEdit(null); }} className="p-1 hover:bg-white/10 rounded-lg">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleUpdate} className="space-y-1.5">
+            <form onSubmit={handleUpdate} className="space-y-1">
               {/* Fecha, Cliente y Salón */}
               <div className="grid grid-cols-3 gap-2">
                 <div>
