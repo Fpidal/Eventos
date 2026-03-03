@@ -4667,8 +4667,8 @@ export default function App() {
 
       {/* Modal Editar Evento */}
       {editMode && eventoEdit && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2">
-          <div className="glass rounded-2xl p-3 w-full max-w-2xl">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 overflow-y-auto">
+          <div className="glass rounded-2xl p-3 w-full max-w-2xl max-h-[90vh] overflow-y-auto my-auto">
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-base font-bold">Editar Evento</h2>
               <button onClick={() => { setEditMode(false); setEventoEdit(null); }} className="p-1 hover:bg-white/10 rounded-lg">
