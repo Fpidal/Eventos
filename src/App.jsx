@@ -4057,16 +4057,16 @@ export default function App() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white">
       {/* Modal Nuevo Evento */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-1">
-          <div className="glass rounded-xl p-3 w-full max-w-xl scale-[0.85] origin-center">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-base font-bold">Nuevo Evento</h2>
-              <button onClick={() => setShowModal(false)} className="p-1 hover:bg-white/10 rounded-lg">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-0">
+          <div className="glass rounded-lg p-2 w-full max-w-lg scale-[0.78] origin-center">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-sm font-bold">Nuevo Evento</h2>
+              <button onClick={() => setShowModal(false)} className="p-0.5 hover:bg-white/10 rounded">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-2">
+            <form onSubmit={handleSubmit} className="space-y-1.5">
               {/* Fecha y Cliente */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
@@ -4501,7 +4501,17 @@ export default function App() {
 
               {/* Total Evento */}
               <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
-                <p className="text-xs text-slate-400">Total Evento</p>
+                <div>
+                  <p className="text-xs text-slate-400">Total Evento</p>
+                  <p className="text-[10px] text-slate-500">
+                    {(() => {
+                      const totalPersonas = (parseInt(nuevoEvento.adultos) || 0) + (parseInt(nuevoEvento.menores) || 0);
+                      const total = calcularTotal();
+                      const costoPP = totalPersonas > 0 ? Math.round(total / totalPersonas) : 0;
+                      return totalPersonas > 0 ? `${totalPersonas} pers. = ${formatCurrency(costoPP)}/pers.` : '';
+                    })()}
+                  </p>
+                </div>
                 <p className="text-lg font-bold text-emerald-400">{displayPrice(calcularTotal())}</p>
               </div>
 
