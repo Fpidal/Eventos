@@ -4057,8 +4057,8 @@ export default function App() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white">
       {/* Modal Nuevo Evento */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-1">
-          <div className="glass rounded-lg p-2 w-full max-w-2xl max-h-[95vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-0">
+          <div className="glass rounded-lg p-2 w-full max-w-2xl scale-[0.85] origin-center">
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-sm font-bold">Nuevo Evento</h2>
               <button onClick={() => setShowModal(false)} className="p-0.5 hover:bg-white/10 rounded">
