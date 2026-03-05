@@ -4057,30 +4057,30 @@ export default function App() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white">
       {/* Modal Nuevo Evento */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="glass rounded-2xl p-5 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">Nuevo Evento</h2>
-              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-white/10 rounded-xl">
-                <X className="w-5 h-5" />
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-1">
+          <div className="glass rounded-xl p-3 w-full max-w-xl scale-[0.85] origin-center">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-base font-bold">Nuevo Evento</h2>
+              <button onClick={() => setShowModal(false)} className="p-1 hover:bg-white/10 rounded-lg">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3">
+            <form onSubmit={handleSubmit} className="space-y-2">
               {/* Fecha y Cliente */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Fecha *</label>
+                  <label className="block text-xs text-slate-400 mb-0.5">Fecha *</label>
                   <input
                     type="date"
                     required
                     value={nuevoEvento.fecha}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, fecha: e.target.value})}
-                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
+                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
                   />
                 </div>
                 <div className="relative">
-                  <label className="block text-xs text-slate-400 mb-1">Cliente *</label>
+                  <label className="block text-xs text-slate-400 mb-0.5">Cliente *</label>
                   <input
                     type="text"
                     required
@@ -4092,7 +4092,7 @@ export default function App() {
                     }}
                     onFocus={() => nuevoEvento.cliente.length >= 2 && setShowClienteSugerencias(true)}
                     onBlur={() => setTimeout(() => setShowClienteSugerencias(false), 200)}
-                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                   {showClienteSugerencias && (
                     <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-white/20 rounded-lg shadow-xl max-h-48 overflow-y-auto">
@@ -4126,9 +4126,9 @@ export default function App() {
               </div>
 
               {/* Teléfono y Vendedor */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Teléfono</label>
+                  <label className="block text-xs text-slate-400 mb-0.5">Teléfono</label>
                   <input
                     type="tel"
                     placeholder="Número de teléfono"
@@ -4146,20 +4146,20 @@ export default function App() {
                         setTelefonoDuplicado(null);
                       }
                     }}
-                    className={`w-full px-3 py-2 rounded-lg border bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none ${telefonoDuplicado ? 'border-yellow-500/50' : 'border-white/10 focus:border-purple-500/50'}`}
+                    className={`w-full px-2 py-1.5 rounded-lg border bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none ${telefonoDuplicado ? 'border-yellow-500/50' : 'border-white/10 focus:border-purple-500/50'}`}
                   />
                   {telefonoDuplicado && (
-                    <p className="text-yellow-400 text-xs mt-1">
+                    <p className="text-yellow-400 text-xs mt-0.5">
                       Este teléfono ya existe: {telefonoDuplicado.nombre}
                     </p>
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Vendedor</label>
+                  <label className="block text-xs text-slate-400 mb-0.5">Vendedor</label>
                   <select
                     value={nuevoEvento.vendedor}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, vendedor: e.target.value})}
-                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
                   >
                     {VENDEDORES.map(v => <option key={v} value={v}>{v}</option>)}
                   </select>
@@ -4167,19 +4167,19 @@ export default function App() {
               </div>
 
               {/* Turno y Horarios */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Turno</label>
+                  <label className="block text-xs text-slate-400 mb-0.5">Turno</label>
                   <select
                     value={nuevoEvento.turno}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, turno: e.target.value})}
-                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
                   >
                     {TURNOS.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Hora Inicio</label>
+                  <label className="block text-xs text-slate-400 mb-0.5">Hora Inicio</label>
                   <div className="flex gap-1">
                     <select
                       value={nuevoEvento.hora_inicio?.split(':')[0] || ''}
@@ -4187,21 +4187,21 @@ export default function App() {
                         const mins = nuevoEvento.hora_inicio?.split(':')[1] || '00';
                         setNuevoEvento({...nuevoEvento, hora_inicio: e.target.value ? `${e.target.value}:${mins}` : ''});
                       }}
-                      className="flex-1 px-2 py-2 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                      className="flex-1 px-1 py-1.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50"
                     >
                       <option value="">--</option>
                       {Array.from({length: 24}, (_, i) => i.toString().padStart(2, '0')).map(h => (
                         <option key={h} value={h}>{h}</option>
                       ))}
                     </select>
-                    <span className="text-white self-center text-sm">:</span>
+                    <span className="text-white self-center text-xs">:</span>
                     <select
                       value={nuevoEvento.hora_inicio?.split(':')[1] || ''}
                       onChange={(e) => {
                         const hrs = nuevoEvento.hora_inicio?.split(':')[0] || '12';
                         setNuevoEvento({...nuevoEvento, hora_inicio: `${hrs}:${e.target.value}`});
                       }}
-                      className="flex-1 px-2 py-2 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                      className="flex-1 px-1 py-1.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50"
                     >
                       <option value="00">00</option>
                       <option value="15">15</option>
@@ -4211,7 +4211,7 @@ export default function App() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Hora Fin</label>
+                  <label className="block text-xs text-slate-400 mb-0.5">Hora Fin</label>
                   <div className="flex gap-1">
                     <select
                       value={nuevoEvento.hora_fin?.split(':')[0] || ''}
@@ -4219,21 +4219,21 @@ export default function App() {
                         const mins = nuevoEvento.hora_fin?.split(':')[1] || '00';
                         setNuevoEvento({...nuevoEvento, hora_fin: e.target.value ? `${e.target.value}:${mins}` : ''});
                       }}
-                      className="flex-1 px-2 py-2 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                      className="flex-1 px-1 py-1.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50"
                     >
                       <option value="">--</option>
                       {Array.from({length: 24}, (_, i) => i.toString().padStart(2, '0')).map(h => (
                         <option key={h} value={h}>{h}</option>
                       ))}
                     </select>
-                    <span className="text-white self-center text-sm">:</span>
+                    <span className="text-white self-center text-xs">:</span>
                     <select
                       value={nuevoEvento.hora_fin?.split(':')[1] || ''}
                       onChange={(e) => {
                         const hrs = nuevoEvento.hora_fin?.split(':')[0] || '12';
                         setNuevoEvento({...nuevoEvento, hora_fin: `${hrs}:${e.target.value}`});
                       }}
-                      className="flex-1 px-2 py-2 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                      className="flex-1 px-1 py-1.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50"
                     >
                       <option value="00">00</option>
                       <option value="15">15</option>
@@ -4245,23 +4245,23 @@ export default function App() {
               </div>
 
               {/* Tipo de Evento y Salón */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Tipo de Evento</label>
+                  <label className="block text-xs text-slate-400 mb-0.5">Tipo de Evento</label>
                   <select
                     value={nuevoEvento.tipo_evento}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, tipo_evento: e.target.value})}
-                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
                   >
                     {TIPOS_EVENTO.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Salón</label>
+                  <label className="block text-xs text-slate-400 mb-0.5">Salón</label>
                   <select
                     value={nuevoEvento.salon}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, salon: e.target.value})}
-                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
                   >
                     {SALONES.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
@@ -4269,26 +4269,26 @@ export default function App() {
               </div>
 
               {/* Menú Base y Menú Detallado */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Menú Base</label>
+                  <label className="block text-xs text-slate-400 mb-0.5">Menú Base</label>
                   <select
                     value={nuevoEvento.menu}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, menu: e.target.value})}
-                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
                   >
                     {MENUS.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Menú Detallado</label>
+                  <label className="block text-xs text-slate-400 mb-0.5">Menú Detallado</label>
                   <select
                     value={nuevoEvento.menu_detalle?.id || ''}
                     onChange={(e) => {
                       const selectedMenu = menus.find(m => m.id === e.target.value);
                       setNuevoEvento({...nuevoEvento, menu_detalle: selectedMenu || null});
                     }}
-                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
                   >
                     <option value="">Sin menú detallado</option>
                     {menus.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
@@ -4297,15 +4297,15 @@ export default function App() {
               </div>
 
               {/* Técnica, Técnica Superior, DJ */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="p-3 rounded-lg border border-white/10 bg-white/5">
-                  <div className="flex items-center gap-2 mb-2">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <div className="p-2 rounded-lg border border-white/10 bg-white/5">
+                  <div className="flex items-center gap-1.5 mb-1">
                     <input
                       type="checkbox"
                       id="tecnica"
                       checked={nuevoEvento.tecnica}
                       onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica: e.target.checked, tecnica_precio: e.target.checked ? nuevoEvento.tecnica_precio : ''})}
-                      className="w-4 h-4 rounded accent-purple-500"
+                      className="w-3.5 h-3.5 rounded accent-purple-500"
                     />
                     <label htmlFor="tecnica" className="flex items-center gap-1 text-xs cursor-pointer">
                       <Mic className="w-3 h-3 text-purple-400" />
@@ -4319,18 +4319,18 @@ export default function App() {
                       placeholder="Costo: $560.000"
                       value={formatNumberInput(nuevoEvento.tecnica_precio)}
                       onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica_precio: parseNumberInput(e.target.value)})}
-                      className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-purple-500/50"
+                      className="w-full px-2 py-1 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-purple-500/50"
                     />
                   )}
                 </div>
-                <div className="p-3 rounded-lg border border-white/10 bg-white/5">
-                  <div className="flex items-center gap-2 mb-2">
+                <div className="p-2 rounded-lg border border-white/10 bg-white/5">
+                  <div className="flex items-center gap-1.5 mb-1">
                     <input
                       type="checkbox"
                       id="tecnica_superior"
                       checked={nuevoEvento.tecnica_superior}
                       onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica_superior: e.target.checked, tecnica_superior_precio: e.target.checked ? nuevoEvento.tecnica_superior_precio : ''})}
-                      className="w-4 h-4 rounded accent-purple-500"
+                      className="w-3.5 h-3.5 rounded accent-purple-500"
                     />
                     <label htmlFor="tecnica_superior" className="flex items-center gap-1 text-xs cursor-pointer">
                       <Mic className="w-3 h-3 text-amber-400" />
@@ -4344,26 +4344,26 @@ export default function App() {
                       placeholder="Costo: $300.000"
                       value={formatNumberInput(nuevoEvento.tecnica_superior_precio)}
                       onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica_superior_precio: parseNumberInput(e.target.value)})}
-                      className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-purple-500/50"
+                      className="w-full px-2 py-1 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-purple-500/50"
                     />
                   )}
                 </div>
-                <div className="p-3 rounded-lg border border-white/10 bg-white/5">
-                  <label className="block text-xs text-slate-400 mb-2">DJ</label>
+                <div className="p-2 rounded-lg border border-white/10 bg-white/5">
+                  <label className="block text-xs text-slate-400 mb-1">DJ</label>
                   <input
                     type="text"
                     placeholder="Nombre del DJ"
                     value={nuevoEvento.dj}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, dj: e.target.value})}
-                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
               </div>
 
               {/* Adultos y Menores con Total */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-1.5">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Adultos *</label>
+                  <label className="block text-xs text-slate-400 mb-0.5">Adultos *</label>
                   <input
                     type="number"
                     required
@@ -4371,52 +4371,52 @@ export default function App() {
                     placeholder="Cant."
                     value={nuevoEvento.adultos}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, adultos: e.target.value})}
-                    className="w-full px-2 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">$ Adulto</label>
+                  <label className="block text-xs text-slate-400 mb-0.5">$ Adulto</label>
                   <input
                     type="text"
                     inputMode="numeric"
                     placeholder="Precio"
                     value={formatNumberInput(nuevoEvento.precio_adulto)}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, precio_adulto: parseNumberInput(e.target.value)})}
-                    className="w-full px-2 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Menores</label>
+                  <label className="block text-xs text-slate-400 mb-0.5">Menores</label>
                   <input
                     type="number"
                     min="0"
                     placeholder="Cant."
                     value={nuevoEvento.menores}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, menores: e.target.value})}
-                    className="w-full px-2 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">$ Menor</label>
+                  <label className="block text-xs text-slate-400 mb-0.5">$ Menor</label>
                   <input
                     type="text"
                     inputMode="numeric"
                     placeholder="Precio"
                     value={formatNumberInput(nuevoEvento.precio_menor)}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, precio_menor: parseNumberInput(e.target.value)})}
-                    className="w-full px-2 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
+                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
                 <div className="flex flex-col justify-end">
-                  <label className="block text-xs text-slate-400 mb-1">Subtotal</label>
-                  <div className="px-2 py-2 rounded-lg bg-blue-500/20 border border-blue-500/30 text-blue-400 font-bold text-sm text-center">
+                  <label className="block text-xs text-slate-400 mb-0.5">Subtotal</label>
+                  <div className="px-2 py-1.5 rounded-lg bg-blue-500/20 border border-blue-500/30 text-blue-400 font-bold text-sm text-center">
                     {displayPrice((parseInt(nuevoEvento.adultos) || 0) * (parseFloat(nuevoEvento.precio_adulto) || 0) + (parseInt(nuevoEvento.menores) || 0) * (parseFloat(nuevoEvento.precio_menor) || 0))}
                   </div>
                 </div>
               </div>
 
               {/* Dietas especiales (informativo) */}
-              <div className="grid grid-cols-3 gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <div className="grid grid-cols-3 gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
                 <div>
                   <label className="block text-xs text-amber-400/80 mb-1">Celíacos</label>
                   <input
@@ -4500,27 +4500,27 @@ export default function App() {
               </div>
 
               {/* Total Evento */}
-              <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
+              <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
                 <p className="text-xs text-slate-400">Total Evento</p>
-                <p className="text-xl font-bold text-emerald-400">{displayPrice(calcularTotal())}</p>
+                <p className="text-lg font-bold text-emerald-400">{displayPrice(calcularTotal())}</p>
               </div>
 
               {/* Otros */}
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Otros / Aclaraciones</label>
+                <label className="block text-xs text-slate-400 mb-0.5">Otros / Aclaraciones</label>
                 <textarea
                   placeholder="Notas adicionales..."
                   value={nuevoEvento.otros}
                   onChange={(e) => setNuevoEvento({...nuevoEvento, otros: e.target.value})}
-                  rows={2}
-                  className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50 resize-none"
+                  rows={1}
+                  className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50 resize-none"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full py-2.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full py-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                 {saving ? 'Guardando...' : 'Agregar Evento'}
