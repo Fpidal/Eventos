@@ -4415,43 +4415,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Dietas especiales (informativo) */}
-              <div className="grid grid-cols-3 gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                <div>
-                  <label className="block text-xs text-amber-400/80 mb-1">Celíacos</label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    value={nuevoEvento.celiacos}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, celiacos: e.target.value})}
-                    className="w-full px-2 py-1.5 rounded-lg border border-amber-500/20 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-amber-500/50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-amber-400/80 mb-1">Vegetarianos</label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    value={nuevoEvento.vegetarianos}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, vegetarianos: e.target.value})}
-                    className="w-full px-2 py-1.5 rounded-lg border border-amber-500/20 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-amber-500/50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-amber-400/80 mb-1">Veganos</label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    value={nuevoEvento.veganos}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, veganos: e.target.value})}
-                    className="w-full px-2 py-1.5 rounded-lg border border-amber-500/20 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-amber-500/50"
-                  />
-                </div>
-              </div>
-
               {/* Extras */}
               <div className="space-y-2">
                 <label className="block text-xs text-slate-400">Extras</label>
