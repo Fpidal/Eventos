@@ -37,6 +37,25 @@ const formatDate = (dateStr) => {
   return date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
+// Formato DD/MM/AAAA
+const formatDateDMY = (dateStr) => {
+  if (!dateStr) return '-';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
+
+// Fecha local actual en formato YYYY-MM-DD (para inputs type="date")
+const getLocalDateString = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const COLORS = ['#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e'];
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const DIAS_SEMANA = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -226,10 +245,10 @@ export default function App() {
   const [showCajaEgresoForm, setShowCajaEgresoForm] = useState(false);
   const [editingCajaIngreso, setEditingCajaIngreso] = useState(null);
   const [editingCajaEgreso, setEditingCajaEgreso] = useState(null);
-  const [cajaIngresoForm, setCajaIngresoForm] = useState({ fecha: new Date().toISOString().split('T')[0], origen: '', observacion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
-  const [cajaEgresoForm, setCajaEgresoForm] = useState({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', aportante: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
+  const [cajaIngresoForm, setCajaIngresoForm] = useState({ fecha: getLocalDateString(), origen: '', observacion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
+  const [cajaEgresoForm, setCajaEgresoForm] = useState({ fecha: getLocalDateString(), concepto: '', receptor: '', aportante: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
   const [showTransferenciaForm, setShowTransferenciaForm] = useState(false);
-  const [transferenciaForm, setTransferenciaForm] = useState({ fecha: new Date().toISOString().split('T')[0], origen: '', destino: '', monto_pesos: '', observacion: '' });
+  const [transferenciaForm, setTransferenciaForm] = useState({ fecha: getLocalDateString(), origen: '', destino: '', monto_pesos: '', observacion: '' });
   const [editingTransferencia, setEditingTransferencia] = useState(null); // { ingresoId, egresoId }
   const CONCEPTOS_INGRESO = ['Evento', 'Vta directa', 'Caja', 'Banco', 'Otros'];
   const CONCEPTOS_EGRESO = ['R. Socios', 'Pagos extras', 'Tero', 'Otros'];
@@ -892,7 +911,7 @@ export default function App() {
           .from('pagos')
           .insert([{
             evento_id: evento.id,
-            fecha: new Date().toISOString().split('T')[0],
+            fecha: getLocalDateString(),
             monto: ajuste,
             concepto: 'ajuste_ipc',
             cobrador: user?.email || 'Sistema',
@@ -6688,7 +6707,7 @@ export default function App() {
                               <button
                                 onClick={() => {
                                   setSelectedEventoPago(evento);
-                                  setNuevoPago({ fecha: new Date().toISOString().split('T')[0], monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '' });
+                                  setNuevoPago({ fecha: getLocalDateString(), monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '' });
                                   setEditingPagoId(null);
                                   setShowPagoModal(true);
                                 }}
@@ -8457,7 +8476,7 @@ export default function App() {
                     fecha: transferenciaForm.fecha
                   });
 
-                  setTransferenciaForm({ fecha: new Date().toISOString().split('T')[0], origen: '', destino: '', monto_pesos: '', observacion: '' });
+                  setTransferenciaForm({ fecha: getLocalDateString(), origen: '', destino: '', monto_pesos: '', observacion: '' });
                   setEditingTransferencia(null);
                   setShowTransferenciaForm(false);
                   fetchCajaMovimientos();
@@ -8531,7 +8550,7 @@ export default function App() {
                     type="button"
                     onClick={() => {
                       setShowTransferenciaForm(false);
-                      setTransferenciaForm({ fecha: new Date().toISOString().split('T')[0], origen: '', destino: '', monto_pesos: '', observacion: '' });
+                      setTransferenciaForm({ fecha: getLocalDateString(), origen: '', destino: '', monto_pesos: '', observacion: '' });
                     }}
                     className="px-4 py-2 rounded-lg bg-white/5 text-slate-400 hover:bg-white/10 text-sm"
                   >
@@ -8559,7 +8578,7 @@ export default function App() {
                       if (showCajaIngresoForm) {
                         setShowCajaIngresoForm(false);
                         setEditingCajaIngreso(null);
-                        setCajaIngresoForm({ fecha: new Date().toISOString().split('T')[0], origen: '', cliente: '', observacion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
+                        setCajaIngresoForm({ fecha: getLocalDateString(), origen: '', cliente: '', observacion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
                       } else {
                         setShowCajaIngresoForm(true);
                       }
@@ -8604,7 +8623,7 @@ export default function App() {
                         await supabase.from('caja_movimientos').insert(data);
                       }
 
-                      setCajaIngresoForm({ fecha: new Date().toISOString().split('T')[0], origen: '', observacion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
+                      setCajaIngresoForm({ fecha: getLocalDateString(), origen: '', observacion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
                       setShowCajaIngresoForm(false);
                       setEditingCajaIngreso(null);
                       fetchCajaMovimientos();
@@ -8688,7 +8707,7 @@ export default function App() {
                       </div>
                     </div>
                       <div className="flex justify-end gap-2">
-                        <button type="button" onClick={() => { setShowCajaIngresoForm(false); setEditingCajaIngreso(null); setCajaIngresoForm({ fecha: new Date().toISOString().split('T')[0], origen: '', cliente: '', observacion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' }); }} className="px-4 py-2 rounded-lg bg-slate-600 text-white text-sm font-medium hover:bg-slate-700">
+                        <button type="button" onClick={() => { setShowCajaIngresoForm(false); setEditingCajaIngreso(null); setCajaIngresoForm({ fecha: getLocalDateString(), origen: '', cliente: '', observacion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' }); }} className="px-4 py-2 rounded-lg bg-slate-600 text-white text-sm font-medium hover:bg-slate-700">
                           Cancelar
                         </button>
                         <button type="submit" className="px-4 py-2 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600">
@@ -8725,7 +8744,7 @@ export default function App() {
                         const observacion = esDeEvento ? '' : (partes[1] || '');
                         return (
                           <tr key={item.id} className="border-b border-white/5 hover:bg-white/5">
-                            <td className="py-2 px-3 text-slate-400">{item.fecha}</td>
+                            <td className="py-2 px-3 text-slate-400">{formatDateDMY(item.fecha)}</td>
                             <td className="py-2 px-3">
                               <span className={`px-2 py-0.5 rounded text-xs ${esDeEvento ? 'bg-purple-500/20 text-purple-400' : origen === 'Vta directa' ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-500/20 text-slate-400'}`}>
                                 {origen}
@@ -8850,7 +8869,7 @@ export default function App() {
                     <tbody>
                       {cajaMovimientos.filter(m => m.tipo === 'ingreso_banco').map(item => (
                         <tr key={item.id} className="border-b border-white/5 hover:bg-white/5">
-                          <td className="py-2 px-3 text-slate-400">{item.fecha}</td>
+                          <td className="py-2 px-3 text-slate-400">{formatDateDMY(item.fecha)}</td>
                           <td className="py-2 px-3 text-cyan-400 font-medium">{item.concepto || '-'}</td>
                           <td className="py-2 px-3 text-slate-400">{item.persona}</td>
                           <td className="py-2 px-3 text-right text-cyan-400">${(item.monto_pesos || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</td>
@@ -8902,7 +8921,7 @@ export default function App() {
                       if (showCajaEgresoForm) {
                         setShowCajaEgresoForm(false);
                         setEditingCajaEgreso(null);
-                        setCajaEgresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', aportante: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
+                        setCajaEgresoForm({ fecha: getLocalDateString(), concepto: '', receptor: '', aportante: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
                       } else {
                         setShowCajaEgresoForm(true);
                       }
@@ -9008,7 +9027,7 @@ export default function App() {
                         }
                       }
 
-                      setCajaEgresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', aportante: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
+                      setCajaEgresoForm({ fecha: getLocalDateString(), concepto: '', receptor: '', aportante: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
                       setShowCajaEgresoForm(false);
                       setEditingCajaEgreso(null);
                       fetchCajaMovimientos();
@@ -9125,7 +9144,7 @@ export default function App() {
                       />
                       </div>
                       <div className="flex justify-end gap-2">
-                        <button type="button" onClick={() => { setShowCajaEgresoForm(false); setEditingCajaEgreso(null); setCajaEgresoForm({ fecha: new Date().toISOString().split('T')[0], concepto: '', receptor: '', aportante: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' }); }} className="px-4 py-2 rounded-lg bg-slate-600 text-white text-sm font-medium hover:bg-slate-700">
+                        <button type="button" onClick={() => { setShowCajaEgresoForm(false); setEditingCajaEgreso(null); setCajaEgresoForm({ fecha: getLocalDateString(), concepto: '', receptor: '', aportante: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' }); }} className="px-4 py-2 rounded-lg bg-slate-600 text-white text-sm font-medium hover:bg-slate-700">
                           Cancelar
                         </button>
                         <button type="submit" className={`px-4 py-2 rounded-lg text-white text-sm font-medium ${cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) && !editingCajaEgreso ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-red-500 hover:bg-red-600'}`}>
@@ -9151,7 +9170,7 @@ export default function App() {
                     <tbody>
                       {cajaMovimientos.filter(m => m.tipo === 'egreso' && !(m.concepto && m.concepto.startsWith('Transferencia interna'))).map(item => (
                         <tr key={item.id} className="border-b border-white/5 hover:bg-white/5">
-                          <td className="py-2 px-3 text-slate-400">{item.fecha}</td>
+                          <td className="py-2 px-3 text-slate-400">{formatDateDMY(item.fecha)}</td>
                           <td className="py-2 px-3 text-slate-400">{item.persona || item.aportante || '-'}</td>
                           <td className="py-2 px-3 font-medium">{item.concepto}</td>
                           <td className="py-2 px-3 text-right text-red-400">${(item.monto_pesos || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</td>
@@ -9299,7 +9318,7 @@ export default function App() {
                           const observacion = item.concepto.includes(' | ') ? item.concepto.split(' | ')[1] : '';
                           return (
                             <tr key={item.id} className="border-b border-white/5 hover:bg-white/5">
-                              <td className="py-2 px-3">{item.fecha}</td>
+                              <td className="py-2 px-3">{formatDateDMY(item.fecha)}</td>
                               <td className="py-2 px-3 text-red-400">{item.aportante || '-'}</td>
                               <td className="py-2 px-3 text-green-400">{item.persona}</td>
                               <td className="py-2 px-3 text-right text-purple-400">${(item.monto_pesos || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</td>
@@ -9452,7 +9471,7 @@ export default function App() {
                         const usdEquiv = item.monto_dolares || (item.monto_pesos ? (item.monto_pesos / tc).toFixed(2) : 0);
                         return (
                         <tr key={item.id} className="border-b border-white/5 hover:bg-white/5">
-                          <td className="py-2 px-3 text-slate-400">{item.fecha}</td>
+                          <td className="py-2 px-3 text-slate-400">{formatDateDMY(item.fecha)}</td>
                           <td className="py-2 px-3 font-medium text-yellow-400">{item.persona}</td>
                           <td className="py-2 px-3 text-slate-400">{item.concepto}</td>
                           <td className="py-2 px-3 text-right text-white">${(item.monto_pesos || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}</td>
