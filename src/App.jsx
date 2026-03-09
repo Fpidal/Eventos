@@ -4076,8 +4076,8 @@ export default function App() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white">
       {/* Modal Nuevo Evento */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-0">
-          <div className="glass rounded-lg p-2 w-full max-w-2xl scale-[0.85] origin-center">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 overflow-y-auto">
+          <div className="glass rounded-lg p-2 w-full max-w-2xl max-h-[95vh] overflow-y-auto my-auto">
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-sm font-bold">Nuevo Evento</h2>
               <button onClick={() => setShowModal(false)} className="p-0.5 hover:bg-white/10 rounded">
@@ -4524,8 +4524,8 @@ export default function App() {
 
       {/* Modal Detalle Evento */}
       {selectedEvento && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2" onClick={(e) => e.target === e.currentTarget && setSelectedEvento(null)}>
-          <div className="glass rounded-2xl p-4 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 overflow-y-auto" onClick={(e) => e.target === e.currentTarget && setSelectedEvento(null)}>
+          <div className="glass rounded-2xl p-4 w-full max-w-md max-h-[95vh] overflow-y-auto my-auto">
             {/* Header con cliente y botón cerrar */}
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-lg font-bold truncate">{selectedEvento.cliente}</h2>
@@ -5146,8 +5146,8 @@ export default function App() {
 
       {/* Modal IPC */}
       {showIPCModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="glass rounded-2xl p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="glass rounded-2xl p-6 w-full max-w-md max-h-[95vh] overflow-y-auto my-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold">
                 {editingIPC ? 'Editar' : 'Cargar'} IPC - {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][nuevoIPC.mes - 1]} {ipcAñoSeleccionado}
@@ -7382,8 +7382,8 @@ export default function App() {
 
         {/* Modal Catálogo Form */}
         {showCatalogoForm && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="glass rounded-2xl p-6 w-full max-w-md">
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="glass rounded-2xl p-6 w-full max-w-md max-h-[95vh] overflow-y-auto my-auto">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold">
                   {editingCatalogoItem ? 'Editar Item' : 'Nuevo Item'}
@@ -8114,8 +8114,8 @@ export default function App() {
 
               {/* Modal de edición de contacto */}
               {showContactoModal && editingContacto && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                  <div className="glass rounded-2xl w-full max-w-md p-6 space-y-5">
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+                  <div className="glass rounded-2xl w-full max-w-md max-h-[95vh] overflow-y-auto my-auto p-6 space-y-5">
                     <div className="flex items-center justify-between">
                       <h3 className="text-lg font-bold">Editar Contacto</h3>
                       <button
@@ -8431,7 +8431,7 @@ export default function App() {
 
             {/* Modal Formulario de Transferencia */}
             {showTransferenciaForm && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
                 <form onSubmit={async (e) => {
                   e.preventDefault();
                   if (!transferenciaForm.origen || !transferenciaForm.destino || !transferenciaForm.monto_pesos) {
@@ -8592,7 +8592,7 @@ export default function App() {
 
                 {/* Modal Formulario de Ingreso */}
                 {showCajaIngresoForm && (
-                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
                     <form onSubmit={async (e) => {
                       e.preventDefault();
                       const pesos = parseFloat(cajaIngresoForm.monto_pesos) || 0;
@@ -8935,7 +8935,7 @@ export default function App() {
 
                 {/* Modal Formulario de Egreso */}
                 {showCajaEgresoForm && (
-                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
                     <form onSubmit={async (e) => {
                       e.preventDefault();
                       const pesos = parseFloat(cajaEgresoForm.monto_pesos) || 0;
