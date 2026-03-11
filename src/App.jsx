@@ -8431,7 +8431,7 @@ export default function App() {
 
             {/* Modal Formulario de Transferencia */}
             {showTransferenciaForm && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+              <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 pt-4 px-4 pb-4 overflow-y-auto">
                 <form onSubmit={async (e) => {
                   e.preventDefault();
                   if (!transferenciaForm.origen || !transferenciaForm.destino || !transferenciaForm.monto_pesos) {
@@ -8592,7 +8592,7 @@ export default function App() {
 
                 {/* Modal Formulario de Ingreso */}
                 {showCajaIngresoForm && (
-                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+                  <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 pt-4 px-4 pb-4 overflow-y-auto">
                     <form onSubmit={async (e) => {
                       e.preventDefault();
                       const pesos = parseFloat(cajaIngresoForm.monto_pesos) || 0;
@@ -8935,7 +8935,7 @@ export default function App() {
 
                 {/* Modal Formulario de Egreso */}
                 {showCajaEgresoForm && (
-                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+                  <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 pt-4 px-4 pb-4 overflow-y-auto">
                     <form onSubmit={async (e) => {
                       e.preventDefault();
                       const pesos = parseFloat(cajaEgresoForm.monto_pesos) || 0;
