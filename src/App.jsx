@@ -5598,6 +5598,63 @@ export default function App() {
               );
             })()}
 
+            {/* Confirmados sin reserva/pago */}
+            {(() => {
+              const hoy = new Date();
+              hoy.setHours(0, 0, 0, 0);
+
+              const eventosSinReserva = eventos
+                .filter(e => {
+                  if (e.anulado || !e.confirmado) return false;
+                  const fechaEvento = new Date(e.fecha + 'T12:00:00');
+                  if (fechaEvento < hoy) return false; // Solo eventos futuros
+                  const pagosDelEvento = pagos.filter(p => p.evento_id === e.id);
+                  return pagosDelEvento.length === 0;
+                })
+                .sort((a, b) => a.fecha.localeCompare(b.fecha));
+
+              if (eventosSinReserva.length === 0) return null;
+
+              return (
+                <div className="glass rounded-xl sm:rounded-2xl p-3 sm:p-5 glow border border-red-500/30">
+                  <h3 className="text-sm sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
+                    <span className="hidden sm:inline">Confirmados sin Reserva</span>
+                    <span className="sm:hidden">Sin Reserva</span>
+                    <span className="ml-auto text-xs sm:text-sm font-normal text-red-400">{eventosSinReserva.length}</span>
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 max-h-[300px] overflow-y-auto scrollbar-thin">
+                    {eventosSinReserva.map(evento => {
+                      const diasRestantes = Math.ceil((new Date(evento.fecha + 'T12:00:00') - hoy) / (1000 * 60 * 60 * 24));
+                      return (
+                        <div
+                          key={evento.id}
+                          className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-red-500/10 hover:bg-red-500/20 transition-all border border-red-500/20 cursor-pointer"
+                          onClick={() => setSelectedEvento(evento)}
+                        >
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg bg-gradient-to-br from-red-600 to-rose-600 flex flex-col items-center justify-center flex-shrink-0">
+                              <span className="text-sm sm:text-base font-bold">{new Date(evento.fecha + 'T12:00:00').getDate()}</span>
+                              <span className="text-[8px] sm:text-[9px] uppercase">{new Date(evento.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs sm:text-sm font-medium truncate">{evento.cliente}</p>
+                              <div className="flex items-center gap-1 text-[10px] sm:text-xs text-slate-400">
+                                <span>{evento.tipo_evento}</span>
+                                <span className="text-red-400">
+                                  {diasRestantes === 0 ? 'HOY' : diasRestantes === 1 ? 'Mañana' : `${diasRestantes}d`}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               <div className="glass rounded-xl sm:rounded-2xl p-3 sm:p-6 glow">
                 <h3 className="text-sm sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center gap-2">
