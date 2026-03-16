@@ -253,7 +253,7 @@ export default function App() {
   const CONCEPTOS_INGRESO = ['Evento', 'Vta directa', 'Caja', 'Banco', 'Otros'];
   const CONCEPTOS_EGRESO = ['R. Socios', 'Pagos extras', 'Tero', 'Otros'];
   const SOCIOS = ['Rodrigo', 'Piru', 'Francisco'];
-  const CAJAS = ['Francisco', 'Rodrigo', 'Alejandro', 'Banco', 'Caja'];
+  const CAJAS = ['Francisco', 'Rodrigo', 'Piru', 'Banco', 'Caja'];
 
   // Permisos según rol
   const canCreate = userRole === 'admin' || userRole === 'vendedor';
