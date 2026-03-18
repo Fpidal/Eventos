@@ -8637,6 +8637,7 @@ export default function App() {
                         setEditingCajaIngreso(null);
                         setCajaIngresoForm({ fecha: getLocalDateString(), origen: '', cliente: '', observacion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
                       } else {
+                        setCajaIngresoForm({ fecha: getLocalDateString(), origen: '', cliente: '', observacion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
                         setShowCajaIngresoForm(true);
                       }
                     }}
@@ -8980,6 +8981,7 @@ export default function App() {
                         setEditingCajaEgreso(null);
                         setCajaEgresoForm({ fecha: getLocalDateString(), concepto: '', receptor: '', aportante: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
                       } else {
+                        setCajaEgresoForm({ fecha: getLocalDateString(), concepto: '', receptor: '', aportante: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
                         setShowCajaEgresoForm(true);
                       }
                     }}
@@ -8995,6 +8997,7 @@ export default function App() {
                   <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 pt-4 px-4 pb-4 overflow-y-auto">
                     <form onSubmit={async (e) => {
                       e.preventDefault();
+                      if (saving) return; // Evitar doble submit
                       const pesos = parseFloat(cajaEgresoForm.monto_pesos) || 0;
                       const dolares = parseFloat(cajaEgresoForm.monto_dolares) || 0;
                       const tc = parseFloat(cajaEgresoForm.cotizacion) || tipoCambio;
@@ -9005,6 +9008,8 @@ export default function App() {
                       if (cajaEgresoForm.concepto === 'R. Socios' && !cajaEgresoForm.receptor) {
                         alert('Seleccione qué socio retira'); return;
                       }
+
+                      setSaving(true); // Bloquear doble submit
 
                       // Si es retiro de socio (concepto R. Socios y receptor es socio)
                       const esRetiro = cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor);
@@ -9077,13 +9082,14 @@ export default function App() {
 
                         if (editingCajaEgreso) {
                           const { error } = await supabase.from('caja_movimientos').update(data).eq('id', editingCajaEgreso);
-                          if (error) { alert('Error al actualizar: ' + error.message); return; }
+                          if (error) { setSaving(false); alert('Error al actualizar: ' + error.message); return; }
                         } else {
                           const { error } = await supabase.from('caja_movimientos').insert(data);
-                          if (error) { alert('Error al guardar: ' + error.message); return; }
+                          if (error) { setSaving(false); alert('Error al guardar: ' + error.message); return; }
                         }
                       }
 
+                      setSaving(false);
                       setCajaEgresoForm({ fecha: getLocalDateString(), concepto: '', receptor: '', aportante: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' });
                       setShowCajaEgresoForm(false);
                       setEditingCajaEgreso(null);
@@ -9204,8 +9210,8 @@ export default function App() {
                         <button type="button" onClick={() => { setShowCajaEgresoForm(false); setEditingCajaEgreso(null); setCajaEgresoForm({ fecha: getLocalDateString(), concepto: '', receptor: '', aportante: '', monto_pesos: '', monto_dolares: '', cotizacion: '', observacion: '' }); }} className="px-4 py-2 rounded-lg bg-slate-600 text-white text-sm font-medium hover:bg-slate-700">
                           Cancelar
                         </button>
-                        <button type="submit" className={`px-4 py-2 rounded-lg text-white text-sm font-medium ${cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) && !editingCajaEgreso ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-red-500 hover:bg-red-600'}`}>
-                          {editingCajaEgreso ? 'Actualizar Egreso' : (cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) ? 'Guardar Retiro' : 'Guardar Egreso')}
+                        <button type="submit" disabled={saving} className={`px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) && !editingCajaEgreso ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-red-500 hover:bg-red-600'}`}>
+                          {saving ? 'Guardando...' : (editingCajaEgreso ? 'Actualizar Egreso' : (cajaEgresoForm.concepto === 'R. Socios' && SOCIOS.includes(cajaEgresoForm.receptor) ? 'Guardar Retiro' : 'Guardar Egreso'))}
                         </button>
                       </div>
                     </form>
@@ -9342,7 +9348,10 @@ export default function App() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-purple-400">Transferencias Internas</h3>
                   <button
-                    onClick={() => setShowTransferenciaForm(true)}
+                    onClick={() => {
+                      setTransferenciaForm({ fecha: getLocalDateString(), origen: '', destino: '', monto_pesos: '', observacion: '' });
+                      setShowTransferenciaForm(true);
+                    }}
                     className="px-3 py-1.5 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 text-sm flex items-center gap-1"
                   >
                     <Plus className="w-4 h-4" />
