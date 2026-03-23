@@ -2453,14 +2453,14 @@ export default function App() {
 
     // --- LOGO (imagen) ---
     try {
-      doc.addImage('/logo-tero.jpg', 'JPEG', centerX - 18, y, 36, 25);
+      doc.addImage('/logo-tero.jpg', 'JPEG', centerX - 20, y, 40, 25);
       y += 30;
     } catch (e) {
       // Fallback a texto si no hay imagen
       doc.setFontSize(24);
       doc.setTextColor(...VERDE_OSCURO);
       doc.setFont('helvetica', 'bold');
-      doc.text('TERO RESTÓ', centerX, y + 12, { align: 'center' });
+      doc.text('TERO RESTAURANTE Y SALÓN DE EVENTOS', centerX, y + 12, { align: 'center' });
       y += 20;
     }
 
@@ -2757,12 +2757,13 @@ export default function App() {
       y += 7;
     }
 
-    // Extras
+    // Extras CONFIRMADOS (tildados) - suman al total
     [1, 2, 3].forEach(i => {
       const desc = evento[`extra${i}_desc`];
       const valor = evento[`extra${i}_valor`] || 0;
       const tipo = evento[`extra${i}_tipo`];
-      if (desc && valor > 0) {
+      const confirmado = evento[`extra${i}_confirmado`];
+      if (desc && valor > 0 && confirmado) {
         const cant = tipo === 'por_persona' ? adultos : 1;
         const subtotalExtra = valor * cant;
         subtotalGeneral += subtotalExtra;
@@ -2829,7 +2830,49 @@ export default function App() {
     doc.text('TOTAL:', colPrecio, y);
     doc.text(formatMoneyPDF(total), colSubtotal, y, { align: 'right' });
 
-    y += 15;
+    y += 12;
+
+    // --- OPCIONALES (extras NO confirmados) ---
+    const extrasOpcionales = [];
+    [1, 2, 3].forEach(i => {
+      const desc = evento[`extra${i}_desc`];
+      const valor = evento[`extra${i}_valor`] || 0;
+      const tipo = evento[`extra${i}_tipo`];
+      const confirmado = evento[`extra${i}_confirmado`];
+      if (desc && valor > 0 && !confirmado) {
+        const cant = tipo === 'por_persona' ? adultos : 1;
+        const subtotalExtra = valor * cant;
+        extrasOpcionales.push({ desc, valor, cant, subtotalExtra });
+      }
+    });
+
+    if (extrasOpcionales.length > 0) {
+      doc.setFontSize(11);
+      doc.setTextColor(...NEGRO);
+      doc.setFont('helvetica', 'bold');
+      doc.text('OPCIONALES', marginLeft, y);
+      y += 6;
+
+      doc.setFontSize(9);
+      doc.setTextColor(...GRIS_SEC);
+      doc.setFont('helvetica', 'italic');
+      doc.text('(No incluidos en el total, sujetos a confirmación)', marginLeft, y);
+      y += 6;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...GRIS_TEXTO);
+      extrasOpcionales.forEach(extra => {
+        doc.text(extra.desc.substring(0, 30), colConcepto, y);
+        doc.text(String(extra.cant), colCant, y);
+        doc.text(formatMoneyPDF(extra.valor), colPrecio, y);
+        doc.text(formatMoneyPDF(extra.subtotalExtra), colSubtotal, y, { align: 'right' });
+        y += 6;
+      });
+
+      y += 8;
+    } else {
+      y += 3;
+    }
 
     // --- SERVICIOS ADICIONALES (solo DJ, técnica va en detalle de precios) ---
     if (evento.dj) {
@@ -2917,6 +2960,22 @@ export default function App() {
     doc.text('  ' + cancelText2, marginLeft, y);
     y += 4.5;
     doc.text('  ' + cancelText3, marginLeft, y);
+    y += 10;
+
+    // --- OTROS ---
+    doc.setFontSize(11);
+    doc.setTextColor(...NEGRO);
+    doc.setFont('helvetica', 'bold');
+    doc.text('OTROS', marginLeft, y);
+    y += 6;
+
+    doc.setFontSize(9.5);
+    doc.setTextColor(...GRIS_SEC);
+    doc.setFont('helvetica', 'normal');
+
+    doc.text('• Propina no incluida, se sugiere entre el 7/10% del presupuesto.', marginLeft, y);
+    y += 5;
+    doc.text('• En caso de contratar un servicio externo, consultar por los seguros necesarios.', marginLeft, y);
     y += 5;
 
     // --- FOOTER en todas las páginas ---
@@ -2926,7 +2985,7 @@ export default function App() {
       doc.setFontSize(10);
       doc.setTextColor(...GRIS_SEC);
       doc.setFont('helvetica', 'italic');
-      doc.text('Gracias por confiar en Tero Restó', centerX, pageHeight - 12, { align: 'center' });
+      doc.text('Gracias por confiar en Tero Restaurante y Salón de Eventos', centerX, pageHeight - 12, { align: 'center' });
     }
 
     // ============ GUARDAR ============
