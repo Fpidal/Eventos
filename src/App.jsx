@@ -68,6 +68,44 @@ const TURNOS = ['Noche', 'M. Dia'];
 const SALONES = ['Tero', 'Cristal', 'Salentein'];
 const COBRADORES = ['Francisco', 'Rodrigo', 'Piru', 'Banco', 'Caja'];
 
+// Feriados Argentina (fijos + móviles calculados)
+const FERIADOS_ARGENTINA = {
+  // 2025
+  '2025-01-01': 'Año Nuevo',
+  '2025-03-03': 'Carnaval',
+  '2025-03-04': 'Carnaval',
+  '2025-03-24': 'Día de la Memoria',
+  '2025-04-02': 'Día del Veterano',
+  '2025-04-18': 'Viernes Santo',
+  '2025-05-01': 'Día del Trabajador',
+  '2025-05-25': 'Revolución de Mayo',
+  '2025-06-16': 'Güemes (puente)',
+  '2025-06-20': 'Día de la Bandera',
+  '2025-07-09': 'Día de la Independencia',
+  '2025-08-18': 'San Martín (puente)',
+  '2025-10-13': 'Diversidad Cultural (puente)',
+  '2025-11-24': 'Soberanía Nacional (puente)',
+  '2025-12-08': 'Inmaculada Concepción',
+  '2025-12-25': 'Navidad',
+  // 2026
+  '2026-01-01': 'Año Nuevo',
+  '2026-02-16': 'Carnaval',
+  '2026-02-17': 'Carnaval',
+  '2026-03-24': 'Día de la Memoria',
+  '2026-04-02': 'Día del Veterano',
+  '2026-04-03': 'Viernes Santo',
+  '2026-05-01': 'Día del Trabajador',
+  '2026-05-25': 'Revolución de Mayo',
+  '2026-06-15': 'Güemes (puente)',
+  '2026-06-20': 'Día de la Bandera',
+  '2026-07-09': 'Día de la Independencia',
+  '2026-08-17': 'San Martín (puente)',
+  '2026-10-12': 'Diversidad Cultural',
+  '2026-11-23': 'Soberanía Nacional (puente)',
+  '2026-12-08': 'Inmaculada Concepción',
+  '2026-12-25': 'Navidad',
+};
+
 // Categorías por tipo de menú
 const CATEGORIAS_POR_MENU = {
   'Menu Tapeo': ['Tapeo Frío', 'Tapeo Caliente', 'Cazuelas', 'Mesa de Dulces', 'Fin de Fiesta', 'Bebidas'],
@@ -275,7 +313,11 @@ export default function App() {
 
   // Filtros de solapas Próximos y A Confirmar
   const [filterMesProximos, setFilterMesProximos] = useState('todos');
+  const [filterVendedorProximos, setFilterVendedorProximos] = useState('todos');
+  const [filterClienteProximos, setFilterClienteProximos] = useState('');
   const [filterMesAConfirmar, setFilterMesAConfirmar] = useState('todos');
+  const [filterVendedorAConfirmar, setFilterVendedorAConfirmar] = useState('todos');
+  const [filterClienteAConfirmar, setFilterClienteAConfirmar] = useState('');
   const [vistaCobranzas, setVistaCobranzas] = useState('estado'); // 'estado', 'detalle' o 'ipc'
 
   // Estados para IPC
@@ -3760,10 +3802,12 @@ export default function App() {
         const fechaEvento = new Date(e.fecha + 'T12:00:00');
         const matchFecha = fechaEvento >= hoy && e.confirmado === true && !e.anulado;
         const matchMes = filterMesProximos === 'todos' || e.mes === filterMesProximos;
-        return matchFecha && matchMes;
+        const matchVendedor = filterVendedorProximos === 'todos' || e.vendedor === filterVendedorProximos;
+        const matchCliente = !filterClienteProximos || e.cliente?.toLowerCase().includes(filterClienteProximos.toLowerCase());
+        return matchFecha && matchMes && matchVendedor && matchCliente;
       })
       .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-  }, [eventosDelAño, filterMesProximos]);
+  }, [eventosDelAño, filterMesProximos, filterVendedorProximos, filterClienteProximos]);
 
   // Eventos a confirmar (no confirmados, desde hoy en adelante, del año seleccionado)
   const eventosAConfirmar = useMemo(() => {
@@ -3774,10 +3818,12 @@ export default function App() {
         const fechaEvento = new Date(e.fecha + 'T12:00:00');
         const matchFecha = fechaEvento >= hoy && !e.confirmado && !e.anulado;
         const matchMes = filterMesAConfirmar === 'todos' || e.mes === filterMesAConfirmar;
-        return matchFecha && matchMes;
+        const matchVendedor = filterVendedorAConfirmar === 'todos' || e.vendedor === filterVendedorAConfirmar;
+        const matchCliente = !filterClienteAConfirmar || e.cliente?.toLowerCase().includes(filterClienteAConfirmar.toLowerCase());
+        return matchFecha && matchMes && matchVendedor && matchCliente;
       })
       .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-  }, [eventosDelAño, filterMesAConfirmar]);
+  }, [eventosDelAño, filterMesAConfirmar, filterVendedorAConfirmar, filterClienteAConfirmar]);
 
   // Eventos realizados (anteriores a hoy, del año seleccionado, no anulados)
   const eventosRealizados = useMemo(() => {
@@ -5870,20 +5916,42 @@ export default function App() {
         {/* Próximos Eventos */}
         {activeTab === 'proximos' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h2 className="text-2xl font-bold">Próximos Eventos</h2>
                 <p className="text-slate-400">{proximosEventos.length} eventos programados</p>
               </div>
-              <select
-                value={filterMesProximos}
-                onChange={(e) => setFilterMesProximos(e.target.value)}
-                className="px-4 py-2 rounded-xl border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5"
-              >
-                {meses.map(m => (
-                  <option key={m} value={m}>{m === 'todos' ? 'Todos los meses' : m.charAt(0).toUpperCase() + m.slice(1)}</option>
-                ))}
-              </select>
+              <div className="flex flex-wrap gap-2">
+                <select
+                  value={filterMesProximos}
+                  onChange={(e) => setFilterMesProximos(e.target.value)}
+                  className="px-3 py-1.5 text-sm rounded-lg border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5"
+                >
+                  {meses.map(m => (
+                    <option key={m} value={m}>{m === 'todos' ? 'Todos los meses' : m.charAt(0).toUpperCase() + m.slice(1)}</option>
+                  ))}
+                </select>
+                <select
+                  value={filterVendedorProximos}
+                  onChange={(e) => setFilterVendedorProximos(e.target.value)}
+                  className="px-3 py-1.5 text-sm rounded-lg border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5"
+                >
+                  <option value="todos">Todos los vendedores</option>
+                  {VENDEDORES.map(v => (
+                    <option key={v} value={v}>{v}</option>
+                  ))}
+                </select>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar cliente..."
+                    value={filterClienteProximos}
+                    onChange={(e) => setFilterClienteProximos(e.target.value)}
+                    className="pl-8 pr-3 py-1.5 text-sm rounded-lg border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5 w-40"
+                  />
+                </div>
+              </div>
             </div>
 
             {proximosEventos.length === 0 ? (
@@ -5898,17 +5966,17 @@ export default function App() {
                 </button>
               </div>
             ) : (
-              <div className="grid gap-4">
+              <div className="grid gap-3">
                 {proximosEventos.map((e, i) => (
                   <div
                     key={e.id || i}
-                    className="glass rounded-2xl p-5 glow hover:border-purple-500/30 border border-transparent transition-all"
+                    className="glass rounded-xl p-4 glow hover:border-purple-500/30 border border-transparent transition-all"
                   >
-                    <div className={`flex flex-col md:flex-row md:items-center gap-4 ${userVerPrecios ? 'cursor-pointer' : ''}`} onClick={() => userVerPrecios && setSelectedEvento(e)}>
+                    <div className={`flex flex-col md:flex-row md:items-center gap-3 ${userVerPrecios ? 'cursor-pointer' : ''}`} onClick={() => userVerPrecios && setSelectedEvento(e)}>
                       {/* Fecha destacada */}
-                      <div className="flex-shrink-0 w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 flex flex-col items-center justify-center">
-                        <span className="text-2xl font-bold">{new Date(e.fecha + 'T12:00:00').getDate()}</span>
-                        <span className="text-xs uppercase">{new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
+                      <div className="flex-shrink-0 w-16 h-16 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 flex flex-col items-center justify-center">
+                        <span className="text-xl font-bold">{new Date(e.fecha + 'T12:00:00').getDate()}</span>
+                        <span className="text-[10px] uppercase">{new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
                       </div>
 
                       {/* Info principal */}
@@ -6129,20 +6197,42 @@ export default function App() {
         {/* A Confirmar */}
         {activeTab === 'aconfirmar' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h2 className="text-2xl font-bold">Cotizaciones a Confirmar</h2>
                 <p className="text-slate-400">{eventosAConfirmar.length} pendientes de confirmación</p>
               </div>
-              <select
-                value={filterMesAConfirmar}
-                onChange={(e) => setFilterMesAConfirmar(e.target.value)}
-                className="px-4 py-2 rounded-xl border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5"
-              >
-                {meses.map(m => (
-                  <option key={m} value={m}>{m === 'todos' ? 'Todos los meses' : m.charAt(0).toUpperCase() + m.slice(1)}</option>
-                ))}
-              </select>
+              <div className="flex flex-wrap gap-2">
+                <select
+                  value={filterMesAConfirmar}
+                  onChange={(e) => setFilterMesAConfirmar(e.target.value)}
+                  className="px-3 py-1.5 text-sm rounded-lg border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5"
+                >
+                  {meses.map(m => (
+                    <option key={m} value={m}>{m === 'todos' ? 'Todos los meses' : m.charAt(0).toUpperCase() + m.slice(1)}</option>
+                  ))}
+                </select>
+                <select
+                  value={filterVendedorAConfirmar}
+                  onChange={(e) => setFilterVendedorAConfirmar(e.target.value)}
+                  className="px-3 py-1.5 text-sm rounded-lg border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5"
+                >
+                  <option value="todos">Todos los vendedores</option>
+                  {VENDEDORES.map(v => (
+                    <option key={v} value={v}>{v}</option>
+                  ))}
+                </select>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar cliente..."
+                    value={filterClienteAConfirmar}
+                    onChange={(e) => setFilterClienteAConfirmar(e.target.value)}
+                    className="pl-8 pr-3 py-1.5 text-sm rounded-lg border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5 w-40"
+                  />
+                </div>
+              </div>
             </div>
 
             {eventosAConfirmar.length === 0 ? (
@@ -6152,17 +6242,17 @@ export default function App() {
                 <p className="text-slate-500 text-sm mt-2">Todas las cotizaciones han sido confirmadas</p>
               </div>
             ) : (
-              <div className="grid gap-4">
+              <div className="grid gap-3">
                 {eventosAConfirmar.map((e, i) => (
                   <div
                     key={e.id || i}
-                    className="glass rounded-2xl p-5 glow hover:border-amber-500/30 border border-amber-500/20 transition-all"
+                    className="glass rounded-xl p-4 glow hover:border-amber-500/30 border border-amber-500/20 transition-all"
                   >
-                    <div className={`flex flex-col md:flex-row md:items-center gap-4 ${userVerPrecios ? 'cursor-pointer' : ''}`} onClick={() => userVerPrecios && setSelectedEvento(e)}>
+                    <div className={`flex flex-col md:flex-row md:items-center gap-3 ${userVerPrecios ? 'cursor-pointer' : ''}`} onClick={() => userVerPrecios && setSelectedEvento(e)}>
                       {/* Fecha destacada */}
-                      <div className="flex-shrink-0 w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-600 to-orange-600 flex flex-col items-center justify-center">
-                        <span className="text-2xl font-bold">{new Date(e.fecha + 'T12:00:00').getDate()}</span>
-                        <span className="text-xs uppercase">{new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
+                      <div className="flex-shrink-0 w-16 h-16 rounded-xl bg-gradient-to-br from-amber-600 to-orange-600 flex flex-col items-center justify-center">
+                        <span className="text-xl font-bold">{new Date(e.fecha + 'T12:00:00').getDate()}</span>
+                        <span className="text-[10px] uppercase">{new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
                       </div>
 
                       {/* Info principal */}
@@ -6279,33 +6369,33 @@ export default function App() {
 
         {/* Calendario */}
         {activeTab === 'calendario' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 glass rounded-2xl p-6 glow">
-              <div className="flex items-center justify-between mb-6">
-                <button 
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2 glass rounded-xl p-4 glow">
+              <div className="flex items-center justify-between mb-4">
+                <button
                   onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1))}
-                  className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+                  className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
                 >
-                  <ChevronLeft className="w-5 h-5" />
+                  <ChevronLeft className="w-4 h-4" />
                 </button>
-                <h3 className="text-xl font-semibold">
+                <h3 className="text-lg font-semibold">
                   {MESES[calendarDate.getMonth()]} {calendarDate.getFullYear()}
                 </h3>
-                <button 
+                <button
                   onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1))}
-                  className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+                  className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
                 >
-                  <ChevronRight className="w-5 h-5" />
+                  <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="grid grid-cols-7 gap-1 mb-2">
+              <div className="grid grid-cols-7 gap-0.5 mb-1">
                 {DIAS_SEMANA.map(dia => (
-                  <div key={dia} className="text-center text-sm text-slate-400 py-2">{dia}</div>
+                  <div key={dia} className="text-center text-xs text-slate-400 py-1">{dia}</div>
                 ))}
               </div>
 
-              <div className="grid grid-cols-7 gap-1">
+              <div className="grid grid-cols-7 gap-0.5">
                 {Array.from({ length: startingDay }).map((_, i) => (
                   <div key={`empty-${i}`} className="aspect-square" />
                 ))}
@@ -6315,119 +6405,158 @@ export default function App() {
                   const dateStr = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                   const isSelected = selectedDate === dateStr;
                   const hasEventos = eventosDelDia.length > 0;
-                  
+                  const feriado = FERIADOS_ARGENTINA[dateStr];
+
                   return (
                     <button
                       key={day}
                       onClick={() => setSelectedDate(hasEventos ? dateStr : null)}
-                      className={`aspect-square rounded-xl flex flex-col items-center justify-center text-sm transition-all relative ${
+                      title={feriado || ''}
+                      className={`aspect-square rounded-lg flex flex-col items-center justify-center text-xs transition-all relative ${
                         isSelected ? 'bg-purple-600 text-white' :
-                        hasEventos ? 'bg-purple-500/20 hover:bg-purple-500/30 text-white' : 
+                        hasEventos ? 'bg-purple-500/20 hover:bg-purple-500/30 text-white' :
+                        feriado ? 'bg-red-500/10 hover:bg-red-500/20 text-red-300' :
                         'hover:bg-white/5 text-slate-400'
                       }`}
                     >
-                      <span className="font-medium">{day}</span>
-                      {hasEventos && (
-                        <div className="flex gap-0.5 mt-1">
-                          {eventosDelDia.slice(0, 3).map((e, idx) => (
-                            <div
-                              key={idx}
-                              className={`w-1.5 h-1.5 rounded-full ${e.confirmado ? 'bg-emerald-400' : 'bg-amber-400'}`}
-                            />
-                          ))}
-                        </div>
-                      )}
+                      <span className={`font-medium ${feriado && !isSelected && !hasEventos ? 'text-red-300' : ''}`}>{day}</span>
+                      <div className="flex gap-0.5 mt-0.5">
+                        {hasEventos && eventosDelDia.slice(0, 3).map((e, idx) => (
+                          <div
+                            key={idx}
+                            className={`w-1 h-1 rounded-full ${e.confirmado ? 'bg-emerald-400' : 'bg-amber-400'}`}
+                          />
+                        ))}
+                        {feriado && (
+                          <div className="w-1 h-1 rounded-full bg-red-400" />
+                        )}
+                      </div>
                     </button>
                   );
                 })}
               </div>
 
-              <div className="flex items-center gap-4 mt-4 text-sm text-slate-400">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-400" />
+              <div className="flex flex-wrap items-center gap-3 mt-3 text-xs text-slate-400">
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle className="w-3 h-3 text-emerald-400" />
                   <span>Confirmado</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-400" />
+                <div className="flex items-center gap-1.5">
+                  <AlertCircle className="w-3 h-3 text-amber-400" />
                   <span>A confirmar</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-red-400" />
+                  <span>Feriado</span>
                 </div>
               </div>
             </div>
 
-            <div className="glass rounded-2xl p-6 glow">
-              <h3 className="text-lg font-semibold mb-4">
+            <div className="glass rounded-xl p-4 glow">
+              <h3 className="text-base font-semibold mb-3">
                 {selectedDate ? `Eventos del ${formatDate(selectedDate)}` : 'Seleccioná un día'}
               </h3>
-              
+
               {eventosDelDiaSeleccionado.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {eventosDelDiaSeleccionado.map((e, i) => (
                     <div
                       key={i}
                       onClick={() => userVerPrecios && setSelectedEvento(e)}
-                      className={`w-full text-left rounded-xl p-4 border transition-all ${userVerPrecios ? 'cursor-pointer' : ''} ${
+                      className={`w-full text-left rounded-lg p-3 border transition-all ${userVerPrecios ? 'cursor-pointer' : ''} ${
                         e.confirmado
                           ? 'bg-white/5 border-white/10 hover:border-purple-500/30'
                           : 'bg-amber-500/5 border-amber-500/20 hover:border-amber-500/40'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-semibold">{e.cliente}</span>
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-1 rounded-full text-xs flex items-center gap-1 ${
-                            e.confirmado
-                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                              : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                          }`}>
-                            {e.confirmado ? <CheckCircle className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
-                            {e.confirmado ? 'Confirmado' : 'A confirmar'}
-                          </span>
-                        </div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="font-semibold text-sm">{e.cliente}</span>
+                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] flex items-center gap-0.5 ${
+                          e.confirmado
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        }`}>
+                          {e.confirmado ? <CheckCircle className="w-2.5 h-2.5" /> : <AlertCircle className="w-2.5 h-2.5" />}
+                          {e.confirmado ? 'Confirmado' : 'Pendiente'}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <span className={`px-2 py-1 rounded-full text-xs ${e.turno === 'Noche' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-amber-500/20 text-amber-300'}`}>
+                      <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${e.turno === 'Noche' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-amber-500/20 text-amber-300'}`}>
                           {e.turno}
                         </span>
                         {(e.hora_inicio || e.hora_fin) && (
-                          <span className="text-xs text-slate-400 flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> {e.hora_inicio || '--:--'} a {e.hora_fin || '--:--'}
+                          <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
+                            <Clock className="w-2.5 h-2.5" /> {e.hora_inicio || '--:--'} a {e.hora_fin || '--:--'}
                           </span>
                         )}
                       </div>
-                      <div className="text-sm text-slate-400 space-y-1">
+                      <div className="text-xs text-slate-400 space-y-0.5">
                         <p>📋 {e.tipoEvento}</p>
-                        <p>🍽️ {e.menu} • {e.adultos} personas</p>
-                        <p>🏛️ {e.salon}</p>
-                        <p>👤 {e.vendedor}</p>
+                        <p>🍽️ {e.menu} • {e.adultos} pers.</p>
+                        <p>🏛️ {e.salon} • 👤 {e.vendedor}</p>
                       </div>
                       {(e.tecnica || e.tecnica_superior || e.dj) && (
-                        <div className="flex flex-wrap gap-1.5 mt-2">
+                        <div className="flex flex-wrap gap-1 mt-1.5">
                           {e.tecnica && (
-                            <span className="px-2 py-0.5 rounded-full text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
-                              <Mic className="w-3 h-3" /> Técnica
+                            <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-0.5">
+                              <Mic className="w-2.5 h-2.5" /> Técnica
                             </span>
                           )}
                           {e.tecnica_superior && (
-                            <span className="px-2 py-0.5 rounded-full text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                              <Mic className="w-3 h-3" /> Téc. Superior
+                            <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-0.5">
+                              <Mic className="w-2.5 h-2.5" /> Téc. Sup.
                             </span>
                           )}
                           {e.dj && (
-                            <span className="px-2 py-0.5 rounded-full text-xs bg-pink-500/20 text-pink-300 border border-pink-500/30 flex items-center gap-1">
-                              <Music className="w-3 h-3" /> {e.dj}
+                            <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-pink-500/20 text-pink-300 border border-pink-500/30 flex items-center gap-0.5">
+                              <Music className="w-2.5 h-2.5" /> DJ
                             </span>
                           )}
                         </div>
                       )}
-                      {userVerPrecios && <p className="text-emerald-400 font-semibold text-sm mt-2">{displayPrice(e.totalEvento)}</p>}
+                      {userVerPrecios && <p className="text-emerald-400 font-semibold text-xs mt-1.5">{displayPrice(e.totalEvento)}</p>}
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-slate-400 text-center py-8">
-                  {selectedDate ? 'No hay eventos este día' : 'Hacé click en un día con eventos para ver los detalles'}
+                <p className="text-slate-400 text-center py-6 text-sm">
+                  {selectedDate ? 'No hay eventos este día' : 'Hacé click en un día con eventos'}
                 </p>
               )}
+
+              {/* Feriados del mes */}
+              {(() => {
+                const feriadosDelMes = Object.entries(FERIADOS_ARGENTINA)
+                  .filter(([fecha]) => {
+                    const [año, mes] = fecha.split('-');
+                    return parseInt(año) === calendarDate.getFullYear() && parseInt(mes) === calendarDate.getMonth() + 1;
+                  })
+                  .sort((a, b) => a[0].localeCompare(b[0]));
+
+                if (feriadosDelMes.length === 0) return null;
+
+                return (
+                  <div className="mt-4 pt-3 border-t border-white/10">
+                    <h4 className="text-xs font-semibold text-slate-300 mb-2 flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                      Feriados de {MESES[calendarDate.getMonth()]}
+                    </h4>
+                    <div className="space-y-1.5">
+                      {feriadosDelMes.map(([fecha, nombre]) => {
+                        const dia = parseInt(fecha.split('-')[2]);
+                        return (
+                          <div key={fecha} className="flex items-center gap-2 text-xs">
+                            <span className="w-5 h-5 rounded bg-red-500/20 text-red-300 flex items-center justify-center text-[10px] font-medium">
+                              {dia}
+                            </span>
+                            <span className="text-slate-400">{nombre}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
