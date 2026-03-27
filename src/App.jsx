@@ -20,7 +20,10 @@ import {
 import {
   queryEventos, queryPagos, queryIPCMensual, queryAuditoriaPagos,
   queryAuditoriaEventos, queryAuditoriaCaja, queryCajaMovimientos,
-  queryUsuarios, queryUsuarioByUserId, queryMenus, queryClientes
+  queryUsuarios, queryUsuarioByUserId, queryMenus, queryClientes,
+  insertAuditoriaPago, insertAuditoriaEvento, deleteAuditoriaEvento,
+  insertAuditoriaCaja, insertCajaMovimiento, updateCajaMovimiento,
+  deleteCajaMovimiento, queryCajaMovimientosByRef, insertPago
 } from './supabaseQueries';
 
 export default function App() {
@@ -802,7 +805,7 @@ export default function App() {
       // Guardar auditoría
       if (!error && motivoModificacion) {
         const motivo = motivoModificacion;
-        supabase.from('auditoria_pagos').insert({
+        insertAuditoriaPago({
           cliente: cliente || 'Sin cliente',
           tipo_accion: 'MODIFICADO',
           monto_nuevo: Number(montoEnPesos) || 0,
@@ -810,7 +813,6 @@ export default function App() {
           motivo: motivo,
           usuario: usuario || 'Sistema'
         }).then(({ error: auditError }) => {
-          console.log('Auditoría modificación:', auditError ? auditError.message : 'OK');
           if (!auditError) fetchAuditoriaPagos();
         });
         setMotivoModificacion('');
@@ -830,7 +832,7 @@ export default function App() {
       // Si es efectivo: tipo='ingreso' (suma al saldo de caja)
       if (!error) {
         const tipoMovimiento = nuevoPago.cobrador === 'Banco' ? 'ingreso_banco' : 'ingreso';
-        supabase.from('caja_movimientos').insert({
+        insertCajaMovimiento({
           tipo: tipoMovimiento,
           concepto: selectedEventoPago.cliente,
           monto_pesos: montoEnPesos,
@@ -982,10 +984,8 @@ export default function App() {
         motivo: motivo,
         usuario: user?.email || 'Sistema'
       };
-      console.log('Guardando auditoría:', auditData);
-      supabase.from('auditoria_pagos').insert(auditData)
-        .then(({ data, error }) => {
-          console.log('Resultado auditoría:', error ? error.message : 'OK');
+      insertAuditoriaPago(auditData)
+        .then(({ error }) => {
           if (!error) fetchAuditoriaPagos();
         });
     }
@@ -1127,7 +1127,7 @@ export default function App() {
       fetchEventos();
       setSelectedEvento(null);
       // Guardar auditoría
-      supabase.from('auditoria_eventos').insert({
+      insertAuditoriaEvento({
         cliente: evento.cliente,
         fecha_evento: evento.fecha,
         tipo_evento: evento.tipoEvento || evento.tipo_evento,
@@ -1162,7 +1162,7 @@ export default function App() {
       alert('Error al regenerar el evento');
     } else {
       // Eliminar de auditoría
-      await supabase.from('auditoria_eventos').delete().eq('id', registro.id);
+      await deleteAuditoriaEvento(registro.id);
       fetchEventos();
       fetchAuditoriaEventos();
       alert('Evento regenerado. Ahora está en "A Confirmar"');
@@ -8335,14 +8335,14 @@ export default function App() {
 
                   // Si estamos editando, eliminar los registros antiguos primero
                   if (editingTransferencia) {
-                    await supabase.from('caja_movimientos').delete().eq('id', editingTransferencia.ingresoId);
+                    await deleteCajaMovimiento(editingTransferencia.ingresoId);
                     if (editingTransferencia.egresoId) {
-                      await supabase.from('caja_movimientos').delete().eq('id', editingTransferencia.egresoId);
+                      await deleteCajaMovimiento(editingTransferencia.egresoId);
                     }
                   }
 
                   // Crear egreso del origen (quien aporta)
-                  await supabase.from('caja_movimientos').insert({
+                  await insertCajaMovimiento({
                     tipo: 'egreso',
                     concepto: `Transferencia interna${transferenciaForm.observacion ? ' | ' + transferenciaForm.observacion : ''}`,
                     monto_pesos: monto,
@@ -8352,7 +8352,7 @@ export default function App() {
                   });
 
                   // Crear ingreso al destino (quien recibe)
-                  await supabase.from('caja_movimientos').insert({
+                  await insertCajaMovimiento({
                     tipo: 'ingreso',
                     concepto: `Transferencia interna${transferenciaForm.observacion ? ' | ' + transferenciaForm.observacion : ''}`,
                     monto_pesos: monto,
@@ -8504,9 +8504,9 @@ export default function App() {
                       };
 
                       if (editingCajaIngreso) {
-                        await supabase.from('caja_movimientos').update(data).eq('id', editingCajaIngreso);
+                        await updateCajaMovimiento(editingCajaIngreso, data);
                       } else {
-                        await supabase.from('caja_movimientos').insert(data);
+                        await insertCajaMovimiento(data);
                       }
 
                       setCajaIngresoForm({ fecha: getLocalDateString(), origen: '', observacion: '', receptor: '', monto_pesos: '', monto_dolares: '', cotizacion: '' });
@@ -8674,7 +8674,7 @@ export default function App() {
                                       return;
                                     }
                                     // Guardar auditoría antes de eliminar
-                                    const { error: auditError } = await supabase.from('auditoria_caja').insert({
+                                    const { error: auditError } = await insertAuditoriaCaja({
                                       tipo_movimiento: 'ingreso',
                                       concepto: item.concepto,
                                       monto_pesos: item.monto_pesos,
@@ -8691,7 +8691,7 @@ export default function App() {
                                       alert('Error guardando auditoría: ' + auditError.message);
                                     }
                                     const esAporte = item.concepto && item.concepto.startsWith('Aporte de ');
-                                    const { error } = await supabase.from('caja_movimientos').delete().eq('id', item.id);
+                                    const { error } = await deleteCajaMovimiento(item.id);
                                     if (error) {
                                       alert('Error al eliminar: ' + error.message);
                                       console.error(error);
@@ -8705,7 +8705,7 @@ export default function App() {
                                           .eq('monto_pesos', item.monto_pesos)
                                           .ilike('concepto', `Aporte a ${item.persona}%`);
                                         if (egresos && egresos.length > 0) {
-                                          await supabase.from('caja_movimientos').delete().eq('id', egresos[0].id);
+                                          await deleteCajaMovimiento(egresos[0].id);
                                         }
                                       }
                                       fetchCajaMovimientos();
@@ -8772,7 +8772,7 @@ export default function App() {
                                 alert('Debe ingresar un motivo');
                                 return;
                               }
-                              const { error } = await supabase.from('caja_movimientos').delete().eq('id', item.id);
+                              const { error } = await deleteCajaMovimiento(item.id);
                               if (error) {
                                 alert('Error al eliminar: ' + error.message);
                               } else {
@@ -8873,7 +8873,7 @@ export default function App() {
                           const { data: egresoOriginal } = await supabase.from('caja_movimientos').select('*').eq('id', editingCajaEgreso).single();
 
                           // Actualizar egreso
-                          await supabase.from('caja_movimientos').update(egresoData).eq('id', editingCajaEgreso);
+                          await updateCajaMovimiento(editingCajaEgreso, egresoData);
 
                           // Buscar y actualizar retiro correspondiente
                           if (egresoOriginal) {
@@ -8884,15 +8884,15 @@ export default function App() {
                               .eq('fecha', egresoOriginal.fecha)
                               .eq('persona', receptorOriginal);
                             if (retiros && retiros.length > 0) {
-                              await supabase.from('caja_movimientos').update(retiroData).eq('id', retiros[0].id);
+                              await updateCajaMovimiento(retiros[0].id, retiroData);
                             } else {
-                              await supabase.from('caja_movimientos').insert(retiroData);
+                              await insertCajaMovimiento(retiroData);
                             }
                           }
                         } else {
                           // Nuevo: crear egreso + retiro
-                          await supabase.from('caja_movimientos').insert(egresoData);
-                          await supabase.from('caja_movimientos').insert(retiroData);
+                          await insertCajaMovimiento(egresoData);
+                          await insertCajaMovimiento(retiroData);
                         }
                       } else {
                         // Egreso normal (Pagos extras, Otros, etc.)
@@ -8909,10 +8909,10 @@ export default function App() {
                         };
 
                         if (editingCajaEgreso) {
-                          const { error } = await supabase.from('caja_movimientos').update(data).eq('id', editingCajaEgreso);
+                          const { error } = await updateCajaMovimiento(editingCajaEgreso, data);
                           if (error) { setSaving(false); alert('Error al actualizar: ' + error.message); return; }
                         } else {
-                          const { error } = await supabase.from('caja_movimientos').insert(data);
+                          const { error } = await insertCajaMovimiento(data);
                           if (error) { setSaving(false); alert('Error al guardar: ' + error.message); return; }
                         }
                       }
@@ -9098,7 +9098,7 @@ export default function App() {
                                 return;
                               }
                               // Guardar auditoría antes de eliminar
-                              const { error: auditError } = await supabase.from('auditoria_caja').insert({
+                              const { error: auditError } = await insertAuditoriaCaja({
                                 tipo_movimiento: 'egreso',
                                 concepto: item.concepto,
                                 monto_pesos: item.monto_pesos,
@@ -9113,12 +9113,10 @@ export default function App() {
                               if (auditError) {
                                 console.error('Error guardando auditoría:', auditError);
                                 alert('Error guardando auditoría: ' + auditError.message);
-                              } else {
-                                console.log('Auditoría guardada correctamente para egreso:', item.concepto);
                               }
                               const esAporte = item.concepto && item.concepto.startsWith('Aporte a ');
                               const esRetiroSocios = item.concepto && item.concepto.startsWith('R. Socios a ');
-                              const { error } = await supabase.from('caja_movimientos').delete().eq('id', item.id);
+                              const { error } = await deleteCajaMovimiento(item.id);
                               if (error) {
                                 alert('Error al eliminar: ' + error.message);
                                 console.error(error);
@@ -9132,7 +9130,7 @@ export default function App() {
                                     .eq('monto_pesos', item.monto_pesos)
                                     .ilike('concepto', `Aporte de ${item.aportante}%`);
                                   if (ingresos && ingresos.length > 0) {
-                                    await supabase.from('caja_movimientos').delete().eq('id', ingresos[0].id);
+                                    await deleteCajaMovimiento(ingresos[0].id);
                                   }
                                 }
                                 // Si es R. Socios, eliminar también el retiro correspondiente
@@ -9145,7 +9143,7 @@ export default function App() {
                                     .eq('monto_pesos', item.monto_pesos)
                                     .eq('persona', receptor);
                                   if (retiros && retiros.length > 0) {
-                                    await supabase.from('caja_movimientos').delete().eq('id', retiros[0].id);
+                                    await deleteCajaMovimiento(retiros[0].id);
                                   }
                                 }
                                 fetchCajaMovimientos();
@@ -9259,7 +9257,7 @@ export default function App() {
                                       return;
                                     }
                                     // Guardar auditoría antes de eliminar
-                                    const { error: auditError } = await supabase.from('auditoria_caja').insert({
+                                    const { error: auditError } = await insertAuditoriaCaja({
                                       tipo_movimiento: 'transferencia',
                                       concepto: item.concepto,
                                       monto_pesos: item.monto_pesos,
@@ -9276,7 +9274,7 @@ export default function App() {
                                       alert('Error guardando auditoría: ' + auditError.message);
                                     }
                                     // Eliminar el ingreso
-                                    await supabase.from('caja_movimientos').delete().eq('id', item.id);
+                                    await deleteCajaMovimiento(item.id);
                                     // Buscar y eliminar el egreso correspondiente (mismo monto, fecha, y aportante como persona)
                                     const { data: egresos } = await supabase.from('caja_movimientos')
                                       .select('*')
@@ -9286,7 +9284,7 @@ export default function App() {
                                       .eq('monto_pesos', item.monto_pesos)
                                       .ilike('concepto', 'Transferencia interna%');
                                     if (egresos && egresos.length > 0) {
-                                      await supabase.from('caja_movimientos').delete().eq('id', egresos[0].id);
+                                      await deleteCajaMovimiento(egresos[0].id);
                                     }
                                     fetchCajaMovimientos();
                                     fetchAuditoriaCaja();
@@ -9384,7 +9382,7 @@ export default function App() {
                                 return;
                               }
                               // Guardar auditoría antes de eliminar
-                              const { error: auditError } = await supabase.from('auditoria_caja').insert({
+                              const { error: auditError } = await insertAuditoriaCaja({
                                 tipo_movimiento: 'retiro',
                                 concepto: item.concepto,
                                 monto_pesos: item.monto_pesos,
@@ -9401,7 +9399,7 @@ export default function App() {
                                 alert('Error guardando auditoría: ' + auditError.message);
                               }
                               // Eliminar el retiro
-                              const { error } = await supabase.from('caja_movimientos').delete().eq('id', item.id);
+                              const { error } = await deleteCajaMovimiento(item.id);
                               if (error) {
                                 alert('Error al eliminar: ' + error.message);
                                 console.error(error);
@@ -9414,7 +9412,7 @@ export default function App() {
                                   .eq('monto_pesos', item.monto_pesos)
                                   .ilike('concepto', `R. Socios a ${item.persona}%`);
                                 if (egresos && egresos.length > 0) {
-                                  await supabase.from('caja_movimientos').delete().eq('id', egresos[0].id);
+                                  await deleteCajaMovimiento(egresos[0].id);
                                 }
                                 fetchCajaMovimientos();
                                 fetchAuditoriaCaja();
