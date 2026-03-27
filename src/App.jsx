@@ -5444,7 +5444,7 @@ export default function App() {
 
       {/* Header - Fijo arriba */}
       <header
-        className="fixed left-0 right-0 border-b border-white/10 z-50 bg-slate-950/95 backdrop-blur-md"
+        className="fixed left-0 right-0 border-b border-white/10 z-50 bg-slate-950"
         style={{ top: 'env(safe-area-inset-top, 0px)' }}
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-4">
