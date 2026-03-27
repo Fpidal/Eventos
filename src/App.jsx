@@ -4190,7 +4190,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen w-full max-w-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white overflow-x-hidden box-border">
+    <div className="h-screen w-full max-w-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white overflow-hidden box-border flex flex-col">
       {/* Modal Nuevo Evento */}
       {showModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4 pt-16 sm:pt-4 overflow-hidden">
@@ -5444,8 +5444,8 @@ export default function App() {
 
       {/* Header - Fijo arriba */}
       <header
-        className="fixed left-0 right-0 border-b border-white/10 z-50 bg-slate-950"
-        style={{ top: 'env(safe-area-inset-top, 0px)' }}
+        className="flex-shrink-0 border-b border-white/10 z-50 bg-slate-950"
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-4">
           <div className="flex items-center justify-between gap-2">
@@ -5504,11 +5504,10 @@ export default function App() {
         </div>
       </header>
 
-      {/* Espaciador para header fijo */}
-      <div className="h-14 sm:h-20"></div>
-
-      {/* Navigation */}
-      <nav className="max-w-7xl mx-auto px-2 sm:px-6 py-2 sm:py-4">
+      {/* Contenedor con scroll */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        {/* Navigation */}
+        <nav className="max-w-7xl mx-auto px-2 sm:px-6 py-2 sm:py-4">
         <div className="flex gap-0.5 sm:gap-1 p-0.5 sm:p-1 glass rounded-xl sm:rounded-2xl overflow-x-auto scrollbar-hide">
           {[
             { id: 'dashboard', label: 'Dashboard', shortLabel: 'Dash', icon: BarChart3 },
@@ -10198,6 +10197,7 @@ export default function App() {
           </div>
         )}
       </main>
+      </div>
     </div>
   );
 }
