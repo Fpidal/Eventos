@@ -4190,7 +4190,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white overflow-x-hidden">
+    <div className="min-h-screen w-full max-w-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white overflow-x-hidden box-border">
       {/* Modal Nuevo Evento */}
       {showModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-hidden">
