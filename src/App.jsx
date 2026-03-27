@@ -5447,11 +5447,11 @@ export default function App() {
         className="flex-shrink-0 border-b border-white/10 z-50 bg-slate-950"
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-1.5 sm:py-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 sm:gap-4">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center glow flex-shrink-0">
-                <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
+        <div className="max-w-7xl mx-auto px-2 sm:px-6 py-1 sm:py-2">
+          <div className="flex items-center justify-between gap-1.5">
+            <div className="flex items-center gap-1.5 sm:gap-3">
+              <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
               <div className="hidden sm:block">
                 <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
@@ -5460,14 +5460,13 @@ export default function App() {
                 <p className="text-xs sm:text-sm text-slate-400">Panel de Control</p>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 sm:gap-3">
+            <div className="flex items-center gap-1 sm:gap-2">
               {/* Selector de Año */}
-              <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-white/5 border border-white/10">
-                <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 hidden sm:block" />
+              <div className="flex items-center gap-1 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-white/5 border border-white/10">
                 <select
                   value={filterYear}
                   onChange={(e) => setFilterYear(Number(e.target.value))}
-                  className="bg-transparent text-white text-sm sm:text-base font-medium focus:outline-none cursor-pointer"
+                  className="bg-transparent text-white text-xs sm:text-sm font-medium focus:outline-none cursor-pointer"
                 >
                   {yearsDisponibles.map(year => (
                     <option key={year} value={year} className="bg-slate-900">{year}</option>
@@ -5477,28 +5476,19 @@ export default function App() {
               {canCreate && (
                 <button
                   onClick={() => setShowModal(true)}
-                  className="flex items-center gap-1 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium hover:from-purple-700 hover:to-indigo-700 transition-all"
+                  className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium hover:from-purple-700 hover:to-indigo-700 transition-all"
                 >
-                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span className="hidden sm:inline">Nuevo Evento</span>
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline text-sm">Nuevo</span>
                 </button>
               )}
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <span className={`hidden sm:inline px-2 py-1 rounded-lg text-xs font-medium ${
-                  userRole === 'admin' ? 'bg-purple-500/20 text-purple-300' :
-                  userRole === 'vendedor' ? 'bg-blue-500/20 text-blue-300' :
-                  'bg-slate-500/20 text-slate-300'
-                }`}>
-                  {userRole === 'admin' ? 'Admin' : userRole === 'vendedor' ? 'Vendedor' : 'Lectura'}
-                </span>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 px-2 sm:px-3 py-2 sm:py-2.5 rounded-lg sm:rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 transition-all"
-                  title={user?.email}
-                >
-                  <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-              </div>
+              <button
+                onClick={handleLogout}
+                className="flex items-center px-1.5 sm:px-2 py-1 sm:py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 transition-all"
+                title={user?.email}
+              >
+                <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </button>
             </div>
           </div>
         </div>
