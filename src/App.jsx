@@ -4193,8 +4193,8 @@ export default function App() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white overflow-x-hidden">
       {/* Modal Nuevo Evento */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 overflow-hidden">
-          <div className="glass rounded-lg p-3 sm:p-4 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-hidden">
+          <div className="glass rounded-lg p-3 sm:p-4 w-full max-w-2xl max-h-[85vh] overflow-y-auto overflow-x-hidden box-border">
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-sm font-bold">Nuevo Evento</h2>
               <button onClick={() => setShowModal(false)} className="p-0.5 hover:bg-white/10 rounded">
@@ -4202,17 +4202,17 @@ export default function App() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-1.5">
+            <form onSubmit={handleSubmit} className="space-y-1.5 w-full min-w-0">
               {/* Fecha y Cliente */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <div>
+                <div className="min-w-0">
                   <label className="block text-xs text-slate-400 mb-0.5">Fecha *</label>
                   <input
                     type="date"
                     required
                     value={nuevoEvento.fecha}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, fecha: e.target.value})}
-                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
+                    className="w-full max-w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200 box-border"
                   />
                 </div>
                 <div className="relative">
