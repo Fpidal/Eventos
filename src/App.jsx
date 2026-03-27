@@ -5447,11 +5447,11 @@ export default function App() {
         className="flex-shrink-0 border-b border-white/10 z-50 bg-slate-950"
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-1.5 sm:py-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 sm:gap-4">
-              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center glow flex-shrink-0">
-                <Calendar className="w-5 h-5 sm:w-6 sm:h-6" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center glow flex-shrink-0">
+                <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="hidden sm:block">
                 <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
