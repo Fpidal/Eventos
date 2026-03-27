@@ -133,6 +133,15 @@ select {
   background: rgba(255, 255, 255, 0.05) !important;
 }
 
+/* Normalizar input date igual a input text */
+input[type="date"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  min-height: auto;
+  height: auto;
+}
+
 select option {
   background: #1e1b4b;
   color: white;
