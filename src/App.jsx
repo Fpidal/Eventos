@@ -17,6 +17,12 @@ import {
   parseNumberInput, formatDate, formatDateDMY, getLocalDateString
 } from './utils';
 
+import {
+  queryEventos, queryPagos, queryIPCMensual, queryAuditoriaPagos,
+  queryAuditoriaEventos, queryAuditoriaCaja, queryCajaMovimientos,
+  queryUsuarios, queryUsuarioByUserId, queryMenus, queryClientes
+} from './supabaseQueries';
+
 export default function App() {
   // Auth states
   const [user, setUser] = useState(null);
@@ -216,12 +222,7 @@ export default function App() {
   // Obtener rol del usuario
   const fetchUserRole = async (userId) => {
     try {
-      const { data, error } = await supabase
-        .from('usuarios')
-        .select('rol')
-        .eq('user_id', userId)
-        .single();
-
+      const { data, error } = await queryUsuarioByUserId(userId);
       if (data) {
         setUserRole(data.rol);
       } else {
@@ -628,11 +629,7 @@ export default function App() {
 
   const fetchEventos = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('eventos')
-      .select('*')
-      .order('fecha', { ascending: true });
-
+    const { data, error } = await queryEventos();
     if (error) {
       console.error('Error:', error);
     } else {
@@ -642,11 +639,7 @@ export default function App() {
   };
 
   const fetchPagos = async () => {
-    const { data, error } = await supabase
-      .from('pagos')
-      .select('*')
-      .order('fecha', { ascending: true });
-
+    const { data, error } = await queryPagos();
     if (error) {
       console.error('Error pagos:', error);
     } else {
@@ -655,12 +648,7 @@ export default function App() {
   };
 
   const fetchIPCMensual = async () => {
-    const { data, error } = await supabase
-      .from('ipc_mensual')
-      .select('*')
-      .order('año', { ascending: false })
-      .order('mes', { ascending: true });
-
+    const { data, error } = await queryIPCMensual();
     if (error) {
       console.error('Error IPC:', error);
     } else {
@@ -1005,11 +993,7 @@ export default function App() {
 
   const fetchAuditoriaPagos = async () => {
     try {
-      const { data, error } = await supabase
-        .from('auditoria_pagos')
-        .select('*')
-        .order('created_at', { ascending: false });
-
+      const { data, error } = await queryAuditoriaPagos();
       if (!error && data) {
         setAuditoriaPagos(data);
       }
@@ -1020,11 +1004,7 @@ export default function App() {
 
   const fetchAuditoriaEventos = async () => {
     try {
-      const { data, error } = await supabase
-        .from('auditoria_eventos')
-        .select('*')
-        .order('created_at', { ascending: false });
-
+      const { data, error } = await queryAuditoriaEventos();
       if (!error && data) {
         setAuditoriaEventos(data);
       }
@@ -1035,15 +1015,10 @@ export default function App() {
 
   const fetchAuditoriaCaja = async () => {
     try {
-      const { data, error } = await supabase
-        .from('auditoria_caja')
-        .select('*')
-        .order('created_at', { ascending: false });
-
+      const { data, error } = await queryAuditoriaCaja();
       if (error) {
         console.error('Error fetching auditoria_caja:', error);
       } else if (data) {
-        console.log('Auditoria caja cargada:', data.length, 'registros', data);
         setAuditoriaCaja(data);
       }
     } catch (e) {
@@ -1053,11 +1028,7 @@ export default function App() {
 
   const fetchCajaMovimientos = async () => {
     try {
-      const { data, error } = await supabase
-        .from('caja_movimientos')
-        .select('*')
-        .order('fecha', { ascending: false });
-
+      const { data, error } = await queryCajaMovimientos();
       if (!error && data) {
         setCajaMovimientos(data);
       }
@@ -1200,11 +1171,7 @@ export default function App() {
 
   // Funciones para gestión de usuarios
   const fetchUsuarios = async () => {
-    const { data, error } = await supabase
-      .from('usuarios')
-      .select('*')
-      .order('created_at', { ascending: false });
-
+    const { data, error } = await queryUsuarios();
     if (!error && data) {
       setUsuarios(data);
     }
@@ -1317,12 +1284,7 @@ export default function App() {
 
   // Funciones para menús
   const fetchMenus = async () => {
-    const { data, error } = await supabase
-      .from('menus')
-      .select('*')
-      .eq('activo', true)
-      .order('nombre', { ascending: true });
-
+    const { data, error } = await queryMenus();
     if (!error && data) {
       setMenus(data);
     }
@@ -1330,11 +1292,7 @@ export default function App() {
 
   // Fetch clientes desde Supabase
   const fetchClientes = async () => {
-    const { data, error } = await supabase
-      .from('clientes')
-      .select('*')
-      .order('nombre', { ascending: true });
-
+    const { data, error } = await queryClientes();
     if (!error && data) {
       setClientes(data);
     }
