@@ -4181,8 +4181,8 @@ export default function App() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white">
       {/* Modal Nuevo Evento */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 overflow-y-auto">
-          <div className="glass rounded-lg p-2 w-full max-w-2xl max-h-[95vh] overflow-y-auto my-auto">
+        <div className="fixed inset-0 bg-black/70 flex items-start sm:items-center justify-center z-50 p-2 pt-4 sm:pt-2 overflow-y-auto">
+          <div className="glass rounded-lg p-3 sm:p-4 w-full max-w-2xl max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-sm font-bold">Nuevo Evento</h2>
               <button onClick={() => setShowModal(false)} className="p-0.5 hover:bg-white/10 rounded">
@@ -5544,7 +5544,7 @@ export default function App() {
       <main className="max-w-7xl mx-auto px-3 sm:px-6 pb-8 sm:pb-12">
         {/* Dashboard */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-4 sm:space-y-6">
+          <div className="space-y-4 sm:space-y-6 overflow-x-hidden">
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4">
               {[
                 { label: 'Fact. Realizada', value: stats.facturadoRealizado, icon: DollarSign, color: 'from-emerald-500 to-teal-600', format: true },
@@ -5915,68 +5915,68 @@ export default function App() {
 
         {/* Próximos Eventos */}
         {activeTab === 'proximos' && (
-          <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-4 sm:space-y-6 overflow-x-hidden">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-3 sm:gap-4">
               <div>
-                <h2 className="text-2xl font-bold">Próximos Eventos</h2>
-                <p className="text-slate-400">{proximosEventos.length} eventos programados</p>
+                <h2 className="text-lg sm:text-2xl font-bold">Próximos Eventos</h2>
+                <p className="text-slate-400 text-sm">{proximosEventos.length} eventos programados</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <select
                   value={filterMesProximos}
                   onChange={(e) => setFilterMesProximos(e.target.value)}
-                  className="px-3 py-1.5 text-sm rounded-lg border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5"
+                  className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm rounded-lg border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5"
                 >
                   {meses.map(m => (
-                    <option key={m} value={m}>{m === 'todos' ? 'Todos los meses' : m.charAt(0).toUpperCase() + m.slice(1)}</option>
+                    <option key={m} value={m}>{m === 'todos' ? 'Todos' : m.charAt(0).toUpperCase() + m.slice(1)}</option>
                   ))}
                 </select>
                 <select
                   value={filterVendedorProximos}
                   onChange={(e) => setFilterVendedorProximos(e.target.value)}
-                  className="px-3 py-1.5 text-sm rounded-lg border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5"
+                  className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm rounded-lg border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5"
                 >
-                  <option value="todos">Todos los vendedores</option>
+                  <option value="todos">Vendedor</option>
                   {VENDEDORES.map(v => (
                     <option key={v} value={v}>{v}</option>
                   ))}
                 </select>
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
                   <input
                     type="text"
-                    placeholder="Buscar cliente..."
+                    placeholder="Cliente..."
                     value={filterClienteProximos}
                     onChange={(e) => setFilterClienteProximos(e.target.value)}
-                    className="pl-8 pr-3 py-1.5 text-sm rounded-lg border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5 w-40"
+                    className="pl-7 pr-2 py-1.5 text-xs sm:text-sm rounded-lg border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5 w-28 sm:w-40"
                   />
                 </div>
               </div>
             </div>
 
             {proximosEventos.length === 0 ? (
-              <div className="glass rounded-2xl p-12 text-center glow">
-                <Calendar className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-                <p className="text-slate-400 text-lg">No hay eventos próximos</p>
+              <div className="glass rounded-xl sm:rounded-2xl p-8 sm:p-12 text-center glow">
+                <Calendar className="w-12 h-12 sm:w-16 sm:h-16 text-slate-600 mx-auto mb-4" />
+                <p className="text-slate-400 text-base sm:text-lg">No hay eventos próximos</p>
                 <button
                   onClick={() => setShowModal(true)}
-                  className="mt-4 px-6 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 transition-colors"
+                  className="mt-4 px-4 sm:px-6 py-2 rounded-lg sm:rounded-xl bg-purple-600 hover:bg-purple-700 transition-colors text-sm"
                 >
                   Agregar evento
                 </button>
               </div>
             ) : (
-              <div className="grid gap-3">
+              <div className="grid gap-2 sm:gap-3">
                 {proximosEventos.map((e, i) => (
                   <div
                     key={e.id || i}
-                    className="glass rounded-xl p-4 glow hover:border-purple-500/30 border border-transparent transition-all"
+                    className="glass rounded-lg sm:rounded-xl p-3 sm:p-4 glow hover:border-purple-500/30 border border-transparent transition-all"
                   >
-                    <div className={`flex flex-col md:flex-row md:items-center gap-3 ${userVerPrecios ? 'cursor-pointer' : ''}`} onClick={() => userVerPrecios && setSelectedEvento(e)}>
+                    <div className={`flex items-start sm:items-center gap-2 sm:gap-3 ${userVerPrecios ? 'cursor-pointer' : ''}`} onClick={() => userVerPrecios && setSelectedEvento(e)}>
                       {/* Fecha destacada */}
-                      <div className="flex-shrink-0 w-16 h-16 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 flex flex-col items-center justify-center">
-                        <span className="text-xl font-bold">{new Date(e.fecha + 'T12:00:00').getDate()}</span>
-                        <span className="text-[10px] uppercase">{new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
+                      <div className="flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 rounded-lg sm:rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 flex flex-col items-center justify-center">
+                        <span className="text-base sm:text-xl font-bold">{new Date(e.fecha + 'T12:00:00').getDate()}</span>
+                        <span className="text-[8px] sm:text-[10px] uppercase">{new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
                       </div>
 
                       {/* Info principal */}
@@ -6196,75 +6196,75 @@ export default function App() {
 
         {/* A Confirmar */}
         {activeTab === 'aconfirmar' && (
-          <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-4 sm:space-y-6 overflow-x-hidden">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-3 sm:gap-4">
               <div>
-                <h2 className="text-2xl font-bold">Cotizaciones a Confirmar</h2>
-                <p className="text-slate-400">{eventosAConfirmar.length} pendientes de confirmación</p>
+                <h2 className="text-lg sm:text-2xl font-bold">Cotizaciones a Confirmar</h2>
+                <p className="text-slate-400 text-sm">{eventosAConfirmar.length} pendientes</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <select
                   value={filterMesAConfirmar}
                   onChange={(e) => setFilterMesAConfirmar(e.target.value)}
-                  className="px-3 py-1.5 text-sm rounded-lg border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5"
+                  className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm rounded-lg border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5"
                 >
                   {meses.map(m => (
-                    <option key={m} value={m}>{m === 'todos' ? 'Todos los meses' : m.charAt(0).toUpperCase() + m.slice(1)}</option>
+                    <option key={m} value={m}>{m === 'todos' ? 'Todos' : m.charAt(0).toUpperCase() + m.slice(1)}</option>
                   ))}
                 </select>
                 <select
                   value={filterVendedorAConfirmar}
                   onChange={(e) => setFilterVendedorAConfirmar(e.target.value)}
-                  className="px-3 py-1.5 text-sm rounded-lg border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5"
+                  className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm rounded-lg border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5"
                 >
-                  <option value="todos">Todos los vendedores</option>
+                  <option value="todos">Vendedor</option>
                   {VENDEDORES.map(v => (
                     <option key={v} value={v}>{v}</option>
                   ))}
                 </select>
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
                   <input
                     type="text"
-                    placeholder="Buscar cliente..."
+                    placeholder="Cliente..."
                     value={filterClienteAConfirmar}
                     onChange={(e) => setFilterClienteAConfirmar(e.target.value)}
-                    className="pl-8 pr-3 py-1.5 text-sm rounded-lg border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5 w-40"
+                    className="pl-7 pr-2 py-1.5 text-xs sm:text-sm rounded-lg border border-white/10 text-white focus:outline-none focus:border-purple-500/50 bg-white/5 w-28 sm:w-40"
                   />
                 </div>
               </div>
             </div>
 
             {eventosAConfirmar.length === 0 ? (
-              <div className="glass rounded-2xl p-12 text-center glow">
-                <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
-                <p className="text-slate-400 text-lg">No hay cotizaciones pendientes</p>
-                <p className="text-slate-500 text-sm mt-2">Todas las cotizaciones han sido confirmadas</p>
+              <div className="glass rounded-xl sm:rounded-2xl p-8 sm:p-12 text-center glow">
+                <CheckCircle className="w-12 h-12 sm:w-16 sm:h-16 text-emerald-500 mx-auto mb-4" />
+                <p className="text-slate-400 text-base sm:text-lg">No hay cotizaciones pendientes</p>
+                <p className="text-slate-500 text-xs sm:text-sm mt-2">Todas las cotizaciones han sido confirmadas</p>
               </div>
             ) : (
-              <div className="grid gap-3">
+              <div className="grid gap-2 sm:gap-3">
                 {eventosAConfirmar.map((e, i) => (
                   <div
                     key={e.id || i}
-                    className="glass rounded-xl p-4 glow hover:border-amber-500/30 border border-amber-500/20 transition-all"
+                    className="glass rounded-lg sm:rounded-xl p-3 sm:p-4 glow hover:border-amber-500/30 border border-amber-500/20 transition-all"
                   >
-                    <div className={`flex flex-col md:flex-row md:items-center gap-3 ${userVerPrecios ? 'cursor-pointer' : ''}`} onClick={() => userVerPrecios && setSelectedEvento(e)}>
+                    <div className={`flex items-start sm:items-center gap-2 sm:gap-3 ${userVerPrecios ? 'cursor-pointer' : ''}`} onClick={() => userVerPrecios && setSelectedEvento(e)}>
                       {/* Fecha destacada */}
-                      <div className="flex-shrink-0 w-16 h-16 rounded-xl bg-gradient-to-br from-amber-600 to-orange-600 flex flex-col items-center justify-center">
-                        <span className="text-xl font-bold">{new Date(e.fecha + 'T12:00:00').getDate()}</span>
-                        <span className="text-[10px] uppercase">{new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
+                      <div className="flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 rounded-lg sm:rounded-xl bg-gradient-to-br from-amber-600 to-orange-600 flex flex-col items-center justify-center">
+                        <span className="text-base sm:text-xl font-bold">{new Date(e.fecha + 'T12:00:00').getDate()}</span>
+                        <span className="text-[8px] sm:text-[10px] uppercase">{new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
                       </div>
 
                       {/* Info principal */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <h3 className="text-lg font-semibold truncate">{e.cliente}</h3>
-                          <span className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        <div className="flex items-start justify-between gap-1 sm:gap-2 mb-1 sm:mb-2">
+                          <h3 className="text-sm sm:text-lg font-semibold truncate">{e.cliente}</h3>
+                          <span className="flex-shrink-0 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">
                             Pendiente
                           </span>
                         </div>
 
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-400">
+                        <div className="flex flex-wrap gap-x-2 sm:gap-x-4 gap-y-0.5 sm:gap-y-1 text-xs sm:text-sm text-slate-400">
                           <span className="flex items-center gap-1">
                             📋 {e.tipoEvento}
                           </span>
@@ -6272,7 +6272,7 @@ export default function App() {
                             🍽️ {e.menu}
                           </span>
                           <span className="flex items-center gap-1">
-                            👥 {e.adultos + (e.menores || 0)} personas
+                            👥 {e.adultos + (e.menores || 0)} pers.
                           </span>
                           <span className="flex items-center gap-1">
                             <MapPin className="w-3 h-3" /> {e.salon || 'Tero'}
