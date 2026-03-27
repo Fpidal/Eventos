@@ -4178,7 +4178,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white overflow-x-hidden">
       {/* Modal Nuevo Evento */}
       {showModal && (
         <div className="fixed inset-0 bg-black/70 flex items-start sm:items-center justify-center z-50 p-2 pt-4 sm:pt-2 overflow-y-auto">
@@ -5541,7 +5541,7 @@ export default function App() {
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 pb-8 sm:pb-12">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 pb-8 sm:pb-12 w-full overflow-x-hidden">
         {/* Dashboard */}
         {activeTab === 'dashboard' && (
           <div className="space-y-4 sm:space-y-6 overflow-x-hidden">
@@ -5966,90 +5966,53 @@ export default function App() {
                 </button>
               </div>
             ) : (
-              <div className="grid gap-2 sm:gap-3">
+              <div className="grid gap-2 sm:gap-3 w-full">
                 {proximosEventos.map((e, i) => (
                   <div
                     key={e.id || i}
-                    className="glass rounded-lg sm:rounded-xl p-3 sm:p-4 glow hover:border-purple-500/30 border border-transparent transition-all"
+                    className="glass rounded-lg sm:rounded-xl p-2.5 sm:p-4 glow hover:border-purple-500/30 border border-transparent transition-all overflow-hidden"
                   >
-                    <div className={`flex items-start sm:items-center gap-2 sm:gap-3 ${userVerPrecios ? 'cursor-pointer' : ''}`} onClick={() => userVerPrecios && setSelectedEvento(e)}>
-                      {/* Fecha destacada */}
-                      <div className="flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 rounded-lg sm:rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 flex flex-col items-center justify-center">
-                        <span className="text-base sm:text-xl font-bold">{new Date(e.fecha + 'T12:00:00').getDate()}</span>
-                        <span className="text-[8px] sm:text-[10px] uppercase">{new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
-                      </div>
-
-                      {/* Info principal */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <h3 className="text-lg font-semibold truncate">{e.cliente}</h3>
-                          <span className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium ${
-                            getDiasRestantes(e.fecha) === 'Hoy' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
-                            getDiasRestantes(e.fecha) === 'Mañana' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
-                            'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                          }`}>
-                            {getDiasRestantes(e.fecha)}
-                          </span>
+                    <div className={`flex flex-col sm:flex-row sm:items-center gap-3 ${userVerPrecios ? 'cursor-pointer' : ''}`} onClick={() => userVerPrecios && setSelectedEvento(e)}>
+                      {/* Fila superior en mobile: Fecha + Info */}
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        {/* Fecha destacada */}
+                        <div className="flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-gradient-to-br from-purple-600 to-indigo-600 flex flex-col items-center justify-center">
+                          <span className="text-base sm:text-lg font-bold">{new Date(e.fecha + 'T12:00:00').getDate()}</span>
+                          <span className="text-[8px] sm:text-[9px] uppercase">{new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
                         </div>
 
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-400">
-                          <span className="flex items-center gap-1">
-                            📋 {e.tipoEvento}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            🍽️ {e.menu}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            👥 {e.adultos + (e.menores || 0)} personas
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3" /> {e.salon || 'Tero'}
-                          </span>
-                        </div>
+                        {/* Info principal */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <h3 className="text-sm sm:text-base font-semibold truncate">{e.cliente}</h3>
+                            <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium ${
+                              getDiasRestantes(e.fecha) === 'Hoy' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
+                              getDiasRestantes(e.fecha) === 'Mañana' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
+                              'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            }`}>
+                              {getDiasRestantes(e.fecha)}
+                            </span>
+                          </div>
 
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm mt-2">
-                          <span className={`flex items-center gap-1 ${e.turno === 'Noche' ? 'text-indigo-400' : 'text-amber-400'}`}>
-                            {e.turno === 'Noche' ? <Moon className="w-3 h-3" /> : <Sun className="w-3 h-3" />}
-                            {e.turno}
-                          </span>
-                          {(e.hora_inicio || e.hora_fin) && (
-                            <span className="flex items-center gap-1 text-slate-400">
-                              <Clock className="w-3 h-3" /> {e.hora_inicio || '--:--'} a {e.hora_fin || '--:--'}
-                            </span>
-                          )}
-                          <span className="text-slate-400">👤 {e.vendedor}</span>
-                          {e.telefono && (
-                            <span className="flex items-center gap-1 text-slate-400">
-                              <Phone className="w-3 h-3" /> {e.telefono}
-                            </span>
-                          )}
-                        </div>
+                          <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs sm:text-sm text-slate-400">
+                            <span>{e.tipoEvento}</span>
+                            <span>•</span>
+                            <span>{e.adultos} pers.</span>
+                            <span className="hidden sm:inline">• {e.menu}</span>
+                          </div>
 
-                        {/* Extras */}
-                        <div className="flex flex-wrap gap-2 mt-3">
-                          {e.tecnica && (
-                            <span className="px-2 py-0.5 rounded-full text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                              Técnica
-                            </span>
-                          )}
-                          {e.tecnica_superior && (
-                            <span className="px-2 py-0.5 rounded-full text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                              Técnica Superior
-                            </span>
-                          )}
-                          {e.dj && (
-                            <span className="px-2 py-0.5 rounded-full text-xs bg-pink-500/20 text-pink-300 border border-pink-500/30">
-                              DJ: {e.dj}
-                            </span>
-                          )}
+                          <div className="flex flex-wrap items-center gap-x-2 text-xs sm:text-sm mt-1 text-slate-500">
+                            <span className={`${e.turno === 'Noche' ? 'text-indigo-400' : 'text-amber-400'}`}>{e.turno}</span>
+                            <span className="hidden sm:inline">• {e.vendedor}</span>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Total y botones integrados */}
-                      <div className="flex-shrink-0 flex flex-col items-end gap-2">
-                        <div className="text-right">
-                          <p className="text-xs text-slate-400">Total</p>
-                          <p className="text-xl font-bold text-emerald-400">{displayPrice(e.totalEvento)}</p>
+                      {/* Fila inferior en mobile: Total + Botones */}
+                      <div className="flex items-center justify-between sm:justify-end gap-3 pl-15 sm:pl-0">
+                        <div className="text-left sm:text-right">
+                          <p className="text-[10px] text-slate-400">Total</p>
+                          <p className="text-base sm:text-lg font-bold text-emerald-400">{displayPrice(e.totalEvento)}</p>
                         </div>
                         <div className="flex gap-1">
                           <button
@@ -6057,7 +6020,7 @@ export default function App() {
                             className="p-1.5 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-all"
                             title="Detalle"
                           >
-                            <Monitor className="w-3.5 h-3.5" />
+                            <Monitor className="w-4 h-4" />
                           </button>
                           {userVerPrecios && (
                             <>
@@ -6066,14 +6029,14 @@ export default function App() {
                                 className="p-1.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-all"
                                 title="Cotización"
                               >
-                                <FileText className="w-3.5 h-3.5" />
+                                <FileText className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={(ev) => { ev.stopPropagation(); generarPDF(e); }}
                                 className="p-1.5 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-all"
                                 title="Resumen"
                               >
-                                <FileText className="w-3.5 h-3.5" />
+                                <FileText className="w-4 h-4" />
                               </button>
                             </>
                           )}
@@ -6083,7 +6046,7 @@ export default function App() {
 
                     {e.otros && (
                       <div className="mt-3 pt-3 border-t border-white/10">
-                        <p className="text-sm text-slate-400">📝 {e.otros}</p>
+                        <p className="text-xs sm:text-sm text-slate-400 truncate">📝 {e.otros}</p>
                       </div>
                     )}
                   </div>
@@ -6242,88 +6205,49 @@ export default function App() {
                 <p className="text-slate-500 text-xs sm:text-sm mt-2">Todas las cotizaciones han sido confirmadas</p>
               </div>
             ) : (
-              <div className="grid gap-2 sm:gap-3">
+              <div className="grid gap-2 sm:gap-3 w-full">
                 {eventosAConfirmar.map((e, i) => (
                   <div
                     key={e.id || i}
-                    className="glass rounded-lg sm:rounded-xl p-3 sm:p-4 glow hover:border-amber-500/30 border border-amber-500/20 transition-all"
+                    className="glass rounded-lg sm:rounded-xl p-2.5 sm:p-4 glow hover:border-amber-500/30 border border-amber-500/20 transition-all overflow-hidden"
                   >
-                    <div className={`flex items-start sm:items-center gap-2 sm:gap-3 ${userVerPrecios ? 'cursor-pointer' : ''}`} onClick={() => userVerPrecios && setSelectedEvento(e)}>
-                      {/* Fecha destacada */}
-                      <div className="flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 rounded-lg sm:rounded-xl bg-gradient-to-br from-amber-600 to-orange-600 flex flex-col items-center justify-center">
-                        <span className="text-base sm:text-xl font-bold">{new Date(e.fecha + 'T12:00:00').getDate()}</span>
-                        <span className="text-[8px] sm:text-[10px] uppercase">{new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
-                      </div>
-
-                      {/* Info principal */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-1 sm:gap-2 mb-1 sm:mb-2">
-                          <h3 className="text-sm sm:text-lg font-semibold truncate">{e.cliente}</h3>
-                          <span className="flex-shrink-0 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                            Pendiente
-                          </span>
+                    <div className={`flex flex-col sm:flex-row sm:items-center gap-3 ${userVerPrecios ? 'cursor-pointer' : ''}`} onClick={() => userVerPrecios && setSelectedEvento(e)}>
+                      {/* Fila superior en mobile: Fecha + Info */}
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        {/* Fecha destacada */}
+                        <div className="flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-gradient-to-br from-amber-600 to-orange-600 flex flex-col items-center justify-center">
+                          <span className="text-base sm:text-lg font-bold">{new Date(e.fecha + 'T12:00:00').getDate()}</span>
+                          <span className="text-[8px] sm:text-[9px] uppercase">{new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'short' })}</span>
                         </div>
 
-                        <div className="flex flex-wrap gap-x-2 sm:gap-x-4 gap-y-0.5 sm:gap-y-1 text-xs sm:text-sm text-slate-400">
-                          <span className="flex items-center gap-1">
-                            📋 {e.tipoEvento}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            🍽️ {e.menu}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            👥 {e.adultos + (e.menores || 0)} pers.
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3" /> {e.salon || 'Tero'}
-                          </span>
-                        </div>
-
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm mt-2">
-                          <span className={`flex items-center gap-1 ${e.turno === 'Noche' ? 'text-indigo-400' : 'text-amber-400'}`}>
-                            {e.turno === 'Noche' ? <Moon className="w-3 h-3" /> : <Sun className="w-3 h-3" />}
-                            {e.turno}
-                          </span>
-                          {(e.hora_inicio || e.hora_fin) && (
-                            <span className="flex items-center gap-1 text-slate-400">
-                              <Clock className="w-3 h-3" /> {e.hora_inicio || '--:--'} a {e.hora_fin || '--:--'}
+                        {/* Info principal */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <h3 className="text-sm sm:text-base font-semibold truncate">{e.cliente}</h3>
+                            <span className="flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                              Pendiente
                             </span>
-                          )}
-                          <span className="text-slate-400">👤 {e.vendedor}</span>
-                          {e.telefono && (
-                            <span className="flex items-center gap-1 text-slate-400">
-                              <Phone className="w-3 h-3" /> {e.telefono}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Badges Técnica, Técnica Superior, DJ */}
-                        {(e.tecnica || e.tecnica_superior || e.dj) && (
-                          <div className="flex flex-wrap gap-1.5 mt-2">
-                            {e.tecnica && (
-                              <span className="px-2 py-0.5 rounded-full text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
-                                <Mic className="w-3 h-3" /> Técnica
-                              </span>
-                            )}
-                            {e.tecnica_superior && (
-                              <span className="px-2 py-0.5 rounded-full text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                                <Mic className="w-3 h-3" /> Téc. Superior
-                              </span>
-                            )}
-                            {e.dj && (
-                              <span className="px-2 py-0.5 rounded-full text-xs bg-pink-500/20 text-pink-300 border border-pink-500/30 flex items-center gap-1">
-                                <Music className="w-3 h-3" /> {e.dj}
-                              </span>
-                            )}
                           </div>
-                        )}
+
+                          <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs sm:text-sm text-slate-400">
+                            <span>{e.tipoEvento}</span>
+                            <span>•</span>
+                            <span>{e.adultos + (e.menores || 0)} pers.</span>
+                            <span className="hidden sm:inline">• {e.menu}</span>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-x-2 text-xs sm:text-sm mt-1 text-slate-500">
+                            <span className={`${e.turno === 'Noche' ? 'text-indigo-400' : 'text-amber-400'}`}>{e.turno}</span>
+                            <span className="hidden sm:inline">• {e.vendedor}</span>
+                          </div>
+                        </div>
                       </div>
 
-                      {/* Total y botones integrados */}
-                      <div className="flex-shrink-0 flex flex-col items-end gap-2">
-                        <div className="text-right">
-                          <p className="text-xs text-slate-400">Total</p>
-                          <p className="text-xl font-bold text-emerald-400">{displayPrice(e.totalEvento)}</p>
+                      {/* Fila inferior en mobile: Total + Botones */}
+                      <div className="flex items-center justify-between sm:justify-end gap-3 pl-15 sm:pl-0">
+                        <div className="text-left sm:text-right">
+                          <p className="text-[10px] text-slate-400">Total</p>
+                          <p className="text-base sm:text-lg font-bold text-emerald-400">{displayPrice(e.totalEvento)}</p>
                         </div>
                         <div className="flex gap-1">
                           <button
@@ -6331,7 +6255,7 @@ export default function App() {
                             className="p-1.5 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-all"
                             title="Detalle"
                           >
-                            <Monitor className="w-3.5 h-3.5" />
+                            <Monitor className="w-4 h-4" />
                           </button>
                           {userVerPrecios && (
                             <>
@@ -6340,14 +6264,14 @@ export default function App() {
                                 className="p-1.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-all"
                                 title="Cotización"
                               >
-                                <FileText className="w-3.5 h-3.5" />
+                                <FileText className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={(ev) => { ev.stopPropagation(); generarPDF(e); }}
                                 className="p-1.5 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-all"
                                 title="Resumen"
                               >
-                                <FileText className="w-3.5 h-3.5" />
+                                <FileText className="w-4 h-4" />
                               </button>
                             </>
                           )}
@@ -6357,7 +6281,7 @@ export default function App() {
 
                     {e.otros && (
                       <div className="mt-3 pt-3 border-t border-white/10">
-                        <p className="text-sm text-slate-400">📝 {e.otros}</p>
+                        <p className="text-xs sm:text-sm text-slate-400 truncate">📝 {e.otros}</p>
                       </div>
                     )}
                   </div>
