@@ -4212,7 +4212,7 @@ export default function App() {
                     required
                     value={nuevoEvento.fecha}
                     onChange={(e) => setNuevoEvento({...nuevoEvento, fecha: e.target.value})}
-                    className="w-full min-w-0 px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200 appearance-none"
+                    className="w-full min-w-0 px-2 py-2 h-[34px] rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
                     style={{ maxWidth: '100%' }}
                   />
                 </div>
