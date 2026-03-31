@@ -4498,10 +4498,18 @@ export default function App() {
                                   <p className="text-sm sm:text-base font-medium truncate">{evento.cliente}</p>
                                   <div className="flex items-center gap-1 sm:gap-2 text-[10px] sm:text-xs text-slate-400 flex-wrap">
                                     <span>{evento.tipo_evento}</span>
-                                    <span className="hidden sm:inline">•</span>
+                                    <span>•</span>
                                     <span>{evento.adultos} pers.</span>
+                                    <span>• {evento.vendedor}</span>
                                     {clima && <span title={climaInfo?.desc}>{climaInfo?.icono} {clima.tempMax}°</span>}
                                   </div>
+                                  {(evento.tecnica || evento.tecnica_superior || evento.dj) && (
+                                    <div className="flex flex-wrap items-center gap-1 mt-1">
+                                      {evento.tecnica && <span className="px-1 py-0.5 rounded text-[8px] bg-cyan-500/20 text-cyan-300">Téc</span>}
+                                      {evento.tecnica_superior && <span className="px-1 py-0.5 rounded text-[8px] bg-violet-500/20 text-violet-300">TécS</span>}
+                                      {evento.dj && <span className="px-1 py-0.5 rounded text-[8px] bg-pink-500/20 text-pink-300">🎧{evento.dj}</span>}
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="flex gap-0.5 sm:gap-1 flex-shrink-0">
                                   <button onClick={(e) => { e.stopPropagation(); abrirDetalle(evento); }} className="p-1.5 sm:p-2 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30" title="Detalle">
@@ -4554,11 +4562,19 @@ export default function App() {
                                   <p className="text-sm sm:text-base font-medium truncate">{evento.cliente}</p>
                                   <div className="flex items-center gap-1 sm:gap-2 text-[10px] sm:text-xs text-slate-400">
                                     <span>{evento.tipo_evento}</span>
+                                    <span>• {evento.vendedor}</span>
                                     <span className={diasRestantes <= 7 ? 'text-red-400' : 'text-amber-400'}>
                                       {diasRestantes === 0 ? 'HOY' : diasRestantes === 1 ? 'Mañana' : `${diasRestantes}d`}
                                     </span>
                                     {clima && <span>{climaInfo?.icono} {clima.tempMax}°</span>}
                                   </div>
+                                  {(evento.tecnica || evento.tecnica_superior || evento.dj) && (
+                                    <div className="flex flex-wrap items-center gap-1 mt-1">
+                                      {evento.tecnica && <span className="px-1 py-0.5 rounded text-[8px] bg-cyan-500/20 text-cyan-300">Téc</span>}
+                                      {evento.tecnica_superior && <span className="px-1 py-0.5 rounded text-[8px] bg-violet-500/20 text-violet-300">TécS</span>}
+                                      {evento.dj && <span className="px-1 py-0.5 rounded text-[8px] bg-pink-500/20 text-pink-300">🎧{evento.dj}</span>}
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="flex gap-0.5 sm:gap-1 flex-shrink-0">
                                   <button onClick={(e) => { e.stopPropagation(); abrirDetalle(evento); }} className="p-1.5 sm:p-2 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30" title="Detalle">
@@ -4625,10 +4641,18 @@ export default function App() {
                               <p className="text-xs sm:text-sm font-medium truncate">{evento.cliente}</p>
                               <div className="flex items-center gap-1 text-[10px] sm:text-xs text-slate-400">
                                 <span>{evento.tipo_evento}</span>
+                                <span>• {evento.vendedor}</span>
                                 <span className="text-red-400">
                                   {diasRestantes === 0 ? 'HOY' : diasRestantes === 1 ? 'Mañana' : `${diasRestantes}d`}
                                 </span>
                               </div>
+                              {(evento.tecnica || evento.tecnica_superior || evento.dj) && (
+                                <div className="flex flex-wrap items-center gap-1 mt-1">
+                                  {evento.tecnica && <span className="px-1 py-0.5 rounded text-[8px] bg-cyan-500/20 text-cyan-300">Téc</span>}
+                                  {evento.tecnica_superior && <span className="px-1 py-0.5 rounded text-[8px] bg-violet-500/20 text-violet-300">TécS</span>}
+                                  {evento.dj && <span className="px-1 py-0.5 rounded text-[8px] bg-pink-500/20 text-pink-300">🎧{evento.dj}</span>}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -4882,8 +4906,29 @@ export default function App() {
 
                           <div className="flex flex-wrap items-center gap-x-2 text-xs sm:text-sm mt-1 text-slate-500">
                             <span className={`${e.turno === 'Noche' ? 'text-indigo-400' : 'text-amber-400'}`}>{e.turno}</span>
-                            <span className="hidden sm:inline">• {e.vendedor}</span>
+                            <span>• {e.vendedor}</span>
                           </div>
+
+                          {/* Indicadores de servicios */}
+                          {(e.tecnica || e.tecnica_superior || e.dj) && (
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                              {e.tecnica && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                                  ✓ Técnica
+                                </span>
+                              )}
+                              {e.tecnica_superior && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] bg-violet-500/20 text-violet-300 border border-violet-500/30">
+                                  ✓ Téc. Superior
+                                </span>
+                              )}
+                              {e.dj && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] bg-pink-500/20 text-pink-300 border border-pink-500/30">
+                                  🎧 {e.dj}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -5117,8 +5162,29 @@ export default function App() {
 
                           <div className="flex flex-wrap items-center gap-x-2 text-xs sm:text-sm mt-1 text-slate-500">
                             <span className={`${e.turno === 'Noche' ? 'text-indigo-400' : 'text-amber-400'}`}>{e.turno}</span>
-                            <span className="hidden sm:inline">• {e.vendedor}</span>
+                            <span>• {e.vendedor}</span>
                           </div>
+
+                          {/* Indicadores de servicios */}
+                          {(e.tecnica || e.tecnica_superior || e.dj) && (
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                              {e.tecnica && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                                  ✓ Técnica
+                                </span>
+                              )}
+                              {e.tecnica_superior && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] bg-violet-500/20 text-violet-300 border border-violet-500/30">
+                                  ✓ Téc. Superior
+                                </span>
+                              )}
+                              {e.dj && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] bg-pink-500/20 text-pink-300 border border-pink-500/30">
+                                  🎧 {e.dj}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
 
