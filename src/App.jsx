@@ -2413,15 +2413,12 @@ export default function App() {
     y += 20;
 
     // --- NÚMERO DE RECIBO Y FECHA ---
-    const numeroRecibo = Date.now().toString().slice(-8);
-    const ahora = new Date();
-    const hora = ahora.getHours();
-    const minutos = ahora.getMinutes().toString().padStart(2, '0');
-    const ampm = hora >= 12 ? 'p.m.' : 'a.m.';
-    const hora12 = hora % 12 || 12;
-    const fechaRecibo = ahora.toLocaleDateString('es-AR', {
+    const numeroRecibo = pagoData.id ? pagoData.id.toString().slice(-8) : Date.now().toString().slice(-8);
+    // Usar la fecha del pago, no la fecha actual
+    const fechaPago = new Date(pagoData.fecha + 'T12:00:00');
+    const fechaRecibo = fechaPago.toLocaleDateString('es-AR', {
       day: '2-digit', month: '2-digit', year: 'numeric'
-    }) + ', ' + hora12 + ':' + minutos + ' ' + ampm;
+    });
 
     doc.setFontSize(9);
     doc.setTextColor(...GRIS_SEC);
@@ -2587,16 +2584,14 @@ export default function App() {
     doc.line(marginLeft, y, pageWidth - marginRight, y);
     y += 10;
 
-    // Saldo pendiente con IVA (grande, terracota)
+    // Saldo pendiente sin IVA (grande, terracota)
     const nuevoSaldo = (evento.totalEvento || evento.total_evento || 0) - (saldoAnterior.pagadoAntes || 0) - pagoData.monto;
-    const iva = nuevoSaldo * 0.21;
-    const saldoConIva = nuevoSaldo + iva;
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     if (nuevoSaldo > 0) {
       doc.setTextColor(...TERRACOTA);
-      doc.text('SALDO PENDIENTE + IVA (21%):', colLabel, y);
-      doc.text(formatMoneyPDF(saldoConIva), colValue, y, { align: 'right' });
+      doc.text('SALDO PENDIENTE:', colLabel, y);
+      doc.text(formatMoneyPDF(nuevoSaldo) + ' + IVA', colValue, y, { align: 'right' });
     } else {
       doc.setTextColor(...VERDE_FUERTE);
       doc.text('EVENTO CANCELADO', colLabel, y);
