@@ -2585,10 +2585,12 @@ export default function App() {
     y += 10;
 
     // Saldo pendiente sin IVA (grande, terracota)
-    const nuevoSaldo = (evento.totalEvento || evento.total_evento || 0) - (saldoAnterior.pagadoAntes || 0) - pagoData.monto;
+    // Los valores ya incluyen IVA, así que dividimos por 1.21 para mostrar el neto
+    const saldoBruto = (evento.totalEvento || evento.total_evento || 0) - (saldoAnterior.pagadoAntes || 0) - pagoData.monto;
+    const nuevoSaldo = saldoBruto / 1.21;
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    if (nuevoSaldo > 0) {
+    if (saldoBruto > 0) {
       doc.setTextColor(...TERRACOTA);
       doc.text('SALDO PENDIENTE:', colLabel, y);
       doc.text(formatMoneyPDF(nuevoSaldo) + ' + IVA', colValue, y, { align: 'right' });
