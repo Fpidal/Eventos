@@ -88,6 +88,7 @@ export default function App() {
   const [filterCobranzasMes, setFilterCobranzasMes] = useState('todos');
   const [filterCobranzasEstado, setFilterCobranzasEstado] = useState('todos');
   const [filterCobranzasCliente, setFilterCobranzasCliente] = useState('');
+  const [filterDetallePagosMes, setFilterDetallePagosMes] = useState('todos');
   const [vistaCobranzas, setVistaCobranzas] = useState('estado'); // 'estado', 'detalle' o 'ipc'
 
   // Estados para IPC
@@ -106,6 +107,8 @@ export default function App() {
   const [selectedEventoPago, setSelectedEventoPago] = useState(null);
   const [nuevoPago, setNuevoPago] = useState({ fecha: '', monto: '', concepto: 'pago', porcentajeIPC: '', moneda: 'ARS', cotizacionDolar: '', cobrador: '', observaciones: '' });
   const [editingPagoId, setEditingPagoId] = useState(null);
+  const [editingIvaEventoId, setEditingIvaEventoId] = useState(null);
+  const [editingIvaValue, setEditingIvaValue] = useState('');
   const [auditoriaPagos, setAuditoriaPagos] = useState([]);
   const [auditoriaEventos, setAuditoriaEventos] = useState([]);
   const [auditoriaCaja, setAuditoriaCaja] = useState([]);
@@ -582,6 +585,27 @@ export default function App() {
       observaciones: pago.observaciones || ''
     });
     setShowPagoModal(true);
+  };
+
+  // Guardar IVA del evento
+  const handleSaveIva = async (eventoId) => {
+    const ivaValue = parseNumberInput(editingIvaValue) || 0;
+    const { error } = await supabase
+      .from('eventos')
+      .update({ iva_monto: ivaValue })
+      .eq('id', eventoId);
+
+    if (error) {
+      console.error('Error al guardar IVA:', error);
+      alert('Error al guardar el IVA');
+    } else {
+      // Actualizar estado local
+      setEventos(prev => prev.map(e =>
+        e.id === eventoId ? { ...e, iva_monto: ivaValue } : e
+      ));
+    }
+    setEditingIvaEventoId(null);
+    setEditingIvaValue('');
   };
 
   const handleDeletePago = async (pagoId, evento, pago) => {
@@ -2804,8 +2828,10 @@ export default function App() {
       // Calcular IPC acumulado dinámicamente
       const { ipcAcumulado, detalleIPC } = calcularIPCAcumulado(evento, pagosEvento, ipcMensual);
 
-      // Saldo Capital = lo que falta pagar del evento (sin IPC)
-      const saldoCapital = evento.totalEvento - pagosYSenas;
+      // IVA del evento (editable, default 0)
+      const ivaEvento = Number(evento.iva_monto) || 0;
+      // Saldo Capital = evento + IVA - pagos (sin IPC)
+      const saldoCapital = evento.totalEvento + ivaEvento - pagosYSenas;
       // Saldo Total = Capital + IPC acumulado
       const saldoTotal = saldoCapital + ipcAcumulado;
       // Total Pagado = pagos + señas
@@ -2816,6 +2842,7 @@ export default function App() {
         pagos: pagosEvento,
         pagosYSenas,
         totalPagado,
+        ivaEvento,
         ipcAcumulado,
         detalleIPC,
         saldoCapital,
@@ -5656,77 +5683,78 @@ export default function App() {
               </div>
             </div>
 
-            {/* Selector de vista */}
-            <div className="flex gap-3 flex-wrap">
-              <button
-                onClick={() => setVistaCobranzas('estado')}
-                className={`px-4 py-2 rounded-xl font-medium transition-all ${
-                  vistaCobranzas === 'estado'
-                    ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
-                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
-                }`}
-              >
-                Estado de Cuenta
-              </button>
-              <button
-                onClick={() => setVistaCobranzas('detalle')}
-                className={`px-4 py-2 rounded-xl font-medium transition-all ${
-                  vistaCobranzas === 'detalle'
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
-                }`}
-              >
-                Detalle de Pagos
-              </button>
-              <button
-                onClick={() => setVistaCobranzas('ipc')}
-                className={`px-4 py-2 rounded-xl font-medium transition-all ${
-                  vistaCobranzas === 'ipc'
-                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50'
-                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
-                }`}
-              >
-                Ajuste IPC
-              </button>
+            {/* Selector de vista + Filtros en una fila */}
+            <div className="flex flex-wrap gap-4 items-center">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setVistaCobranzas('estado')}
+                  className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                    vistaCobranzas === 'estado'
+                      ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
+                      : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                  }`}
+                >
+                  Estado de Cuenta
+                </button>
+                <button
+                  onClick={() => setVistaCobranzas('detalle')}
+                  className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                    vistaCobranzas === 'detalle'
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                      : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                  }`}
+                >
+                  Detalle de Pagos
+                </button>
+                <button
+                  onClick={() => setVistaCobranzas('ipc')}
+                  className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                    vistaCobranzas === 'ipc'
+                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50'
+                      : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                  }`}
+                >
+                  Ajuste IPC
+                </button>
+              </div>
+
+              {vistaCobranzas === 'estado' && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-400">Mes:</span>
+                    <select
+                      value={filterCobranzasMes}
+                      onChange={(e) => setFilterCobranzasMes(e.target.value)}
+                      className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                    >
+                      <option value="todos" className="bg-slate-900">Todos</option>
+                      {MESES.map((mes, idx) => (
+                        <option key={idx} value={idx} className="bg-slate-900">{mes}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-400">Estado:</span>
+                    <select
+                      value={filterCobranzasEstado}
+                      onChange={(e) => setFilterCobranzasEstado(e.target.value)}
+                      className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                    >
+                      <option value="todos" className="bg-slate-900">Todos</option>
+                      <option value="pendientes" className="bg-slate-900">Pendientes</option>
+                      <option value="saldo" className="bg-slate-900">Con Saldo</option>
+                      <option value="cancelados" className="bg-slate-900">Cancelados</option>
+                    </select>
+                  </div>
+                  <span className="text-sm text-slate-500">
+                    {cobranzasDataFiltrado.length} de {cobranzasData.length} eventos
+                  </span>
+                </>
+              )}
             </div>
 
-            {/* Vista: Estado de Cuenta */}
+            {/* Vista: Estado de Cuenta - Lista */}
             {vistaCobranzas === 'estado' && (
-              <>
-                {/* Filtros de Cobranzas */}
-                <div className="glass rounded-2xl p-4 flex flex-wrap gap-4 items-center">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-400">Mes:</span>
-                <select
-                  value={filterCobranzasMes}
-                  onChange={(e) => setFilterCobranzasMes(e.target.value)}
-                  className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
-                >
-                  <option value="todos" className="bg-slate-900">Todos</option>
-                  {MESES.map((mes, idx) => (
-                    <option key={idx} value={idx} className="bg-slate-900">{mes}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-400">Estado:</span>
-                <select
-                  value={filterCobranzasEstado}
-                  onChange={(e) => setFilterCobranzasEstado(e.target.value)}
-                  className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
-                >
-                  <option value="todos" className="bg-slate-900">Todos</option>
-                  <option value="pendientes" className="bg-slate-900">Pendientes</option>
-                  <option value="saldo" className="bg-slate-900">Con Saldo</option>
-                  <option value="cancelados" className="bg-slate-900">Cancelados</option>
-                </select>
-              </div>
-              <span className="text-sm text-slate-500">
-                {cobranzasDataFiltrado.length} de {cobranzasData.length} eventos
-              </span>
-            </div>
-
-            {/* Lista de Cobranzas */}
             <div className="glass rounded-2xl overflow-hidden glow">
               <div className="p-4 border-b border-white/10">
                 <h3 className="text-lg font-semibold">Estado de cuenta por evento</h3>
@@ -5735,32 +5763,65 @@ export default function App() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-white/10 bg-white/5">
-                      <th className="text-left px-4 py-4 text-sm font-medium text-slate-300">Fecha</th>
-                      <th className="text-left px-4 py-4 text-sm font-medium text-slate-300">Cliente</th>
-                      <th className="text-right px-4 py-4 text-sm font-medium text-slate-300">Evento</th>
-                      <th className="text-right px-4 py-4 text-sm font-medium text-slate-300">Pagos</th>
-                      <th className="text-right px-4 py-4 text-sm font-medium text-slate-300">Saldo Capital</th>
-                      <th className="text-right px-4 py-4 text-sm font-medium text-slate-300">IPC Acum.</th>
-                      <th className="text-right px-4 py-4 text-sm font-medium text-slate-300">Saldo Total</th>
-                      <th className="text-center px-4 py-4 text-sm font-medium text-slate-300">Acciones</th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-slate-300">Fecha</th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-slate-300">Cliente</th>
+                      <th className="text-right px-3 py-2 text-xs font-medium text-slate-300">Evento</th>
+                      <th className="text-right px-3 py-2 text-xs font-medium text-slate-300">IVA</th>
+                      <th className="text-right px-3 py-2 text-xs font-medium text-slate-300">Pagos</th>
+                      <th className="text-right px-3 py-2 text-xs font-medium text-slate-300">Saldo Capital</th>
+                      <th className="text-right px-3 py-2 text-xs font-medium text-slate-300">IPC Acum.</th>
+                      <th className="text-right px-3 py-2 text-xs font-medium text-slate-300">Saldo Total</th>
+                      <th className="text-center px-3 py-2 text-xs font-medium text-slate-300">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     {cobranzasDataFiltrado.map((evento) => (
                       <tr key={evento.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                        <td className="px-4 py-4 text-sm">{formatDate(evento.fecha)}</td>
-                        <td className="px-4 py-4">
-                          <p className="font-medium">{evento.cliente}</p>
-                          <p className="text-xs text-slate-400">{evento.tipoEvento}</p>
+                        <td className="px-3 py-2 text-xs">{formatDate(evento.fecha)}</td>
+                        <td className="px-3 py-2">
+                          <button
+                            onClick={() => setSelectedEvento(evento)}
+                            className="text-left hover:text-purple-400 transition-colors"
+                          >
+                            <p className="text-sm font-medium">{evento.cliente}</p>
+                            <p className="text-xs text-slate-400">{evento.tipoEvento}</p>
+                          </button>
                         </td>
-                        <td className="px-4 py-4 text-right">{displayPrice(evento.totalEvento)}</td>
-                        <td className="px-4 py-4 text-right text-emerald-400">{formatCurrency(evento.pagosYSenas)}</td>
-                        <td className="px-4 py-4 text-right">
+                        <td className="px-3 py-2 text-right text-sm">{displayPrice(evento.totalEvento)}</td>
+                        <td className="px-3 py-2 text-right">
+                          {editingIvaEventoId === evento.id ? (
+                            <input
+                              type="text"
+                              value={editingIvaValue}
+                              onChange={(e) => setEditingIvaValue(formatNumberInput(e.target.value))}
+                              onBlur={() => handleSaveIva(evento.id)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveIva(evento.id);
+                                if (e.key === 'Escape') { setEditingIvaEventoId(null); setEditingIvaValue(''); }
+                              }}
+                              className="w-20 px-1 py-0.5 text-right rounded bg-white/10 border border-purple-500/50 text-white text-xs focus:outline-none"
+                              autoFocus
+                            />
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setEditingIvaEventoId(evento.id);
+                                setEditingIvaValue(evento.ivaEvento > 0 ? formatNumber(evento.ivaEvento) : '');
+                              }}
+                              className="text-sm text-slate-400 hover:text-purple-400 transition-colors"
+                              title="Editar IVA"
+                            >
+                              {evento.ivaEvento > 0 ? formatCurrency(evento.ivaEvento) : '-'}
+                            </button>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right text-sm text-emerald-400">{formatCurrency(evento.pagosYSenas)}</td>
+                        <td className="px-3 py-2 text-right text-sm">
                           <span className={evento.saldoCapital > 0 ? 'text-slate-300' : 'text-emerald-400'}>
                             {displayPrice(evento.saldoCapital)}
                           </span>
                         </td>
-                        <td className="px-4 py-4 text-right relative">
+                        <td className="px-3 py-2 text-right text-sm relative">
                           {evento.ipcAcumulado > 0 ? (
                             <div className="relative inline-block">
                               <button
@@ -5806,12 +5867,12 @@ export default function App() {
                             <span className="text-slate-500">-</span>
                           )}
                         </td>
-                        <td className="px-4 py-4 text-right">
+                        <td className="px-3 py-2 text-right text-sm">
                           <span className={`font-semibold ${evento.saldoTotal > 0 ? 'text-amber-400' : evento.saldoTotal < 0 ? 'text-blue-400' : 'text-emerald-400'}`}>
                             {displayPrice(evento.saldoTotal)}
                           </span>
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-3 py-2">
                           {canCreate && (
                             <div className="flex items-center justify-center gap-2">
                               <button
@@ -5835,7 +5896,6 @@ export default function App() {
                 </table>
               </div>
             </div>
-              </>
             )}
 
             {/* Vista: Detalle de pagos */}
@@ -5856,9 +5916,29 @@ export default function App() {
                       ))}
                     </select>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-400">Mes:</span>
+                    <select
+                      value={filterDetallePagosMes}
+                      onChange={(e) => setFilterDetallePagosMes(e.target.value)}
+                      className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
+                    >
+                      <option value="todos" className="bg-slate-900">Todos</option>
+                      {MESES.map((mes, idx) => (
+                        <option key={idx} value={idx} className="bg-slate-900">{mes}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               <div className="space-y-4">
-                {cobranzasData.filter(e => e.pagos.length > 0 && (filterCobranzasCliente === '' || e.cliente === filterCobranzasCliente)).map(evento => (
+                {cobranzasData
+                  .filter(e => e.pagos.length > 0 && (filterCobranzasCliente === '' || e.cliente === filterCobranzasCliente))
+                  .map(evento => {
+                    const pagosFiltrados = filterDetallePagosMes === 'todos'
+                      ? evento.pagos
+                      : evento.pagos.filter(p => new Date(p.fecha).getMonth() === parseInt(filterDetallePagosMes));
+                    if (pagosFiltrados.length === 0) return null;
+                    return (
                   <div key={evento.id} className="p-4 rounded-xl bg-white/5 border border-white/10">
                     <div className="flex items-center justify-between mb-3">
                       <div>
@@ -5873,7 +5953,7 @@ export default function App() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      {evento.pagos.map(pago => (
+                      {pagosFiltrados.map(pago => (
                         <div key={pago.id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-white/5">
                           <div className="flex items-center gap-3">
                             <span className={`px-2 py-0.5 rounded text-xs ${
@@ -5940,7 +6020,8 @@ export default function App() {
                       ))}
                     </div>
                   </div>
-                ))}
+                    );
+                  })}
                 {cobranzasData.filter(e => e.pagos.length > 0).length === 0 && (
                   <p className="text-center text-slate-400 py-8">No hay pagos registrados</p>
                 )}
