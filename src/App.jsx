@@ -1874,9 +1874,10 @@ export default function App() {
 
     y += 10;
 
-    // --- FECHAS ---
-    const fechaHoy = new Date().toLocaleDateString('es-AR');
-    const fechaValidez = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('es-AR');
+    // --- FECHAS (usar fecha de creación del evento, no fecha actual) ---
+    const fechaCreacion = new Date(evento.created_at);
+    const fechaHoy = fechaCreacion.toLocaleDateString('es-AR');
+    const fechaValidez = new Date(fechaCreacion.getTime() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('es-AR');
 
     doc.setFontSize(10);
     doc.setTextColor(...GRIS_SEC);
@@ -3539,12 +3540,16 @@ export default function App() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 overflow-y-auto" onClick={(e) => e.target === e.currentTarget && setSelectedEvento(null)}>
           <div className="glass rounded-2xl p-4 w-full max-w-md max-h-[95vh] overflow-y-auto my-auto">
             {/* Header con cliente y botón cerrar */}
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-1">
               <h2 className="text-lg font-bold truncate">{selectedEvento.cliente}</h2>
               <button onClick={() => setSelectedEvento(null)} className="p-1 hover:bg-white/10 rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
+            {/* Fecha de cotización */}
+            <p className="text-[10px] text-slate-500 mb-2">
+              Cotizado: {selectedEvento.created_at ? new Date(selectedEvento.created_at).toLocaleDateString('es-AR') : '-'}
+            </p>
 
             {/* Estado + Botones PDF en una fila */}
             <div className="flex items-center gap-2 mb-2">
