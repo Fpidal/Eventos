@@ -2093,44 +2093,47 @@ export default function App() {
     if (esMobile) {
       // En móvil: generar PDF directamente y descargar
       try {
-        // Crear iframe oculto para renderizar
-        const iframe = document.createElement('iframe');
-        iframe.style.cssText = 'position:fixed;left:-9999px;width:794px;height:1123px;';
-        document.body.appendChild(iframe);
+        // Crear div oculto para renderizar (mejor que iframe en móvil)
+        const container = document.createElement('div');
+        container.style.cssText = 'position:absolute;left:-9999px;top:0;width:794px;';
+        container.innerHTML = htmlContent;
+        document.body.appendChild(container);
 
-        iframe.contentDocument.write(htmlContent);
-        iframe.contentDocument.close();
-
-        // Esperar que cargue
-        await new Promise(resolve => {
-          iframe.onload = resolve;
-          setTimeout(resolve, 2000); // Fallback timeout
-        });
+        // Esperar que carguen las fuentes
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
         // Usar html2canvas para capturar
         const html2canvas = (await import('html2canvas')).default;
-        const pages = iframe.contentDocument.querySelectorAll('.page');
+        const pages = container.querySelectorAll('.page');
 
         const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
         const pdfWidth = 210;
         const pdfHeight = 297;
 
         for (let i = 0; i < pages.length; i++) {
-          const canvas = await html2canvas(pages[i], {
-            scale: 2,
+          const page = pages[i];
+          // Forzar tamaño A4 en px (794 x 1123 a 96dpi)
+          page.style.width = '794px';
+          page.style.height = '1123px';
+          page.style.overflow = 'hidden';
+
+          const canvas = await html2canvas(page, {
+            scale: 1.5,
             useCORS: true,
             allowTaint: true,
-            backgroundColor: '#ffffff'
+            backgroundColor: '#ffffff',
+            width: 794,
+            height: 1123
           });
 
-          const imgData = canvas.toDataURL('image/jpeg', 0.95);
+          const imgData = canvas.toDataURL('image/jpeg', 0.92);
 
           if (i > 0) pdf.addPage();
           pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
         }
 
-        // Limpiar iframe
-        document.body.removeChild(iframe);
+        // Limpiar
+        document.body.removeChild(container);
 
         // Descargar PDF
         const nombreArchivo = `Cotizacion_${evento.cliente?.replace(/\s+/g, '_') || 'evento'}_${evento.fecha || 'sin_fecha'}.pdf`;
@@ -2873,8 +2876,8 @@ export default function App() {
     <div className="h-screen w-full max-w-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white overflow-hidden box-border flex flex-col">
       {/* Modal Nuevo Evento */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-2 sm:p-4 overflow-y-auto">
-          <div className="glass rounded-xl p-3 sm:p-4 w-full max-w-xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto my-auto">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-2 sm:p-4 overflow-y-auto overflow-x-hidden">
+          <div className="glass rounded-xl p-3 sm:p-4 w-full max-w-xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden my-auto">
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-sm font-bold">Nuevo Evento</h2>
               <button onClick={() => setShowModal(false)} className="p-1 hover:bg-white/10 rounded-lg">
@@ -3244,8 +3247,8 @@ export default function App() {
 
       {/* Modal Editar Evento */}
       {editMode && eventoEdit && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
-          <div className="glass rounded-xl p-3 sm:p-4 w-full max-w-xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto my-auto">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto overflow-x-hidden">
+          <div className="glass rounded-xl p-3 sm:p-4 w-full max-w-xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden my-auto">
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-sm font-bold">Editar Evento</h2>
               <button onClick={() => { setEditMode(false); setEventoEdit(null); }} className="p-1 hover:bg-white/10 rounded-lg">
