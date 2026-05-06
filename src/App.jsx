@@ -2876,8 +2876,8 @@ export default function App() {
     <div className="h-screen w-full max-w-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white overflow-hidden box-border flex flex-col">
       {/* Modal Nuevo Evento */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-2 sm:p-4 overflow-y-auto overflow-x-hidden">
-          <div className="glass rounded-xl p-3 sm:p-4 w-full max-w-xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden my-auto">
+        <div className="fixed inset-0 bg-black/70 flex items-start sm:items-center justify-center z-[60] p-2 sm:p-4 pt-10 sm:pt-4 overflow-y-auto overflow-x-hidden">
+          <div className="glass rounded-xl sm:rounded-xl p-3 sm:p-4 w-full max-w-xl max-h-[calc(100vh-60px)] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden">
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-sm font-bold">Nuevo Evento</h2>
               <button onClick={() => setShowModal(false)} className="p-1 hover:bg-white/10 rounded-lg">
@@ -3247,8 +3247,8 @@ export default function App() {
 
       {/* Modal Editar Evento */}
       {editMode && eventoEdit && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto overflow-x-hidden">
-          <div className="glass rounded-xl p-3 sm:p-4 w-full max-w-xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden my-auto">
+        <div className="fixed inset-0 bg-black/70 flex items-start sm:items-center justify-center z-50 p-2 sm:p-4 pt-10 sm:pt-4 overflow-y-auto overflow-x-hidden">
+          <div className="glass rounded-xl sm:rounded-xl p-3 sm:p-4 w-full max-w-xl max-h-[calc(100vh-60px)] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden">
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-sm font-bold">Editar Evento</h2>
               <button onClick={() => { setEditMode(false); setEventoEdit(null); }} className="p-1 hover:bg-white/10 rounded-lg">
