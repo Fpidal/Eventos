@@ -3,6 +3,8 @@ import { Calendar, Users, DollarSign, TrendingUp, Search, ChevronDown, ChevronUp
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar } from 'recharts';
 import { supabase } from './supabase';
 import { jsPDF } from 'jspdf';
+import ExcelJS from 'exceljs';
+import { generarCotizacionHTML } from './CotizacionTemplate.js';
 
 // Importar constantes y utilidades
 import {
@@ -57,7 +59,7 @@ export default function App() {
     filterClienteProximos, setFilterClienteProximos,
     filterMesAConfirmar, setFilterMesAConfirmar, filterVendedorAConfirmar, setFilterVendedorAConfirmar,
     filterClienteAConfirmar, setFilterClienteAConfirmar,
-    fetchEventos, calcularTotal, calcularTotalEdit,
+    fetchEventos, openNuevoEventoModal, calcularTotal, calcularTotalEdit,
     handleSubmit, handleEdit, handleUpdate, handleDelete,
     handleConfirmarEvento, handleAnularEvento, handleRegenerarEvento,
     eventosData, yearsDisponibles, eventosDelAño, vendedores, meses,
@@ -1480,6 +1482,308 @@ export default function App() {
     ventana.document.close();
   };
 
+  // Exportar todos los eventos a Excel (backup profesional con estilos)
+  const exportarEventosExcel = async () => {
+    try {
+      // Obtener TODOS los eventos de Supabase
+      const { data: todosEventos, error } = await supabase
+        .from('eventos')
+        .select('*')
+        .order('fecha', { ascending: false });
+
+      if (error) throw error;
+
+      // Separar eventos por estado
+      const confirmados = todosEventos.filter(e => e.confirmado && !e.anulado);
+      const pendientes = todosEventos.filter(e => !e.confirmado && !e.anulado);
+      const anulados = todosEventos.filter(e => e.anulado);
+
+      // Crear workbook
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Tero Dashboard';
+      workbook.created = new Date();
+
+      // Colores - Paleta elegante
+      const NEGRO = '1A1A1A';
+      const GRIS_OSCURO = '3D3D3D';
+      const GRIS_MEDIO = '6B6B6B';
+      const GRIS_CLARO = '9A9A9A';
+      const TERRACOTA = 'B85C38';
+      const VERDE_OLIVA = '606C38';
+
+      // Columnas con grupos visuales
+      const columnas = [
+        // GRUPO 1: Identificación (fondo dorado suave)
+        { header: 'Fecha', key: 'fecha', width: 12, grupo: 1 },
+        { header: 'Cliente', key: 'cliente', width: 28, grupo: 1 },
+        { header: 'Teléfono', key: 'telefono', width: 14, grupo: 1 },
+        { header: 'Vendedor', key: 'vendedor', width: 12, grupo: 1 },
+        { header: '', key: 'sep1', width: 2, grupo: 0 }, // Separador
+        // GRUPO 2: Evento (fondo gris)
+        { header: 'Tipo', key: 'tipo', width: 14, grupo: 2 },
+        { header: 'Salón', key: 'salon', width: 10, grupo: 2 },
+        { header: 'Turno', key: 'turno', width: 10, grupo: 2 },
+        { header: 'Horario', key: 'horario', width: 14, grupo: 2 },
+        { header: '', key: 'sep2', width: 2, grupo: 0 }, // Separador
+        // GRUPO 3: Invitados y Precios (fondo azul suave)
+        { header: 'Adultos', key: 'adultos', width: 9, grupo: 3 },
+        { header: '$ Adulto', key: 'precio_adulto', width: 14, grupo: 3 },
+        { header: 'Menores', key: 'menores', width: 9, grupo: 3 },
+        { header: '$ Menor', key: 'precio_menor', width: 14, grupo: 3 },
+        { header: 'Paquete', key: 'paquete', width: 12, grupo: 3 },
+        { header: '', key: 'sep3', width: 2, grupo: 0 }, // Separador
+        // GRUPO 4: Total (fondo verde)
+        { header: 'TOTAL', key: 'total', width: 16, grupo: 4 },
+        { header: '', key: 'sep4', width: 2, grupo: 0 }, // Separador
+        // GRUPO 5: Servicios
+        { header: 'Técnica', key: 'tecnica', width: 10, grupo: 5 },
+        { header: '$ Téc', key: 'tecnica_precio', width: 12, grupo: 5 },
+        { header: 'Téc.Sup', key: 'tecnica_sup', width: 10, grupo: 5 },
+        { header: '$ Téc.Sup', key: 'tecnica_sup_precio', width: 12, grupo: 5 },
+        { header: 'DJ', key: 'dj', width: 14, grupo: 5 },
+        { header: '', key: 'sep5', width: 2, grupo: 0 }, // Separador
+        // GRUPO 6: Extras
+        { header: 'Extra 1', key: 'extra1', width: 18, grupo: 6 },
+        { header: '$ E1', key: 'extra1_valor', width: 12, grupo: 6 },
+        { header: 'Extra 2', key: 'extra2', width: 18, grupo: 6 },
+        { header: '$ E2', key: 'extra2_valor', width: 12, grupo: 6 },
+        { header: 'Extra 3', key: 'extra3', width: 18, grupo: 6 },
+        { header: '$ E3', key: 'extra3_valor', width: 12, grupo: 6 },
+        { header: '', key: 'sep6', width: 2, grupo: 0 }, // Separador
+        // GRUPO 7: Observaciones
+        { header: 'Observaciones', key: 'observaciones', width: 35, grupo: 7 },
+        { header: 'Creado', key: 'creado', width: 12, grupo: 7 },
+      ];
+
+      // Formatear moneda
+      const fmtMoneda = (v) => v ? '$' + Number(v).toLocaleString('es-AR') : '';
+
+      // Formatear fecha
+      const fmtFecha = (f) => {
+        if (!f) return '';
+        const [y, m, d] = f.split('-');
+        return `${d}/${m}/${y}`;
+      };
+
+      // Mapear evento a fila
+      const mapearFila = (e) => ({
+        fecha: fmtFecha(e.fecha),
+        cliente: e.cliente || '',
+        telefono: e.telefono || '',
+        vendedor: e.vendedor || '',
+        sep1: '',
+        tipo: e.tipo_evento || '',
+        salon: e.salon || '',
+        turno: e.turno || '',
+        horario: (e.hora_inicio || '') + (e.hora_fin ? ' - ' + e.hora_fin : ''),
+        sep2: '',
+        adultos: e.adultos || 0,
+        precio_adulto: fmtMoneda(e.precio_adulto),
+        menores: e.menores || 0,
+        precio_menor: fmtMoneda(e.precio_menor),
+        paquete: e.opcion_sugerida || 'Libre',
+        sep3: '',
+        total: fmtMoneda(e.total_evento),
+        sep4: '',
+        tecnica: e.tecnica ? 'Sí' : '',
+        tecnica_precio: e.tecnica ? fmtMoneda(e.tecnica_precio) : '',
+        tecnica_sup: e.tecnica_superior ? 'Sí' : '',
+        tecnica_sup_precio: e.tecnica_superior ? fmtMoneda(e.tecnica_superior_precio) : '',
+        dj: e.dj || '',
+        sep5: '',
+        extra1: e.extra1_desc ? (e.extra1_confirmado ? '✓ ' : '') + e.extra1_desc : '',
+        extra1_valor: e.extra1_desc ? fmtMoneda(e.extra1_valor) : '',
+        extra2: e.extra2_desc ? (e.extra2_confirmado ? '✓ ' : '') + e.extra2_desc : '',
+        extra2_valor: e.extra2_desc ? fmtMoneda(e.extra2_valor) : '',
+        extra3: e.extra3_desc ? (e.extra3_confirmado ? '✓ ' : '') + e.extra3_desc : '',
+        extra3_valor: e.extra3_desc ? fmtMoneda(e.extra3_valor) : '',
+        sep6: '',
+        observaciones: e.otros || '',
+        creado: e.created_at ? new Date(e.created_at).toLocaleDateString('es-AR') : '',
+      });
+
+      // Colores de fondo por grupo - Paleta elegante
+      const coloresFondo = {
+        1: 'F5F5F5', // Gris muy claro (Identificación)
+        2: 'EBEBEB', // Gris claro (Evento)
+        3: 'F5F5F5', // Gris muy claro (Invitados)
+        4: 'E8EDE0', // Verde oliva muy suave (Total)
+        5: 'F0E6E0', // Terracota muy suave (Servicios)
+        6: 'EBEBEB', // Gris claro (Extras)
+        7: 'F5F5F5', // Gris muy claro (Observaciones)
+        0: 'FFFFFF', // Separador blanco
+      };
+
+      // Función para crear hoja con estilos
+      const crearHojaEstilizada = (nombre, datos, colorEncabezado) => {
+        const ws = workbook.addWorksheet(nombre, {
+          views: [{ showGridLines: false }] // Sin líneas de cuadrícula
+        });
+
+        // Configurar columnas
+        ws.columns = columnas;
+
+        // Estilo encabezado
+        const headerRow = ws.getRow(1);
+        headerRow.height = 28;
+        headerRow.eachCell((cell, colNumber) => {
+          const col = columnas[colNumber - 1];
+          if (col.grupo === 0) {
+            // Separador
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF' } };
+          } else {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorEncabezado } };
+            cell.font = { bold: true, color: { argb: 'FFFFFF' }, size: 10 };
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            cell.border = {
+              bottom: { style: 'medium', color: { argb: NEGRO } }
+            };
+          }
+        });
+
+        // Agregar datos
+        datos.forEach((evento, idx) => {
+          const fila = mapearFila(evento);
+          const row = ws.addRow(fila);
+          row.height = 22;
+
+          // Estilo alterno de filas
+          const esFilaPar = idx % 2 === 0;
+
+          row.eachCell((cell, colNumber) => {
+            const col = columnas[colNumber - 1];
+
+            if (col.grupo === 0) {
+              // Separador - fondo blanco
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF' } };
+            } else {
+              // Fondo según grupo (más suave en filas pares)
+              const colorBase = coloresFondo[col.grupo];
+              cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: esFilaPar ? colorBase : 'FFFFFF' }
+              };
+            }
+
+            cell.alignment = { vertical: 'middle', horizontal: col.key.includes('$') || col.key === 'total' || col.key === 'adultos' || col.key === 'menores' ? 'right' : 'left' };
+            cell.font = { size: 9 };
+
+            // Columna TOTAL en negrita verde oliva
+            if (col.key === 'total') {
+              cell.font = { bold: true, size: 10, color: { argb: VERDE_OLIVA } };
+            }
+
+            // Columna Cliente en negrita
+            if (col.key === 'cliente') {
+              cell.font = { bold: true, size: 9 };
+            }
+
+            // Borde inferior sutil
+            cell.border = {
+              bottom: { style: 'thin', color: { argb: 'E5E7EB' } }
+            };
+          });
+        });
+
+        // Congelar primera fila
+        ws.views = [{ state: 'frozen', ySplit: 1, showGridLines: false }];
+
+        return ws;
+      };
+
+      // Crear hojas
+      if (confirmados.length > 0) {
+        crearHojaEstilizada('Confirmados', confirmados, VERDE_OLIVA);
+      }
+      if (pendientes.length > 0) {
+        crearHojaEstilizada('Pendientes', pendientes, GRIS_MEDIO);
+      }
+      if (anulados.length > 0) {
+        crearHojaEstilizada('Anulados', anulados, TERRACOTA);
+      }
+
+      // Hoja RESUMEN
+      const wsResumen = workbook.addWorksheet('Resumen', {
+        views: [{ showGridLines: false }]
+      });
+
+      // Título
+      wsResumen.mergeCells('A1:C1');
+      const titulo = wsResumen.getCell('A1');
+      titulo.value = 'BACKUP DE EVENTOS - TERO RESTAURANTE';
+      titulo.font = { bold: true, size: 18, color: { argb: NEGRO } };
+      titulo.alignment = { horizontal: 'center' };
+
+      wsResumen.getCell('A3').value = 'Fecha de exportación:';
+      wsResumen.getCell('B3').value = new Date().toLocaleString('es-AR');
+      wsResumen.getCell('B3').font = { bold: true };
+
+      // Resumen de estados
+      wsResumen.getCell('A5').value = 'RESUMEN';
+      wsResumen.getCell('A5').font = { bold: true, size: 14, color: { argb: NEGRO } };
+
+      const datosResumen = [
+        ['Total eventos:', todosEventos.length],
+        ['Confirmados:', confirmados.length],
+        ['Pendientes:', pendientes.length],
+        ['Anulados:', anulados.length],
+      ];
+
+      datosResumen.forEach((fila, i) => {
+        wsResumen.getCell(`A${7 + i}`).value = fila[0];
+        wsResumen.getCell(`B${7 + i}`).value = fila[1];
+        wsResumen.getCell(`B${7 + i}`).font = { bold: true };
+
+        // Color según tipo
+        if (i === 1) wsResumen.getCell(`B${7 + i}`).font = { bold: true, color: { argb: VERDE_OLIVA } };
+        if (i === 2) wsResumen.getCell(`B${7 + i}`).font = { bold: true, color: { argb: GRIS_MEDIO } };
+        if (i === 3) wsResumen.getCell(`B${7 + i}`).font = { bold: true, color: { argb: TERRACOTA } };
+      });
+
+      // Por vendedor
+      wsResumen.getCell('A13').value = 'POR VENDEDOR';
+      wsResumen.getCell('A13').font = { bold: true, size: 12 };
+
+      VENDEDORES.forEach((v, i) => {
+        wsResumen.getCell(`A${15 + i}`).value = v;
+        wsResumen.getCell(`B${15 + i}`).value = todosEventos.filter(e => e.vendedor === v).length;
+      });
+
+      // Por salón
+      const offsetSalon = 15 + VENDEDORES.length + 2;
+      wsResumen.getCell(`A${offsetSalon}`).value = 'POR SALÓN';
+      wsResumen.getCell(`A${offsetSalon}`).font = { bold: true, size: 12 };
+
+      ['Tero', 'Cristal', 'Salentein'].forEach((s, i) => {
+        wsResumen.getCell(`A${offsetSalon + 2 + i}`).value = s;
+        wsResumen.getCell(`B${offsetSalon + 2 + i}`).value = todosEventos.filter(e => e.salon === s).length;
+      });
+
+      wsResumen.getColumn('A').width = 25;
+      wsResumen.getColumn('B').width = 15;
+
+      // Generar nombre de archivo
+      const hoy = new Date().toISOString().split('T')[0];
+      const nombreArchivo = `eventos_backup_${hoy}.xlsx`;
+
+      // Descargar
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = nombreArchivo;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      alert(`✅ Backup exportado: ${nombreArchivo}\n\n📊 ${confirmados.length} confirmados\n📋 ${pendientes.length} pendientes\n❌ ${anulados.length} anulados\n\nGuardá el archivo en:\nDesktop/Informes IA/Backup`);
+    } catch (err) {
+      console.error('Error exportando:', err);
+      alert('❌ Error al exportar: ' + err.message);
+    }
+  };
+
   // Generar PDF Resumen Operativo (para encargados y cocina) - Blanco y Negro
   const generarPDF = (evento) => {
     const doc = new jsPDF({
@@ -1780,609 +2084,38 @@ export default function App() {
   };
 
   const generarCotizacion = (evento, menuData = null) => {
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
+    // Generar HTML de la cotización
+    const htmlContent = generarCotizacionHTML(evento);
 
-    // ============ COLORES (RGB) - Verde Oliva ============
-    const VERDE_TERO = [85, 107, 47];       // #556B2F - verde oliva oscuro
-    const VERDE_SUAVE = [245, 245, 235];    // #F5F5EB - verde oliva muy claro
-    const VERDE_OSCURO = [107, 142, 35];    // #6B8E23 - olive drab
-    const NEGRO = [17, 24, 39];             // #111827
-    const GRIS_TEXTO = [55, 65, 81];        // #374151
-    const GRIS_SEC = [107, 114, 128];       // #6B7280
-    const GRIS_LINEA = [229, 231, 235];     // #E5E7EB
-
-    // ============ MEDIDAS ============
-    const pageWidth = 210;
-    const pageHeight = 297;
-    const marginLeft = 22;
-    const marginRight = 22;
-    const contentWidth = pageWidth - marginLeft - marginRight;
-    const centerX = pageWidth / 2;
-
-    let y = 20;
-
-    // ============ HELPERS ============
-    const formatMoneyPDF = (num) => {
-      if (!num && num !== 0) return '$0';
-      return '$' + Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    };
-
-    const drawLine = (yPos, color = GRIS_LINEA, width = 0.3) => {
-      doc.setDrawColor(...color);
-      doc.setLineWidth(width);
-      doc.line(marginLeft, yPos, pageWidth - marginRight, yPos);
-    };
-
-    const drawBlock = (x, yPos, w, h, fillColor = VERDE_SUAVE) => {
-      doc.setFillColor(...fillColor);
-      doc.rect(x, yPos, w, h, 'F');
-    };
-
-    const drawSectionTitle = (title, yPos) => {
-      const textWidth = doc.getStringUnitWidth(title) * 11 / doc.internal.scaleFactor;
-      const lineY = yPos;
-      const gap = 4;
-
-      doc.setDrawColor(...GRIS_LINEA);
-      doc.setLineWidth(0.3);
-      doc.line(marginLeft, lineY, centerX - textWidth/2 - gap, lineY);
-      doc.line(centerX + textWidth/2 + gap, lineY, pageWidth - marginRight, lineY);
-
-      doc.setFontSize(11);
-      doc.setTextColor(...GRIS_SEC);
-      doc.setFont('helvetica', 'normal');
-      doc.text(title, centerX, lineY + 0.5, { align: 'center' });
-
-      return yPos + 10;
-    };
-
-    // ============ PÁGINA 1 ============
-
-    // --- LOGO (imagen) ---
-    try {
-      doc.addImage('/logo-tero.jpg', 'JPEG', centerX - 20, y, 40, 25);
-      y += 30;
-    } catch (e) {
-      // Fallback a texto si no hay imagen
-      doc.setFontSize(24);
-      doc.setTextColor(...VERDE_OSCURO);
-      doc.setFont('helvetica', 'bold');
-      doc.text('TERO RESTAURANTE Y SALÓN DE EVENTOS', centerX, y + 12, { align: 'center' });
-      y += 20;
+    // Abrir nueva ventana
+    const ventana = window.open('', '_blank', 'width=800,height=600');
+    if (!ventana) {
+      alert('Por favor, habilite las ventanas emergentes para generar la cotización.');
+      return;
     }
 
-    // --- TÍTULO COTIZACIÓN (centrado manualmente) ---
-    doc.setFontSize(14);
-    doc.setTextColor(...NEGRO);
-    doc.setFont('helvetica', 'bold');
-    const tituloCot = 'COTIZACIÓN DE EVENTO';
-    const tituloWidth = doc.getStringUnitWidth(tituloCot) * 14 / doc.internal.scaleFactor;
-    const tituloX = (pageWidth - tituloWidth) / 2;
-    doc.text(tituloCot, tituloX, y);
+    // Escribir el HTML
+    ventana.document.write(htmlContent);
+    ventana.document.close();
 
-    y += 5;
-    // Línea centrada debajo del título
-    const lineaWidth = tituloWidth + 10;
-    const lineaX = (pageWidth - lineaWidth) / 2;
-    doc.setDrawColor(...VERDE_TERO);
-    doc.setLineWidth(0.8);
-    doc.line(lineaX, y, lineaX + lineaWidth, y);
-
-    y += 10;
-
-    // --- FECHAS (usar fecha de creación del evento, no fecha actual) ---
-    const fechaCreacion = new Date(evento.created_at);
-    const fechaHoy = fechaCreacion.toLocaleDateString('es-AR');
-    const fechaValidez = new Date(fechaCreacion.getTime() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('es-AR');
-
-    doc.setFontSize(10);
-    doc.setTextColor(...GRIS_SEC);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Fecha: ' + fechaHoy, marginLeft, y);
-    doc.text('Válida hasta: ' + fechaValidez, pageWidth - marginRight, y, { align: 'right' });
-
-    y += 12;
-
-    // --- DATOS DEL CLIENTE ---
-    y = drawSectionTitle('DATOS DEL CLIENTE', y);
-
-    const clienteBlockY = y;
-    const clienteBlockH = 12;
-    // Dibujar bloque ANTES del texto
-    drawBlock(marginLeft, clienteBlockY, contentWidth, clienteBlockH);
-
-    doc.setFontSize(10);
-    doc.setTextColor(...GRIS_SEC);
-    doc.text('Cliente:', marginLeft + 5, y + 7);
-    doc.setTextColor(...NEGRO);
-    doc.setFont('helvetica', 'bold');
-    doc.text(evento.cliente || evento.nombre || 'N/A', marginLeft + 20, y + 7);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...GRIS_SEC);
-    doc.text('Tel:', centerX + 10, y + 7);
-    doc.setTextColor(...NEGRO);
-    doc.setFont('helvetica', 'bold');
-    doc.text(evento.telefono || 'N/A', centerX + 20, y + 7);
-    doc.setFont('helvetica', 'normal');
-
-    y += clienteBlockH + 6;
-
-    // --- DETALLES DEL EVENTO ---
-    y = drawSectionTitle('DETALLES DEL EVENTO', y);
-
-    const detalleBlockY = y;
-    const detalleBlockH = 24;
-    // Dibujar bloque ANTES del texto
-    drawBlock(marginLeft, detalleBlockY, contentWidth, detalleBlockH);
-
-    const col1 = marginLeft + 5;
-    const col1Val = marginLeft + 18;
-    const col2 = centerX + 5;
-    const col2Val = centerX + 25;
-
-    let fechaEvento = evento.fecha || 'N/A';
-    if (evento.fecha) {
-      try {
-        const date = new Date(evento.fecha + 'T12:00:00');
-        const dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-        const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-        fechaEvento = dias[date.getDay()] + ', ' + date.getDate() + ' de ' + meses[date.getMonth()] + ' de ' + date.getFullYear();
-        fechaEvento = fechaEvento.charAt(0).toUpperCase() + fechaEvento.slice(1);
-      } catch (e) {
-        fechaEvento = evento.fecha;
-      }
-    }
-
-    // Fila 1: Evento y Turno
-    doc.setFontSize(10);
-    doc.setTextColor(...GRIS_SEC);
-    doc.text('Evento:', col1, y + 6);
-    doc.setTextColor(...NEGRO);
-    doc.setFont('helvetica', 'bold');
-    doc.text(evento.tipo_evento || evento.tipo || 'N/A', col1Val, y + 6);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...GRIS_SEC);
-    doc.text('Turno:', col2, y + 6);
-    const turnoText = evento.turno || 'Noche';
-    const horaText = evento.hora_inicio && evento.hora_fin ? ' (' + evento.hora_inicio + ' - ' + evento.hora_fin + ')' : '';
-    doc.setTextColor(...NEGRO);
-    doc.setFont('helvetica', 'bold');
-    doc.text(turnoText + horaText, col2Val, y + 6);
-
-    // Fila 2: Fecha e Invitados
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...GRIS_SEC);
-    doc.text('Fecha:', col1, y + 12);
-    doc.setTextColor(...NEGRO);
-    doc.text(fechaEvento, col1Val, y + 12);
-
-    doc.setTextColor(...GRIS_SEC);
-    doc.text('Invitados:', col2, y + 12);
-    let invitadosText = (evento.adultos || 0) + ' adultos';
-    if (evento.menores && evento.menores > 0) {
-      invitadosText += ', ' + evento.menores + ' menores';
-    }
-    doc.setTextColor(...NEGRO);
-    doc.setFont('helvetica', 'bold');
-    doc.text(invitadosText, col2Val, y + 12);
-
-    // Fila 3: Salón
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...GRIS_SEC);
-    doc.text('Salón:', col1, y + 18);
-    doc.setTextColor(...NEGRO);
-    doc.setFont('helvetica', 'bold');
-    doc.text(evento.salon || 'N/A', col1Val, y + 18);
-
-    doc.setFont('helvetica', 'normal');
-    y += detalleBlockH + 8;
-
-    // --- MENÚ (ancho completo) ---
-    const menuDetalle = evento.menu_detalle;
-    const menuTitulo = (menuDetalle?.nombre || evento.menu || 'Menu 3 Pasos').toUpperCase();
-
-    // Guardar posición inicial del recuadro
-    const menuBoxY = y - 2;
-    const menuPadding = 5;
-    const menuHeaderH = 8;
-
-    // Header con fondo verde oliva y texto blanco centrado
-    doc.setFillColor(...VERDE_TERO);
-    doc.rect(marginLeft, menuBoxY, contentWidth, menuHeaderH, 'F');
-    doc.setFontSize(11);
-    doc.setTextColor(255, 255, 255); // Blanco
-    doc.setFont('helvetica', 'bold');
-    doc.text('MENÚ: ' + menuTitulo, centerX, menuBoxY + 5.5, { align: 'center' });
-
-    y = menuBoxY + menuHeaderH + 4;
-
-    // Items del menú desde menu_detalle - 2 columnas
-    if (menuDetalle && menuDetalle.categorias) {
-      const menuColLeft = marginLeft + menuPadding;
-      const menuColRight = centerX + 5;
-
-      // Filtrar categorías con items
-      const categoriasConItems = menuDetalle.categorias.filter(c => c.items && c.items.length > 0);
-      const totalCategorias = categoriasConItems.length;
-      const mitad = Math.ceil(totalCategorias / 2);
-
-      // Columna izquierda: primeras categorías
-      const categoriasIzq = categoriasConItems.slice(0, mitad);
-      // Columna derecha: últimas categorías
-      const categoriasDer = categoriasConItems.slice(mitad);
-
-      let yLeft = y;
-      let yRight = y;
-
-      // Función para truncar texto si es muy largo
-      const truncarTexto = (texto, maxChars) => {
-        if (texto.length > maxChars) {
-          return texto.substring(0, maxChars - 2) + '...';
-        }
-        return texto;
-      };
-
-      // Función para obtener sufijo de categoría
-      const getSufijoCat = (nombreCat) => {
-        if (nombreCat === 'Cazuelas') return ' (2 a elección)';
-        if (nombreCat === 'Fin de Fiesta') return ' (una opción)';
-        return '';
-      };
-
-      // Dibujar columna izquierda
-      categoriasIzq.forEach(categoria => {
-        doc.setFontSize(10);
-        doc.setTextColor(...VERDE_TERO);
-        doc.setFont('helvetica', 'bold');
-        const sufijo = getSufijoCat(categoria.nombre);
-        doc.text(categoria.nombre + sufijo, menuColLeft, yLeft);
-        yLeft += 5;
-
-        doc.setFontSize(9);
-        doc.setTextColor(...GRIS_TEXTO);
-        doc.setFont('helvetica', 'normal');
-
-        categoria.items.forEach(item => {
-          const itemTruncado = truncarTexto(item, 38);
-          doc.text('• ' + itemTruncado, menuColLeft, yLeft);
-          yLeft += 4;
+    // Esperar que carguen las fuentes y luego imprimir
+    ventana.onload = () => {
+      // Esperar que carguen las fuentes de Google
+      if (ventana.document.fonts && ventana.document.fonts.ready) {
+        ventana.document.fonts.ready.then(() => {
+          setTimeout(() => {
+            ventana.print();
+            ventana.onafterprint = () => ventana.close();
+          }, 100);
         });
-        yLeft += 3;
-      });
-
-      // Dibujar columna derecha
-      categoriasDer.forEach(categoria => {
-        doc.setFontSize(10);
-        doc.setTextColor(...VERDE_TERO);
-        doc.setFont('helvetica', 'bold');
-        const sufijo = getSufijoCat(categoria.nombre);
-        doc.text(categoria.nombre + sufijo, menuColRight, yRight);
-        yRight += 5;
-
-        doc.setFontSize(9);
-        doc.setTextColor(...GRIS_TEXTO);
-        doc.setFont('helvetica', 'normal');
-
-        categoria.items.forEach(item => {
-          const itemTruncado = truncarTexto(item, 38);
-          doc.text('• ' + itemTruncado, menuColRight, yRight);
-          yRight += 4;
-        });
-        yRight += 3;
-      });
-
-      // Usar la altura máxima de ambas columnas
-      y = Math.max(yLeft, yRight) + 2;
-    }
-
-    // Dibujar recuadro alrededor del menú
-    const menuBoxH = y - menuBoxY + 2;
-    doc.setDrawColor(...VERDE_TERO);
-    doc.setLineWidth(0.5);
-    doc.rect(marginLeft, menuBoxY, contentWidth, menuBoxH);
-
-    y += 8;
-
-    // --- DETALLE DE PRECIOS ---
-    // Verificar si necesitamos nueva página (espacio para tabla completa ~80mm)
-    if (y > 200) {
-      doc.addPage();
-      y = 25;
-    }
-
-    doc.setFontSize(13);
-    doc.setTextColor(...NEGRO);
-    doc.setFont('helvetica', 'bold');
-    doc.text('DETALLE DE PRECIOS', marginLeft, y);
-    y += 8;
-
-    const colConcepto = marginLeft;
-    const colCant = marginLeft + 80;
-    const colPrecio = marginLeft + 105;
-    const colSubtotal = pageWidth - marginRight;
-
-    doc.setFontSize(10);
-    doc.setTextColor(...GRIS_SEC);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Concepto', colConcepto, y);
-    doc.text('Cant.', colCant, y);
-    doc.text('Precio Unit.', colPrecio, y);
-    doc.text('Subtotal', colSubtotal, y, { align: 'right' });
-
-    y += 3;
-    drawLine(y, GRIS_LINEA, 0.3);
-    y += 6;
-
-    let subtotalGeneral = 0;
-    const adultos = evento.adultos || 0;
-    const precioAdulto = evento.precio_adulto || 0;
-    const menores = evento.menores || 0;
-    const precioMenor = evento.precio_menor || 0;
-
-    doc.setTextColor(...GRIS_TEXTO);
-
-    // Adultos
-    if (adultos > 0) {
-      const subtotalAdultos = adultos * precioAdulto;
-      subtotalGeneral += subtotalAdultos;
-      doc.text('Adultos', colConcepto, y);
-      doc.text(String(adultos), colCant, y);
-      doc.text(formatMoneyPDF(precioAdulto), colPrecio, y);
-      doc.text(formatMoneyPDF(subtotalAdultos), colSubtotal, y, { align: 'right' });
-      y += 7;
-    }
-
-    // Menores
-    if (menores > 0) {
-      const subtotalMenores = menores * precioMenor;
-      subtotalGeneral += subtotalMenores;
-      doc.text('Menores', colConcepto, y);
-      doc.text(String(menores), colCant, y);
-      doc.text(formatMoneyPDF(precioMenor), colPrecio, y);
-      doc.text(formatMoneyPDF(subtotalMenores), colSubtotal, y, { align: 'right' });
-      y += 7;
-    }
-
-    // Extras CONFIRMADOS (tildados) - suman al total
-    [1, 2, 3].forEach(i => {
-      const desc = evento[`extra${i}_desc`];
-      const valor = evento[`extra${i}_valor`] || 0;
-      const tipo = evento[`extra${i}_tipo`];
-      const confirmado = evento[`extra${i}_confirmado`];
-      if (desc && valor > 0 && confirmado) {
-        const cant = tipo === 'por_persona' ? adultos : 1;
-        const subtotalExtra = valor * cant;
-        subtotalGeneral += subtotalExtra;
-        doc.text(desc.substring(0, 30), colConcepto, y);
-        doc.text(String(cant), colCant, y);
-        doc.text(formatMoneyPDF(valor), colPrecio, y);
-        doc.text(formatMoneyPDF(subtotalExtra), colSubtotal, y, { align: 'right' });
-        y += 7;
+      } else {
+        // Fallback para browsers sin soporte de fonts.ready
+        setTimeout(() => {
+          ventana.print();
+          ventana.onafterprint = () => ventana.close();
+        }, 500);
       }
-    });
-
-    // Técnica
-    if (evento.tecnica && evento.tecnica_precio > 0) {
-      subtotalGeneral += evento.tecnica_precio;
-      doc.text('Técnica de sonido e iluminación', colConcepto, y);
-      doc.text('1', colCant, y);
-      doc.text(formatMoneyPDF(evento.tecnica_precio), colPrecio, y);
-      doc.text(formatMoneyPDF(evento.tecnica_precio), colSubtotal, y, { align: 'right' });
-      y += 7;
-    }
-
-    // Técnica Superior
-    if (evento.tecnica_superior && evento.tecnica_superior_precio > 0) {
-      subtotalGeneral += evento.tecnica_superior_precio;
-      doc.text('Técnica superior (premium)', colConcepto, y);
-      doc.text('1', colCant, y);
-      doc.text(formatMoneyPDF(evento.tecnica_superior_precio), colPrecio, y);
-      doc.text(formatMoneyPDF(evento.tecnica_superior_precio), colSubtotal, y, { align: 'right' });
-      y += 7;
-    }
-
-    y += 2;
-    drawLine(y, GRIS_LINEA, 0.3);
-    y += 8;
-
-    // Usar subtotalGeneral que ahora incluye técnica
-    const subtotal = subtotalGeneral > 0 ? subtotalGeneral : (evento.total_evento || evento.totalEvento || 0);
-    const iva = subtotal * 0.21;
-    const total = subtotal + iva;
-
-    // Subtotal en verde
-    doc.setFontSize(11);
-    doc.setTextColor(...VERDE_TERO);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Subtotal:', colPrecio, y);
-    doc.text(formatMoneyPDF(subtotal), colSubtotal, y, { align: 'right' });
-
-    y += 6;
-    doc.setTextColor(...GRIS_SEC);
-    doc.setFont('helvetica', 'normal');
-    doc.text('IVA 21%:', colPrecio, y);
-    doc.text(formatMoneyPDF(iva), colSubtotal, y, { align: 'right' });
-
-    y += 4;
-    doc.setDrawColor(...VERDE_TERO);
-    doc.setLineWidth(0.5);
-    doc.line(colPrecio - 5, y, colSubtotal, y);
-    y += 8;
-
-    // Total mismo tamaño que subtotal
-    doc.setFontSize(11);
-    doc.setTextColor(...VERDE_TERO);
-    doc.setFont('helvetica', 'bold');
-    doc.text('TOTAL:', colPrecio, y);
-    doc.text(formatMoneyPDF(total), colSubtotal, y, { align: 'right' });
-
-    y += 12;
-
-    // --- OPCIONALES (extras NO confirmados) ---
-    const extrasOpcionales = [];
-    [1, 2, 3].forEach(i => {
-      const desc = evento[`extra${i}_desc`];
-      const valor = evento[`extra${i}_valor`] || 0;
-      const tipo = evento[`extra${i}_tipo`];
-      const confirmado = evento[`extra${i}_confirmado`];
-      if (desc && valor > 0 && !confirmado) {
-        const cant = tipo === 'por_persona' ? adultos : 1;
-        const subtotalExtra = valor * cant;
-        extrasOpcionales.push({ desc, valor, cant, subtotalExtra });
-      }
-    });
-
-    if (extrasOpcionales.length > 0) {
-      doc.setFontSize(11);
-      doc.setTextColor(...NEGRO);
-      doc.setFont('helvetica', 'bold');
-      doc.text('OPCIONALES', marginLeft, y);
-      y += 6;
-
-      doc.setFontSize(9);
-      doc.setTextColor(...GRIS_SEC);
-      doc.setFont('helvetica', 'italic');
-      doc.text('(No incluidos en el total, sujetos a confirmación)', marginLeft, y);
-      y += 6;
-
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(...GRIS_TEXTO);
-      extrasOpcionales.forEach(extra => {
-        doc.text(extra.desc.substring(0, 30), colConcepto, y);
-        doc.text(String(extra.cant), colCant, y);
-        doc.text(formatMoneyPDF(extra.valor), colPrecio, y);
-        doc.text(formatMoneyPDF(extra.subtotalExtra), colSubtotal, y, { align: 'right' });
-        y += 6;
-      });
-
-      y += 8;
-    } else {
-      y += 3;
-    }
-
-    // --- SERVICIOS ADICIONALES (solo DJ, técnica va en detalle de precios) ---
-    if (evento.dj) {
-      doc.setFontSize(11);
-      doc.setTextColor(...NEGRO);
-      doc.setFont('helvetica', 'bold');
-      doc.text('SERVICIOS ADICIONALES', marginLeft, y);
-      y += 6;
-
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(...GRIS_TEXTO);
-      doc.text('• DJ: ' + evento.dj, marginLeft, y);
-      y += 10;
-    }
-
-    // --- OBSERVACIONES ---
-    if (evento.otros) {
-      doc.setFontSize(11);
-      doc.setTextColor(...NEGRO);
-      doc.setFont('helvetica', 'bold');
-      doc.text('OBSERVACIONES', marginLeft, y);
-      y += 6;
-
-      doc.setFontSize(10);
-      doc.setTextColor(...GRIS_TEXTO);
-      doc.setFont('helvetica', 'normal');
-      const obsLines = doc.splitTextToSize(evento.otros, contentWidth);
-      obsLines.forEach(line => {
-        doc.text(line, marginLeft, y);
-        y += 5;
-      });
-      y += 5;
-    }
-
-    // --- FORMAS DE PAGO ---
-    if (y > 220) {
-      doc.addPage();
-      y = 25;
-    }
-
-    doc.setFontSize(11);
-    doc.setTextColor(...NEGRO);
-    doc.setFont('helvetica', 'bold');
-    doc.text('FORMAS DE PAGO:', marginLeft, y);
-    y += 6;
-
-    const formasPago = [
-      'Los valores son sin IVA.',
-      'Anticipo del 50%',
-      'Saldos se ajustan por IPC',
-      'Cancelación 15 días antes del evento.'
-    ];
-
-    doc.setFontSize(9.5);
-    doc.setTextColor(...GRIS_SEC);
-    doc.setFont('helvetica', 'normal');
-    formasPago.forEach(item => {
-      doc.text('• ' + item, marginLeft, y);
-      y += 5;
-    });
-
-    y += 4;
-
-    // --- CANCELACION ---
-    doc.setFontSize(11);
-    doc.setTextColor(...NEGRO);
-    doc.setFont('helvetica', 'bold');
-    doc.text('CANCELACIÓN', marginLeft, y);
-    y += 6;
-
-    doc.setFontSize(9.5);
-    doc.setTextColor(...GRIS_SEC);
-    doc.setFont('helvetica', 'normal');
-
-    doc.text('• En caso de posponer por causas ajenas a la empresa, se verá otra fecha disponible.', marginLeft, y);
-    y += 5;
-
-    const cancelText1 = 'En caso de cancelar por causas ajenas a la empresa, la seña sobre el 30% de la seña';
-    const cancelText2 = 'será tomada cuando la cancelación es mayor a 2 meses de anticipación, y en caso que';
-    const cancelText3 = 'la cancelación sea con menos de 2 meses de anticipación quedará tomada en su totalidad.';
-
-    doc.text('• ' + cancelText1, marginLeft, y);
-    y += 4.5;
-    doc.text('  ' + cancelText2, marginLeft, y);
-    y += 4.5;
-    doc.text('  ' + cancelText3, marginLeft, y);
-    y += 10;
-
-    // --- OTROS ---
-    doc.setFontSize(11);
-    doc.setTextColor(...NEGRO);
-    doc.setFont('helvetica', 'bold');
-    doc.text('OTROS', marginLeft, y);
-    y += 6;
-
-    doc.setFontSize(9.5);
-    doc.setTextColor(...GRIS_SEC);
-    doc.setFont('helvetica', 'normal');
-
-    doc.text('• Propina no incluida, se sugiere entre el 7/10% del presupuesto.', marginLeft, y);
-    y += 5;
-    doc.text('• En caso de contratar un servicio externo, consultar por los seguros necesarios.', marginLeft, y);
-    y += 5;
-
-    // --- FOOTER en todas las páginas ---
-    const totalPages = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i);
-      doc.setFontSize(10);
-      doc.setTextColor(...GRIS_SEC);
-      doc.setFont('helvetica', 'italic');
-      doc.text('Gracias por confiar en Tero Restaurante y Salón de Eventos', centerX, pageHeight - 12, { align: 'center' });
-    }
-
-    // ============ GUARDAR ============
-    const fileName = 'Cotizacion_' + (evento.cliente || evento.nombre || 'evento').replace(/\s+/g, '_') + '_' + (evento.fecha || 'fecha') + '.pdf';
-    doc.save(fileName);
+    };
   };
 
   // ============ GENERADOR DE RECIBO DE PAGO ============
@@ -3089,447 +2822,247 @@ export default function App() {
     <div className="h-screen w-full max-w-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white overflow-hidden box-border flex flex-col">
       {/* Modal Nuevo Evento */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4 pt-16 sm:pt-4 overflow-hidden">
-          <div className="glass rounded-lg p-3 sm:p-4 w-full max-w-2xl max-h-[calc(100vh-5rem)] sm:max-h-[85vh] overflow-y-auto overflow-x-hidden box-border">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-1 overflow-y-auto">
+          <div className="glass rounded-xl p-2 w-full max-w-xl max-h-[90vh] overflow-y-auto my-auto scale-[0.92] origin-center">
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-sm font-bold">Nuevo Evento</h2>
-              <button onClick={() => setShowModal(false)} className="p-0.5 hover:bg-white/10 rounded">
+              <button onClick={() => setShowModal(false)} className="p-1 hover:bg-white/10 rounded-lg">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-1.5 w-full min-w-0">
-              {/* Fecha y Cliente */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <form onSubmit={handleSubmit} className="space-y-1">
+              {/* FILA 1: Fecha, Cliente, Teléfono, Vendedor */}
+              <div className="grid grid-cols-4 gap-2">
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Fecha *</label>
-                  <input
-                    type="date"
-                    required
-                    value={nuevoEvento.fecha}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, fecha: e.target.value})}
-                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
-                  />
+                  <input type="date" required value={nuevoEvento.fecha} onChange={(e) => setNuevoEvento({...nuevoEvento, fecha: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert" />
                 </div>
                 <div className="relative">
                   <label className="block text-xs text-slate-400 mb-0.5">Cliente *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Buscar o escribir nombre"
-                    value={nuevoEvento.cliente}
-                    onChange={(e) => {
-                      setNuevoEvento({...nuevoEvento, cliente: e.target.value});
-                      setShowClienteSugerencias(e.target.value.length >= 2);
-                    }}
-                    onFocus={() => nuevoEvento.cliente.length >= 2 && setShowClienteSugerencias(true)}
-                    onBlur={() => setTimeout(() => setShowClienteSugerencias(false), 200)}
-                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
-                  />
+                  <input type="text" required placeholder="Nombre" value={nuevoEvento.cliente} onChange={(e) => { setNuevoEvento({...nuevoEvento, cliente: e.target.value}); setShowClienteSugerencias(e.target.value.length >= 2); }} onFocus={() => nuevoEvento.cliente.length >= 2 && setShowClienteSugerencias(true)} onBlur={() => setTimeout(() => setShowClienteSugerencias(false), 200)} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none" />
                   {showClienteSugerencias && (
                     <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-white/20 rounded-lg shadow-xl max-h-48 overflow-y-auto">
-                      {clientes
-                        .filter(c => c.nombre?.toLowerCase().includes(nuevoEvento.cliente.toLowerCase()))
-                        .slice(0, 8)
-                        .map(c => (
-                          <div
-                            key={c.id}
-                            className="px-3 py-2 hover:bg-purple-500/20 cursor-pointer border-b border-white/5 last:border-0"
-                            onMouseDown={() => {
-                              setNuevoEvento({
-                                ...nuevoEvento,
-                                cliente: c.nombre,
-                                telefono: c.telefono || nuevoEvento.telefono
-                              });
-                              setShowClienteSugerencias(false);
-                              setTelefonoDuplicado(null);
-                            }}
-                          >
-                            <p className="text-white text-sm">{c.nombre}</p>
-                            {c.telefono && <p className="text-slate-400 text-xs">{c.telefono}</p>}
-                          </div>
-                        ))}
-                      {clientes.filter(c => c.nombre?.toLowerCase().includes(nuevoEvento.cliente.toLowerCase())).length === 0 && (
-                        <p className="px-3 py-2 text-slate-400 text-sm">Cliente nuevo - se agregará a la agenda</p>
-                      )}
+                      {clientes.filter(c => c.nombre?.toLowerCase().includes(nuevoEvento.cliente.toLowerCase())).slice(0, 8).map(c => (
+                        <div key={c.id} className="px-3 py-2 hover:bg-purple-500/20 cursor-pointer border-b border-white/5 last:border-0" onMouseDown={() => { setNuevoEvento({...nuevoEvento, cliente: c.nombre, telefono: c.telefono || nuevoEvento.telefono}); setShowClienteSugerencias(false); }}>
+                          <p className="text-white text-sm">{c.nombre}</p>
+                          {c.telefono && <p className="text-slate-400 text-xs">{c.telefono}</p>}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
-              </div>
-
-              {/* Teléfono y Vendedor */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Teléfono</label>
-                  <input
-                    type="tel"
-                    placeholder="Número de teléfono"
-                    value={nuevoEvento.telefono}
-                    onChange={(e) => {
-                      const tel = e.target.value;
-                      setNuevoEvento({...nuevoEvento, telefono: tel});
-                      // Verificar si el teléfono ya existe en agenda
-                      if (tel.length >= 8) {
-                        const existente = clientes.find(c =>
-                          c.telefono && c.telefono.replace(/\D/g, '').includes(tel.replace(/\D/g, ''))
-                        );
-                        setTelefonoDuplicado(existente || null);
-                      } else {
-                        setTelefonoDuplicado(null);
-                      }
-                    }}
-                    className={`w-full px-2 py-1.5 rounded-lg border bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none ${telefonoDuplicado ? 'border-yellow-500/50' : 'border-white/10 focus:border-purple-500/50'}`}
-                  />
-                  {telefonoDuplicado && (
-                    <p className="text-yellow-400 text-xs mt-0.5">
-                      Este teléfono ya existe: {telefonoDuplicado.nombre}
-                    </p>
-                  )}
+                  <input type="tel" value={nuevoEvento.telefono} onChange={(e) => setNuevoEvento({...nuevoEvento, telefono: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none" />
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Vendedor</label>
-                  <select
-                    value={nuevoEvento.vendedor}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, vendedor: e.target.value})}
-                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
-                  >
+                  <select value={nuevoEvento.vendedor} onChange={(e) => setNuevoEvento({...nuevoEvento, vendedor: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none">
                     {VENDEDORES.map(v => <option key={v} value={v}>{v}</option>)}
                   </select>
                 </div>
               </div>
 
-              {/* Turno y Horarios */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              {/* FILA 2: Salón, Turno, Hora Inicio, Hora Fin */}
+              <div className="grid grid-cols-4 gap-2">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-0.5">Salón</label>
+                  <select value={nuevoEvento.salon} onChange={(e) => setNuevoEvento({...nuevoEvento, salon: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none">
+                    {SALONES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Turno</label>
-                  <select
-                    value={nuevoEvento.turno}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, turno: e.target.value})}
-                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
-                  >
+                  <select value={nuevoEvento.turno} onChange={(e) => setNuevoEvento({...nuevoEvento, turno: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none">
                     {TURNOS.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Hora Inicio</label>
                   <div className="flex gap-1">
-                    <select
-                      value={nuevoEvento.hora_inicio?.split(':')[0] || ''}
-                      onChange={(e) => {
-                        const mins = nuevoEvento.hora_inicio?.split(':')[1] || '00';
-                        setNuevoEvento({...nuevoEvento, hora_inicio: e.target.value ? `${e.target.value}:${mins}` : ''});
-                      }}
-                      className="flex-1 px-1 py-1.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50"
-                    >
+                    <select value={nuevoEvento.hora_inicio?.split(':')[0] || ''} onChange={(e) => { const mins = nuevoEvento.hora_inicio?.split(':')[1] || '00'; setNuevoEvento({...nuevoEvento, hora_inicio: e.target.value ? `${e.target.value}:${mins}` : ''}); }} className="flex-1 px-1 py-1.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none">
                       <option value="">--</option>
-                      {Array.from({length: 24}, (_, i) => i.toString().padStart(2, '0')).map(h => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
+                      {Array.from({length: 24}, (_, i) => i.toString().padStart(2, '0')).map(h => (<option key={h} value={h}>{h}</option>))}
                     </select>
                     <span className="text-white self-center text-xs">:</span>
-                    <select
-                      value={nuevoEvento.hora_inicio?.split(':')[1] || ''}
-                      onChange={(e) => {
-                        const hrs = nuevoEvento.hora_inicio?.split(':')[0] || '12';
-                        setNuevoEvento({...nuevoEvento, hora_inicio: `${hrs}:${e.target.value}`});
-                      }}
-                      className="flex-1 px-1 py-1.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50"
-                    >
-                      <option value="00">00</option>
-                      <option value="15">15</option>
-                      <option value="30">30</option>
-                      <option value="45">45</option>
+                    <select value={nuevoEvento.hora_inicio?.split(':')[1] || ''} onChange={(e) => { const hrs = nuevoEvento.hora_inicio?.split(':')[0] || '12'; setNuevoEvento({...nuevoEvento, hora_inicio: `${hrs}:${e.target.value}`}); }} className="flex-1 px-1 py-1.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none">
+                      <option value="00">00</option><option value="15">15</option><option value="30">30</option><option value="45">45</option>
                     </select>
                   </div>
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Hora Fin</label>
                   <div className="flex gap-1">
-                    <select
-                      value={nuevoEvento.hora_fin?.split(':')[0] || ''}
-                      onChange={(e) => {
-                        const mins = nuevoEvento.hora_fin?.split(':')[1] || '00';
-                        setNuevoEvento({...nuevoEvento, hora_fin: e.target.value ? `${e.target.value}:${mins}` : ''});
-                      }}
-                      className="flex-1 px-1 py-1.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50"
-                    >
+                    <select value={nuevoEvento.hora_fin?.split(':')[0] || ''} onChange={(e) => { const mins = nuevoEvento.hora_fin?.split(':')[1] || '00'; setNuevoEvento({...nuevoEvento, hora_fin: e.target.value ? `${e.target.value}:${mins}` : ''}); }} className="flex-1 px-1 py-1.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none">
                       <option value="">--</option>
-                      {Array.from({length: 24}, (_, i) => i.toString().padStart(2, '0')).map(h => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
+                      {Array.from({length: 24}, (_, i) => i.toString().padStart(2, '0')).map(h => (<option key={h} value={h}>{h}</option>))}
                     </select>
                     <span className="text-white self-center text-xs">:</span>
-                    <select
-                      value={nuevoEvento.hora_fin?.split(':')[1] || ''}
-                      onChange={(e) => {
-                        const hrs = nuevoEvento.hora_fin?.split(':')[0] || '12';
-                        setNuevoEvento({...nuevoEvento, hora_fin: `${hrs}:${e.target.value}`});
-                      }}
-                      className="flex-1 px-1 py-1.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50"
-                    >
-                      <option value="00">00</option>
-                      <option value="15">15</option>
-                      <option value="30">30</option>
-                      <option value="45">45</option>
+                    <select value={nuevoEvento.hora_fin?.split(':')[1] || ''} onChange={(e) => { const hrs = nuevoEvento.hora_fin?.split(':')[0] || '12'; setNuevoEvento({...nuevoEvento, hora_fin: `${hrs}:${e.target.value}`}); }} className="flex-1 px-1 py-1.5 rounded-lg border border-white/20 bg-white/10 text-white text-sm focus:outline-none">
+                      <option value="00">00</option><option value="15">15</option><option value="30">30</option><option value="45">45</option>
                     </select>
                   </div>
                 </div>
               </div>
 
-              {/* Tipo de Evento y Salón */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {/* FILA 3: Tipo Evento, Menú Base, Menú Detallado */}
+              <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-0.5">Tipo de Evento</label>
-                  <select
-                    value={nuevoEvento.tipo_evento}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, tipo_evento: e.target.value})}
-                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
-                  >
+                  <label className="block text-xs text-slate-400 mb-0.5">Tipo Evento</label>
+                  <select value={nuevoEvento.tipo_evento} onChange={(e) => setNuevoEvento({...nuevoEvento, tipo_evento: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none">
                     {TIPOS_EVENTO.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-0.5">Salón</label>
-                  <select
-                    value={nuevoEvento.salon}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, salon: e.target.value})}
-                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
-                  >
-                    {SALONES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              {/* Menú Base y Menú Detallado */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Menú Base</label>
-                  <select
-                    value={nuevoEvento.menu}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, menu: e.target.value})}
-                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
-                  >
+                  <select value={nuevoEvento.menu} onChange={(e) => setNuevoEvento({...nuevoEvento, menu: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none">
                     {MENUS.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Menú Detallado</label>
-                  <select
-                    value={nuevoEvento.menu_detalle?.id || ''}
-                    onChange={(e) => {
-                      const selectedMenu = menus.find(m => m.id === e.target.value);
-                      setNuevoEvento({...nuevoEvento, menu_detalle: selectedMenu || null});
-                    }}
-                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
-                  >
+                  <select value={nuevoEvento.menu_detalle?.id || ''} onChange={(e) => { const selectedMenu = menus.find(m => m.id === e.target.value); setNuevoEvento({...nuevoEvento, menu_detalle: selectedMenu || null}); }} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none">
                     <option value="">Sin menú detallado</option>
                     {menus.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
                   </select>
                 </div>
               </div>
 
-              {/* Técnica, Técnica Superior, DJ */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                <div className="p-2 rounded-lg border border-white/10 bg-white/5">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <input
-                      type="checkbox"
-                      id="tecnica"
-                      checked={nuevoEvento.tecnica}
-                      onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica: e.target.checked, tecnica_precio: e.target.checked ? nuevoEvento.tecnica_precio : ''})}
-                      className="w-3.5 h-3.5 rounded accent-purple-500"
-                    />
-                    <label htmlFor="tecnica" className="flex items-center gap-1 text-xs cursor-pointer">
-                      <Mic className="w-3 h-3 text-purple-400" />
-                      Técnica
-                    </label>
+              {/* SECCIÓN TÉCNICA - siempre visible */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className={`p-2 rounded-lg border ${nuevoEvento.tecnica ? 'border-purple-500/50 bg-purple-500/10' : 'border-white/10 bg-white/5'}`}>
+                  <div className="flex items-center gap-1 mb-1">
+                    <input type="checkbox" id="tecnica_new" checked={nuevoEvento.tecnica} onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica: e.target.checked})} className="w-3 h-3 rounded accent-purple-500" />
+                    <label htmlFor="tecnica_new" className="text-[10px] cursor-pointer"><Mic className="w-3 h-3 text-purple-400 inline" /> Técnica</label>
                   </div>
-                  {nuevoEvento.tecnica && (
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="Costo: $560.000"
-                      value={formatNumberInput(nuevoEvento.tecnica_precio)}
-                      onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica_precio: parseNumberInput(e.target.value)})}
-                      className="w-full px-2 py-1 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-purple-500/50"
-                    />
-                  )}
+                  <input type="text" inputMode="numeric" placeholder="$0" value={formatNumberInput(nuevoEvento.tecnica_precio)} onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica_precio: parseNumberInput(e.target.value)})} className={`w-full px-2 py-1 rounded border text-xs focus:outline-none ${nuevoEvento.tecnica ? 'border-purple-500/30 bg-white/10 text-white' : 'border-white/10 bg-white/5 text-slate-500'}`} />
+                </div>
+                <div className={`p-2 rounded-lg border ${nuevoEvento.tecnica_superior ? 'border-amber-500/50 bg-amber-500/10' : 'border-white/10 bg-white/5'}`}>
+                  <div className="flex items-center gap-1 mb-1">
+                    <input type="checkbox" id="tecnica_superior_new" checked={nuevoEvento.tecnica_superior} onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica_superior: e.target.checked})} className="w-3 h-3 rounded accent-amber-500" />
+                    <label htmlFor="tecnica_superior_new" className="text-[10px] cursor-pointer"><Mic className="w-3 h-3 text-amber-400 inline" /> Téc.Sup</label>
+                  </div>
+                  <input type="text" inputMode="numeric" placeholder="$0" value={formatNumberInput(nuevoEvento.tecnica_superior_precio)} onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica_superior_precio: parseNumberInput(e.target.value)})} className={`w-full px-2 py-1 rounded border text-xs focus:outline-none ${nuevoEvento.tecnica_superior ? 'border-amber-500/30 bg-white/10 text-white' : 'border-white/10 bg-white/5 text-slate-500'}`} />
                 </div>
                 <div className="p-2 rounded-lg border border-white/10 bg-white/5">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <input
-                      type="checkbox"
-                      id="tecnica_superior"
-                      checked={nuevoEvento.tecnica_superior}
-                      onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica_superior: e.target.checked, tecnica_superior_precio: e.target.checked ? nuevoEvento.tecnica_superior_precio : ''})}
-                      className="w-3.5 h-3.5 rounded accent-purple-500"
-                    />
-                    <label htmlFor="tecnica_superior" className="flex items-center gap-1 text-xs cursor-pointer">
-                      <Mic className="w-3 h-3 text-amber-400" />
-                      Técnica Superior
-                    </label>
-                  </div>
-                  {nuevoEvento.tecnica_superior && (
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="Costo: $300.000"
-                      value={formatNumberInput(nuevoEvento.tecnica_superior_precio)}
-                      onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica_superior_precio: parseNumberInput(e.target.value)})}
-                      className="w-full px-2 py-1 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-400 focus:outline-none focus:border-purple-500/50"
-                    />
-                  )}
-                </div>
-                <div className="p-2 rounded-lg border border-white/10 bg-white/5">
-                  <label className="block text-xs text-slate-400 mb-1">DJ</label>
-                  <input
-                    type="text"
-                    placeholder="Nombre del DJ"
-                    value={nuevoEvento.dj}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, dj: e.target.value})}
-                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
-                  />
+                  <label className="block text-[10px] text-slate-400 mb-1">DJ</label>
+                  <input type="text" placeholder="Nombre DJ" value={nuevoEvento.dj} onChange={(e) => setNuevoEvento({...nuevoEvento, dj: e.target.value})} className="w-full px-2 py-1 rounded border border-white/10 bg-white/5 text-white text-xs focus:outline-none" />
                 </div>
               </div>
 
-              {/* Adultos y Menores con Total */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-1.5">
+              {/* FILA ADULTOS/MENORES */}
+              <div className="grid grid-cols-4 gap-2">
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Adultos *</label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    placeholder="Cant."
-                    value={nuevoEvento.adultos}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, adultos: e.target.value})}
-                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-0.5">$ Adulto</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="Precio"
-                    value={formatNumberInput(nuevoEvento.precio_adulto)}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, precio_adulto: parseNumberInput(e.target.value)})}
-                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
-                  />
+                  <input type="number" required min="0" value={nuevoEvento.adultos} onChange={(e) => setNuevoEvento({...nuevoEvento, adultos: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none" />
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Menores</label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="Cant."
-                    value={nuevoEvento.menores}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, menores: e.target.value})}
-                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
-                  />
+                  <input type="number" min="0" value={nuevoEvento.menores} onChange={(e) => setNuevoEvento({...nuevoEvento, menores: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none" />
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">$ Menor</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="Precio"
-                    value={formatNumberInput(nuevoEvento.precio_menor)}
-                    onChange={(e) => setNuevoEvento({...nuevoEvento, precio_menor: parseNumberInput(e.target.value)})}
-                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
-                  />
+                  <input type="text" inputMode="numeric" placeholder="$0" value={formatNumberInput(nuevoEvento.precio_menor)} onChange={(e) => setNuevoEvento({...nuevoEvento, precio_menor: parseNumberInput(e.target.value)})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none" />
                 </div>
-                <div className="flex flex-col justify-end">
-                  <label className="block text-xs text-slate-400 mb-0.5">Subtotal</label>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-0.5">Subtotal Menores</label>
                   <div className="px-2 py-1.5 rounded-lg bg-blue-500/20 border border-blue-500/30 text-blue-400 font-bold text-sm text-center">
-                    {displayPrice((parseInt(nuevoEvento.adultos) || 0) * (parseFloat(nuevoEvento.precio_adulto) || 0) + (parseInt(nuevoEvento.menores) || 0) * (parseFloat(nuevoEvento.precio_menor) || 0))}
+                    {displayPrice((parseInt(nuevoEvento.menores) || 0) * (parseFloat(nuevoEvento.precio_menor) || 0))}
                   </div>
                 </div>
               </div>
 
-              {/* Extras */}
-              <div className="space-y-2">
-                <label className="block text-xs text-slate-400">Extras</label>
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="grid grid-cols-1 md:grid-cols-12 gap-2 p-2 rounded-lg bg-white/5 border border-white/10 items-center">
-                    <div className="md:col-span-1 flex justify-center">
-                      <input
-                        type="checkbox"
-                        checked={nuevoEvento[`extra${i}_confirmado`] || false}
-                        onChange={(e) => setNuevoEvento({...nuevoEvento, [`extra${i}_confirmado`]: e.target.checked})}
-                        className="w-4 h-4 rounded border-white/20 bg-white/5 text-emerald-500 focus:ring-emerald-500/50"
-                        title="Confirmar extra (suma al total)"
-                      />
+              {/* SECCIÓN PAQUETES */}
+              <div className="p-2 rounded-lg border border-amber-500/30 bg-amber-500/5">
+                <label className="block text-xs text-amber-400 font-semibold mb-2">PRECIO POR ADULTO</label>
+
+                {/* Opción Precio Libre */}
+                <div className={`grid grid-cols-12 gap-2 p-1.5 rounded-lg mb-1 items-center ${!nuevoEvento.opcion_sugerida ? 'bg-slate-500/20 border border-slate-400/50' : 'bg-white/5 border border-white/10'}`}>
+                  <div className="col-span-1 flex justify-center">
+                    <input type="radio" name="paquete_new" checked={!nuevoEvento.opcion_sugerida} onChange={() => setNuevoEvento({...nuevoEvento, opcion_sugerida: ''})} className="w-4 h-4 accent-slate-400" />
+                  </div>
+                  <div className="col-span-3">
+                    <span className={`text-xs font-bold ${!nuevoEvento.opcion_sugerida ? 'text-slate-300' : 'text-white'}`}>PRECIO LIBRE</span>
+                  </div>
+                  <div className="col-span-4">
+                    <input type="text" inputMode="numeric" placeholder="$0" value={formatNumberInput(nuevoEvento.precio_adulto)} onChange={(e) => setNuevoEvento({...nuevoEvento, precio_adulto: parseNumberInput(e.target.value)})} className={`w-full px-2 py-1 rounded border text-xs focus:outline-none ${!nuevoEvento.opcion_sugerida ? 'border-slate-400/50 bg-white/10 text-white' : 'border-white/10 bg-white/5 text-slate-400'}`} />
+                  </div>
+                  <div className="col-span-4 text-right">
+                    <span className={`text-xs font-semibold ${!nuevoEvento.opcion_sugerida ? 'text-slate-300' : 'text-slate-500'}`}>
+                      → {displayPrice((parseInt(nuevoEvento.adultos) || 0) * (parseFloat(nuevoEvento.precio_adulto) || 0))}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Paquetes Classic/Premium/Gold */}
+                {[
+                  { key: 'Classic', label: 'CLASSIC', field: 'precio_classic' },
+                  { key: 'Premium', label: 'PREMIUM', field: 'precio_premium' },
+                  { key: 'Gold', label: 'GOLD', field: 'precio_gold' }
+                ].map(pkg => (
+                  <div key={pkg.key} className={`grid grid-cols-12 gap-2 p-1.5 rounded-lg mb-1 items-center ${nuevoEvento.opcion_sugerida === pkg.key ? 'bg-amber-500/20 border border-amber-500/50' : 'bg-white/5 border border-white/10'}`}>
+                    <div className="col-span-1 flex justify-center">
+                      <input type="radio" name="paquete_new" checked={nuevoEvento.opcion_sugerida === pkg.key} onChange={() => setNuevoEvento({...nuevoEvento, opcion_sugerida: pkg.key})} className="w-4 h-4 accent-amber-500" />
                     </div>
-                    <div className="md:col-span-4">
-                      <input
-                        type="text"
-                        placeholder={`Extra ${i}`}
-                        value={nuevoEvento[`extra${i}_desc`]}
-                        onChange={(e) => setNuevoEvento({...nuevoEvento, [`extra${i}_desc`]: e.target.value})}
-                        className="w-full px-2 py-1.5 rounded border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 text-xs"
-                      />
+                    <div className="col-span-3">
+                      <span className={`text-xs font-bold ${nuevoEvento.opcion_sugerida === pkg.key ? 'text-amber-400' : 'text-white'}`}>{pkg.label}</span>
                     </div>
-                    <div className="md:col-span-3">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="Valor $"
-                        value={formatNumberInput(nuevoEvento[`extra${i}_valor`])}
-                        onChange={(e) => setNuevoEvento({...nuevoEvento, [`extra${i}_valor`]: parseNumberInput(e.target.value)})}
-                        className="w-full px-2 py-1.5 rounded border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 text-xs"
-                      />
+                    <div className="col-span-4">
+                      <input type="text" inputMode="numeric" value={formatNumberInput(nuevoEvento[pkg.field])} onChange={(e) => setNuevoEvento({...nuevoEvento, [pkg.field]: parseNumberInput(e.target.value)})} className={`w-full px-2 py-1 rounded border text-xs focus:outline-none ${nuevoEvento.opcion_sugerida === pkg.key ? 'border-amber-500/50 bg-white/10 text-white' : 'border-white/10 bg-white/5 text-slate-400'}`} />
                     </div>
-                    <div className="md:col-span-4">
-                      <select
-                        value={nuevoEvento[`extra${i}_tipo`]}
-                        onChange={(e) => setNuevoEvento({...nuevoEvento, [`extra${i}_tipo`]: e.target.value})}
-                        className="w-full px-2 py-1.5 rounded border border-white/10 bg-white/5 text-white focus:outline-none focus:border-purple-500/50 text-xs"
-                      >
-                        <option value="total">Total</option>
-                        <option value="por_persona">x Persona</option>
-                      </select>
+                    <div className="col-span-4 text-right">
+                      <span className={`text-xs font-semibold ${nuevoEvento.opcion_sugerida === pkg.key ? 'text-amber-400' : 'text-slate-500'}`}>
+                        → {displayPrice((parseInt(nuevoEvento.adultos) || 0) * (parseFloat(nuevoEvento[pkg.field]) || 0))}
+                      </span>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Total Evento */}
-              <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-slate-400">Total Evento</p>
-                  <p className="text-[10px] text-slate-500">
-                    {(() => {
-                      const totalPersonas = (parseInt(nuevoEvento.adultos) || 0) + (parseInt(nuevoEvento.menores) || 0);
-                      const total = calcularTotal();
-                      const costoPP = totalPersonas > 0 ? Math.round(total / totalPersonas) : 0;
-                      return totalPersonas > 0 ? `${totalPersonas} pers. = ${formatCurrency(costoPP)}/pers.` : '';
-                    })()}
-                  </p>
+              {/* EXTRAS - compacto */}
+              <div className="p-2 rounded-lg border border-white/10 bg-white/5">
+                <label className="block text-[10px] text-slate-400 mb-1">Extras</label>
+                <div className="space-y-1">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="grid grid-cols-12 gap-1 items-center">
+                      <div className="col-span-1 flex justify-center">
+                        <input type="checkbox" checked={nuevoEvento[`extra${i}_confirmado`] || false} onChange={(e) => setNuevoEvento({...nuevoEvento, [`extra${i}_confirmado`]: e.target.checked})} className="w-3 h-3 rounded accent-emerald-500" title="Confirmar" />
+                      </div>
+                      <div className="col-span-5">
+                        <input type="text" placeholder={`Extra ${i}`} value={nuevoEvento[`extra${i}_desc`]} onChange={(e) => setNuevoEvento({...nuevoEvento, [`extra${i}_desc`]: e.target.value})} className="w-full px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-white placeholder-slate-500 text-[11px] focus:outline-none" />
+                      </div>
+                      <div className="col-span-3">
+                        <input type="text" inputMode="numeric" placeholder="$" value={formatNumberInput(nuevoEvento[`extra${i}_valor`])} onChange={(e) => setNuevoEvento({...nuevoEvento, [`extra${i}_valor`]: parseNumberInput(e.target.value)})} className="w-full px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-white text-[11px] focus:outline-none" />
+                      </div>
+                      <div className="col-span-3">
+                        <select value={nuevoEvento[`extra${i}_tipo`]} onChange={(e) => setNuevoEvento({...nuevoEvento, [`extra${i}_tipo`]: e.target.value})} className="w-full px-1 py-0.5 rounded border border-white/10 bg-white/5 text-white text-[11px] focus:outline-none">
+                          <option value="total">Total</option>
+                          <option value="por_persona">x Pers</option>
+                        </select>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <p className="text-lg font-bold text-emerald-400">{displayPrice(calcularTotal())}</p>
               </div>
 
-              {/* Otros */}
-              <div>
-                <label className="block text-xs text-slate-400 mb-0.5">Otros / Aclaraciones</label>
-                <textarea
-                  placeholder="Notas adicionales..."
-                  value={nuevoEvento.otros}
-                  onChange={(e) => setNuevoEvento({...nuevoEvento, otros: e.target.value})}
-                  rows={1}
-                  className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/50 resize-none"
-                />
+              {/* OBSERVACIONES + TOTAL + BOTÓN */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-2">
+                  <label className="block text-xs text-slate-400 mb-0.5">Observaciones</label>
+                  <textarea value={nuevoEvento.otros} onChange={(e) => setNuevoEvento({...nuevoEvento, otros: e.target.value})} rows={4} placeholder="Aclaraciones, notas especiales, requerimientos del cliente..." className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-xs focus:outline-none resize-none" />
+                </div>
+                <div className="flex flex-col justify-between">
+                  <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-center">
+                    <p className="text-[10px] text-slate-400">Total Evento</p>
+                    <p className="text-lg font-bold text-emerald-400">{displayPrice(calcularTotal())}</p>
+                  </div>
+                  <button type="submit" disabled={saving} className="py-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-1">
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                    {saving ? 'Guardando...' : 'Agregar'}
+                  </button>
+                </div>
               </div>
-
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full py-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                {saving ? 'Guardando...' : 'Agregar Evento'}
-              </button>
             </form>
           </div>
         </div>
@@ -3686,75 +3219,26 @@ export default function App() {
             </div>
 
             <form onSubmit={handleUpdate} className="space-y-1">
-              {/* Fecha, Cliente y Salón */}
-              <div className="grid grid-cols-3 gap-2">
+              {/* FILA 1: Fecha, Cliente, Teléfono, Vendedor */}
+              <div className="grid grid-cols-4 gap-2">
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Fecha *</label>
-                  <input
-                    type="date"
-                    required
-                    value={eventoEdit.fecha}
-                    onChange={(e) => setEventoEdit({...eventoEdit, fecha: e.target.value})}
-                    className="w-full px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200"
-                  />
+                  <input type="date" required value={eventoEdit.fecha} onChange={(e) => setEventoEdit({...eventoEdit, fecha: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert" />
                 </div>
                 <div className="relative">
                   <label className="block text-xs text-slate-400 mb-0.5">Cliente *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Buscar o escribir nombre"
-                    value={eventoEdit.cliente}
-                    onChange={(e) => {
-                      setEventoEdit({...eventoEdit, cliente: e.target.value});
-                      setShowClienteSugerenciasEdit(e.target.value.length >= 2);
-                    }}
-                    onFocus={() => eventoEdit.cliente?.length >= 2 && setShowClienteSugerenciasEdit(true)}
-                    onBlur={() => setTimeout(() => setShowClienteSugerenciasEdit(false), 200)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
-                  />
+                  <input type="text" required placeholder="Nombre" value={eventoEdit.cliente} onChange={(e) => { setEventoEdit({...eventoEdit, cliente: e.target.value}); setShowClienteSugerenciasEdit(e.target.value.length >= 2); }} onFocus={() => eventoEdit.cliente?.length >= 2 && setShowClienteSugerenciasEdit(true)} onBlur={() => setTimeout(() => setShowClienteSugerenciasEdit(false), 200)} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none" />
                   {showClienteSugerenciasEdit && (
                     <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-white/20 rounded-lg shadow-xl max-h-48 overflow-y-auto">
-                      {clientes
-                        .filter(c => c.nombre?.toLowerCase().includes(eventoEdit.cliente?.toLowerCase() || ''))
-                        .slice(0, 8)
-                        .map(c => (
-                          <div
-                            key={c.id}
-                            className="px-3 py-2 hover:bg-purple-500/20 cursor-pointer border-b border-white/5 last:border-0"
-                            onMouseDown={() => {
-                              setEventoEdit({
-                                ...eventoEdit,
-                                cliente: c.nombre,
-                                telefono: c.telefono || eventoEdit.telefono
-                              });
-                              setShowClienteSugerenciasEdit(false);
-                            }}
-                          >
-                            <p className="text-white text-sm">{c.nombre}</p>
-                            {c.telefono && <p className="text-slate-400 text-xs">{c.telefono}</p>}
-                          </div>
-                        ))}
-                      {clientes.filter(c => c.nombre?.toLowerCase().includes(eventoEdit.cliente?.toLowerCase() || '')).length === 0 && (
-                        <p className="px-3 py-2 text-slate-400 text-sm">Cliente nuevo - se agregará a la agenda</p>
-                      )}
+                      {clientes.filter(c => c.nombre?.toLowerCase().includes(eventoEdit.cliente?.toLowerCase() || '')).slice(0, 8).map(c => (
+                        <div key={c.id} className="px-3 py-2 hover:bg-purple-500/20 cursor-pointer border-b border-white/5 last:border-0" onMouseDown={() => { setEventoEdit({...eventoEdit, cliente: c.nombre, telefono: c.telefono || eventoEdit.telefono}); setShowClienteSugerenciasEdit(false); }}>
+                          <p className="text-white text-sm">{c.nombre}</p>
+                          {c.telefono && <p className="text-slate-400 text-xs">{c.telefono}</p>}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-0.5">Salón</label>
-                  <select
-                    value={eventoEdit.salon}
-                    onChange={(e) => setEventoEdit({...eventoEdit, salon: e.target.value})}
-                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
-                  >
-                    {SALONES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              {/* Teléfono, Vendedor, Turno, Horarios */}
-              <div className="grid grid-cols-5 gap-2">
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Teléfono</label>
                   <input type="tel" value={eventoEdit.telefono} onChange={(e) => setEventoEdit({...eventoEdit, telefono: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none" />
@@ -3763,6 +3247,16 @@ export default function App() {
                   <label className="block text-xs text-slate-400 mb-0.5">Vendedor</label>
                   <select value={eventoEdit.vendedor} onChange={(e) => setEventoEdit({...eventoEdit, vendedor: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none">
                     {VENDEDORES.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* FILA 2: Salón, Turno, Hora Inicio, Hora Fin */}
+              <div className="grid grid-cols-4 gap-2">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-0.5">Salón</label>
+                  <select value={eventoEdit.salon} onChange={(e) => setEventoEdit({...eventoEdit, salon: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none">
+                    {SALONES.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
                 <div>
@@ -3799,63 +3293,44 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Tipo Evento, Menú Base, Menú Detallado */}
+              {/* FILA 3: Tipo Evento, Menú Base, Menú Detallado */}
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Tipo Evento</label>
-                  <select
-                    value={eventoEdit.tipo_evento}
-                    onChange={(e) => setEventoEdit({...eventoEdit, tipo_evento: e.target.value})}
-                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
-                  >
+                  <select value={eventoEdit.tipo_evento} onChange={(e) => setEventoEdit({...eventoEdit, tipo_evento: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none">
                     {TIPOS_EVENTO.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Menú Base</label>
-                  <select
-                    value={eventoEdit.menu}
-                    onChange={(e) => setEventoEdit({...eventoEdit, menu: e.target.value})}
-                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
-                  >
+                  <select value={eventoEdit.menu} onChange={(e) => setEventoEdit({...eventoEdit, menu: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none">
                     {MENUS.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Menú Detallado</label>
-                  <select
-                    value={eventoEdit.menu_detalle?.id || ''}
-                    onChange={(e) => {
-                      const selectedMenu = menus.find(m => m.id === e.target.value);
-                      setEventoEdit({...eventoEdit, menu_detalle: selectedMenu || null});
-                    }}
-                    className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50"
-                  >
+                  <select value={eventoEdit.menu_detalle?.id || ''} onChange={(e) => { const selectedMenu = menus.find(m => m.id === e.target.value); setEventoEdit({...eventoEdit, menu_detalle: selectedMenu || null}); }} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none">
                     <option value="">Sin menú detallado</option>
                     {menus.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
                   </select>
                 </div>
               </div>
 
-              {/* Técnica, Técnica Superior, DJ */}
+              {/* SECCIÓN TÉCNICA - siempre visible */}
               <div className="grid grid-cols-3 gap-2">
-                <div className="p-2 rounded-lg border border-white/10 bg-white/5">
+                <div className={`p-2 rounded-lg border ${eventoEdit.tecnica ? 'border-purple-500/50 bg-purple-500/10' : 'border-white/10 bg-white/5'}`}>
                   <div className="flex items-center gap-1 mb-1">
-                    <input type="checkbox" id="tecnica_edit" checked={eventoEdit.tecnica} onChange={(e) => setEventoEdit({...eventoEdit, tecnica: e.target.checked, tecnica_precio: e.target.checked ? eventoEdit.tecnica_precio : ''})} className="w-3 h-3 rounded accent-purple-500" />
+                    <input type="checkbox" id="tecnica_edit" checked={eventoEdit.tecnica} onChange={(e) => setEventoEdit({...eventoEdit, tecnica: e.target.checked})} className="w-3 h-3 rounded accent-purple-500" />
                     <label htmlFor="tecnica_edit" className="text-[10px] cursor-pointer"><Mic className="w-3 h-3 text-purple-400 inline" /> Técnica</label>
                   </div>
-                  {eventoEdit.tecnica && (
-                    <input type="text" inputMode="numeric" placeholder="$560.000" value={formatNumberInput(eventoEdit.tecnica_precio)} onChange={(e) => setEventoEdit({...eventoEdit, tecnica_precio: parseNumberInput(e.target.value)})} className="w-full px-2 py-1 rounded border border-white/10 bg-white/5 text-white text-xs focus:outline-none" />
-                  )}
+                  <input type="text" inputMode="numeric" placeholder="$0" value={formatNumberInput(eventoEdit.tecnica_precio)} onChange={(e) => setEventoEdit({...eventoEdit, tecnica_precio: parseNumberInput(e.target.value)})} className={`w-full px-2 py-1 rounded border text-xs focus:outline-none ${eventoEdit.tecnica ? 'border-purple-500/30 bg-white/10 text-white' : 'border-white/10 bg-white/5 text-slate-500'}`} />
                 </div>
-                <div className="p-2 rounded-lg border border-white/10 bg-white/5">
+                <div className={`p-2 rounded-lg border ${eventoEdit.tecnica_superior ? 'border-amber-500/50 bg-amber-500/10' : 'border-white/10 bg-white/5'}`}>
                   <div className="flex items-center gap-1 mb-1">
-                    <input type="checkbox" id="tecnica_superior_edit" checked={eventoEdit.tecnica_superior} onChange={(e) => setEventoEdit({...eventoEdit, tecnica_superior: e.target.checked, tecnica_superior_precio: e.target.checked ? eventoEdit.tecnica_superior_precio : ''})} className="w-3 h-3 rounded accent-purple-500" />
+                    <input type="checkbox" id="tecnica_superior_edit" checked={eventoEdit.tecnica_superior} onChange={(e) => setEventoEdit({...eventoEdit, tecnica_superior: e.target.checked})} className="w-3 h-3 rounded accent-amber-500" />
                     <label htmlFor="tecnica_superior_edit" className="text-[10px] cursor-pointer"><Mic className="w-3 h-3 text-amber-400 inline" /> Téc.Sup</label>
                   </div>
-                  {eventoEdit.tecnica_superior && (
-                    <input type="text" inputMode="numeric" placeholder="$300.000" value={formatNumberInput(eventoEdit.tecnica_superior_precio)} onChange={(e) => setEventoEdit({...eventoEdit, tecnica_superior_precio: parseNumberInput(e.target.value)})} className="w-full px-2 py-1 rounded border border-white/10 bg-white/5 text-white text-xs focus:outline-none" />
-                  )}
+                  <input type="text" inputMode="numeric" placeholder="$0" value={formatNumberInput(eventoEdit.tecnica_superior_precio)} onChange={(e) => setEventoEdit({...eventoEdit, tecnica_superior_precio: parseNumberInput(e.target.value)})} className={`w-full px-2 py-1 rounded border text-xs focus:outline-none ${eventoEdit.tecnica_superior ? 'border-amber-500/30 bg-white/10 text-white' : 'border-white/10 bg-white/5 text-slate-500'}`} />
                 </div>
                 <div className="p-2 rounded-lg border border-white/10 bg-white/5">
                   <label className="block text-[10px] text-slate-400 mb-1">DJ</label>
@@ -3863,15 +3338,11 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Adultos, Menores, Subtotal */}
-              <div className="grid grid-cols-5 gap-2">
+              {/* FILA ADULTOS/MENORES */}
+              <div className="grid grid-cols-4 gap-2">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-0.5">Adultos*</label>
+                  <label className="block text-xs text-slate-400 mb-0.5">Adultos *</label>
                   <input type="number" required min="0" value={eventoEdit.adultos} onChange={(e) => setEventoEdit({...eventoEdit, adultos: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none" />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-0.5">$ Adulto</label>
-                  <input type="text" inputMode="numeric" value={formatNumberInput(eventoEdit.precio_adulto)} onChange={(e) => setEventoEdit({...eventoEdit, precio_adulto: parseNumberInput(e.target.value)})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none" />
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Menores</label>
@@ -3879,61 +3350,102 @@ export default function App() {
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">$ Menor</label>
-                  <input type="text" inputMode="numeric" value={formatNumberInput(eventoEdit.precio_menor)} onChange={(e) => setEventoEdit({...eventoEdit, precio_menor: parseNumberInput(e.target.value)})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none" />
+                  <input type="text" inputMode="numeric" placeholder="$0" value={formatNumberInput(eventoEdit.precio_menor)} onChange={(e) => setEventoEdit({...eventoEdit, precio_menor: parseNumberInput(e.target.value)})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none" />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-0.5">Subtotal</label>
+                  <label className="block text-xs text-slate-400 mb-0.5">Subtotal Menores</label>
                   <div className="px-2 py-1.5 rounded-lg bg-blue-500/20 border border-blue-500/30 text-blue-400 font-bold text-sm text-center">
-                    {displayPrice((parseInt(eventoEdit.adultos) || 0) * (parseFloat(eventoEdit.precio_adulto) || 0) + (parseInt(eventoEdit.menores) || 0) * (parseFloat(eventoEdit.precio_menor) || 0))}
+                    {displayPrice((parseInt(eventoEdit.menores) || 0) * (parseFloat(eventoEdit.precio_menor) || 0))}
                   </div>
                 </div>
               </div>
 
-              {/* Dietas especiales */}
-              <div className="grid grid-cols-3 gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                <div>
-                  <label className="block text-[10px] text-amber-400/80 mb-0.5">Celíacos</label>
-                  <input type="number" min="0" placeholder="0" value={eventoEdit.celiacos} onChange={(e) => setEventoEdit({...eventoEdit, celiacos: e.target.value})} className="w-full px-2 py-1 rounded border border-amber-500/20 bg-white/5 text-white text-xs focus:outline-none" />
+              {/* BANNER EVENTO LEGACY */}
+              {!eventoEdit.opcion_sugerida && parseFloat(eventoEdit.precio_adulto) > 0 && (
+                <div className="p-2 rounded-lg bg-amber-500/20 border border-amber-500/50 flex items-center gap-2">
+                  <span className="text-amber-400 text-lg">⚠️</span>
+                  <p className="text-xs text-amber-300">Evento cotizado antes del nuevo sistema de paquetes. Usa "Precio Libre" para mantener el precio original.</p>
                 </div>
-                <div>
-                  <label className="block text-[10px] text-amber-400/80 mb-0.5">Vegetarianos</label>
-                  <input type="number" min="0" placeholder="0" value={eventoEdit.vegetarianos} onChange={(e) => setEventoEdit({...eventoEdit, vegetarianos: e.target.value})} className="w-full px-2 py-1 rounded border border-amber-500/20 bg-white/5 text-white text-xs focus:outline-none" />
-                </div>
-                <div>
-                  <label className="block text-[10px] text-amber-400/80 mb-0.5">Veganos</label>
-                  <input type="number" min="0" placeholder="0" value={eventoEdit.veganos} onChange={(e) => setEventoEdit({...eventoEdit, veganos: e.target.value})} className="w-full px-2 py-1 rounded border border-amber-500/20 bg-white/5 text-white text-xs focus:outline-none" />
-                </div>
-              </div>
+              )}
 
-              {/* Extras compactos */}
-              <div className="space-y-1">
-                <label className="block text-xs text-slate-400">Extras</label>
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="grid grid-cols-12 gap-1 p-1.5 rounded-lg bg-white/5 border border-white/10 items-center">
+              {/* SECCIÓN PAQUETES */}
+              <div className="p-2 rounded-lg border border-amber-500/30 bg-amber-500/5">
+                <label className="block text-xs text-amber-400 font-semibold mb-2">PRECIO POR ADULTO</label>
+
+                {/* Opción Precio Libre */}
+                <div className={`grid grid-cols-12 gap-2 p-1.5 rounded-lg mb-1 items-center ${!eventoEdit.opcion_sugerida ? 'bg-slate-500/20 border border-slate-400/50' : 'bg-white/5 border border-white/10'}`}>
+                  <div className="col-span-1 flex justify-center">
+                    <input type="radio" name="paquete_edit" checked={!eventoEdit.opcion_sugerida} onChange={() => setEventoEdit({...eventoEdit, opcion_sugerida: ''})} className="w-4 h-4 accent-slate-400" />
+                  </div>
+                  <div className="col-span-3">
+                    <span className={`text-xs font-bold ${!eventoEdit.opcion_sugerida ? 'text-slate-300' : 'text-white'}`}>PRECIO LIBRE</span>
+                  </div>
+                  <div className="col-span-4">
+                    <input type="text" inputMode="numeric" placeholder="$0" value={formatNumberInput(eventoEdit.precio_adulto)} onChange={(e) => setEventoEdit({...eventoEdit, precio_adulto: parseNumberInput(e.target.value)})} className={`w-full px-2 py-1 rounded border text-xs focus:outline-none ${!eventoEdit.opcion_sugerida ? 'border-slate-400/50 bg-white/10 text-white' : 'border-white/10 bg-white/5 text-slate-400'}`} />
+                  </div>
+                  <div className="col-span-4 text-right">
+                    <span className={`text-xs font-semibold ${!eventoEdit.opcion_sugerida ? 'text-slate-300' : 'text-slate-500'}`}>
+                      → {displayPrice((parseInt(eventoEdit.adultos) || 0) * (parseFloat(eventoEdit.precio_adulto) || 0))}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Paquetes Classic/Premium/Gold */}
+                {[
+                  { key: 'Classic', label: 'CLASSIC', field: 'precio_classic' },
+                  { key: 'Premium', label: 'PREMIUM', field: 'precio_premium' },
+                  { key: 'Gold', label: 'GOLD', field: 'precio_gold' }
+                ].map(pkg => (
+                  <div key={pkg.key} className={`grid grid-cols-12 gap-2 p-1.5 rounded-lg mb-1 items-center ${eventoEdit.opcion_sugerida === pkg.key ? 'bg-amber-500/20 border border-amber-500/50' : 'bg-white/5 border border-white/10'}`}>
                     <div className="col-span-1 flex justify-center">
-                      <input type="checkbox" checked={eventoEdit[`extra${i}_confirmado`] || false} onChange={(e) => setEventoEdit({...eventoEdit, [`extra${i}_confirmado`]: e.target.checked})} className="w-4 h-4 rounded border-white/20 bg-white/5 text-emerald-500" title="Confirmar" />
-                    </div>
-                    <div className="col-span-5">
-                      <input type="text" placeholder={`Extra ${i}`} value={eventoEdit[`extra${i}_desc`]} onChange={(e) => setEventoEdit({...eventoEdit, [`extra${i}_desc`]: e.target.value})} className="w-full px-2 py-1 rounded border border-white/10 bg-white/5 text-white placeholder-slate-500 text-xs focus:outline-none" />
+                      <input type="radio" name="paquete_edit" checked={eventoEdit.opcion_sugerida === pkg.key} onChange={() => setEventoEdit({...eventoEdit, opcion_sugerida: pkg.key})} className="w-4 h-4 accent-amber-500" />
                     </div>
                     <div className="col-span-3">
-                      <input type="text" inputMode="numeric" placeholder="$" value={formatNumberInput(eventoEdit[`extra${i}_valor`])} onChange={(e) => setEventoEdit({...eventoEdit, [`extra${i}_valor`]: parseNumberInput(e.target.value)})} className="w-full px-2 py-1 rounded border border-white/10 bg-white/5 text-white text-xs focus:outline-none" />
+                      <span className={`text-xs font-bold ${eventoEdit.opcion_sugerida === pkg.key ? 'text-amber-400' : 'text-white'}`}>{pkg.label}</span>
                     </div>
-                    <div className="col-span-3">
-                      <select value={eventoEdit[`extra${i}_tipo`]} onChange={(e) => setEventoEdit({...eventoEdit, [`extra${i}_tipo`]: e.target.value})} className="w-full px-1 py-1 rounded border border-white/10 bg-white/5 text-white text-xs focus:outline-none">
-                        <option value="total">Total</option>
-                        <option value="por_persona">x Pers</option>
-                      </select>
+                    <div className="col-span-4">
+                      <input type="text" inputMode="numeric" value={formatNumberInput(eventoEdit[pkg.field])} onChange={(e) => setEventoEdit({...eventoEdit, [pkg.field]: parseNumberInput(e.target.value)})} className={`w-full px-2 py-1 rounded border text-xs focus:outline-none ${eventoEdit.opcion_sugerida === pkg.key ? 'border-amber-500/50 bg-white/10 text-white' : 'border-white/10 bg-white/5 text-slate-400'}`} />
+                    </div>
+                    <div className="col-span-4 text-right">
+                      <span className={`text-xs font-semibold ${eventoEdit.opcion_sugerida === pkg.key ? 'text-amber-400' : 'text-slate-500'}`}>
+                        → {displayPrice((parseInt(eventoEdit.adultos) || 0) * (parseFloat(eventoEdit[pkg.field]) || 0))}
+                      </span>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Total + Otros + Botón en grid */}
+              {/* EXTRAS - compacto */}
+              <div className="p-2 rounded-lg border border-white/10 bg-white/5">
+                <label className="block text-[10px] text-slate-400 mb-1">Extras</label>
+                <div className="space-y-1">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="grid grid-cols-12 gap-1 items-center">
+                      <div className="col-span-1 flex justify-center">
+                        <input type="checkbox" checked={eventoEdit[`extra${i}_confirmado`] || false} onChange={(e) => setEventoEdit({...eventoEdit, [`extra${i}_confirmado`]: e.target.checked})} className="w-3 h-3 rounded accent-emerald-500" title="Confirmar" />
+                      </div>
+                      <div className="col-span-5">
+                        <input type="text" placeholder={`Extra ${i}`} value={eventoEdit[`extra${i}_desc`]} onChange={(e) => setEventoEdit({...eventoEdit, [`extra${i}_desc`]: e.target.value})} className="w-full px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-white placeholder-slate-500 text-[11px] focus:outline-none" />
+                      </div>
+                      <div className="col-span-3">
+                        <input type="text" inputMode="numeric" placeholder="$" value={formatNumberInput(eventoEdit[`extra${i}_valor`])} onChange={(e) => setEventoEdit({...eventoEdit, [`extra${i}_valor`]: parseNumberInput(e.target.value)})} className="w-full px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-white text-[11px] focus:outline-none" />
+                      </div>
+                      <div className="col-span-3">
+                        <select value={eventoEdit[`extra${i}_tipo`]} onChange={(e) => setEventoEdit({...eventoEdit, [`extra${i}_tipo`]: e.target.value})} className="w-full px-1 py-0.5 rounded border border-white/10 bg-white/5 text-white text-[11px] focus:outline-none">
+                          <option value="total">Total</option>
+                          <option value="por_persona">x Pers</option>
+                        </select>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* OBSERVACIONES + TOTAL + BOTÓN */}
               <div className="grid grid-cols-3 gap-2">
                 <div className="col-span-2">
-                  <label className="block text-xs text-slate-400 mb-0.5">Otros / Aclaraciones</label>
-                  <textarea value={eventoEdit.otros} onChange={(e) => setEventoEdit({...eventoEdit, otros: e.target.value})} rows={2} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none resize-none" />
+                  <label className="block text-xs text-slate-400 mb-0.5">Observaciones</label>
+                  <textarea value={eventoEdit.otros} onChange={(e) => setEventoEdit({...eventoEdit, otros: e.target.value})} rows={4} placeholder="Aclaraciones, notas especiales, requerimientos del cliente..." className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-xs focus:outline-none resize-none" />
                 </div>
                 <div className="flex flex-col justify-between">
                   <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-center">
@@ -4375,7 +3887,7 @@ export default function App() {
               </div>
               {canCreate && (
                 <button
-                  onClick={() => setShowModal(true)}
+                  onClick={openNuevoEventoModal}
                   className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium hover:from-purple-700 hover:to-indigo-700 transition-all"
                 >
                   <Plus className="w-4 h-4" />
@@ -4890,7 +4402,7 @@ export default function App() {
                 <Calendar className="w-12 h-12 sm:w-16 sm:h-16 text-slate-600 mx-auto mb-4" />
                 <p className="text-slate-400 text-base sm:text-lg">No hay eventos próximos</p>
                 <button
-                  onClick={() => setShowModal(true)}
+                  onClick={openNuevoEventoModal}
                   className="mt-4 px-4 sm:px-6 py-2 rounded-lg sm:rounded-xl bg-purple-600 hover:bg-purple-700 transition-colors text-sm"
                 >
                   Agregar evento
@@ -6731,6 +6243,15 @@ export default function App() {
                 }`}
               >
                 Estadísticas
+              </button>
+
+              {/* Botón Exportar Backup */}
+              <button
+                onClick={exportarEventosExcel}
+                className="ml-auto px-4 py-2 rounded-xl font-medium transition-all bg-blue-500/20 text-blue-400 border border-blue-500/50 hover:bg-blue-500/30 flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Exportar Backup
               </button>
             </div>
 

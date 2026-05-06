@@ -1,31 +1,44 @@
 # Dashboard de Eventos
 
-Sistema de gestion de eventos para salon de fiestas con control de cobranzas, menus personalizados y generacion de cotizaciones.
+Sistema de gestión de eventos para salón de fiestas con control de cobranzas, menús personalizados y generación de cotizaciones.
 
-## Funcionalidades (MVP)
+## Funcionalidades
 
-El sistema incluye cinco modulos principales:
+El sistema incluye los siguientes módulos:
 
-1. **Dashboard** - Estadisticas de facturacion, graficos de ventas por vendedor, comensales por mes, eventos por tipo/menu/salon
+1. **Dashboard** - Estadísticas de facturación, gráficos de ventas por vendedor, comensales por mes, eventos por tipo/menú/salón
 
-2. **Gestion de Eventos** - CRUD completo, confirmacion de eventos, calendario mensual, filtros y ordenamiento
+2. **Gestión de Eventos** - CRUD completo, confirmación de eventos, calendario mensual, filtros y ordenamiento
 
-3. **Cotizaciones PDF** - Generacion automatica con desglose de Subtotal, IVA 21% y Total
+3. **Cotizaciones PDF** - Generación automática con diseño profesional, 3 paquetes (Classic/Premium/Gold) o precio libre, desglose con IVA 21%
 
-4. **Cobranzas** - Registro de pagos, senas y ajustes IPC. Filtros por estado (Pendientes/Con Saldo/Cancelados)
+4. **Cobranzas** - Registro de pagos, señas y ajustes IPC. Filtros por estado (Pendientes/Con Saldo/Cancelados)
 
-5. **Menus** - Creacion de menus personalizados con categorias, platos predefinidos y extras
+5. **Menús** - Creación de menús personalizados con categorías, platos predefinidos y extras
 
-## Stack Tecnologico
+6. **Informes** - Auditoría de cambios, estadísticas y exportación de backup a Excel
 
-| Capa | Tecnologia |
+7. **Caja** - Control de ingresos, egresos y transferencias entre cajas
+
+## Novedades v2.1
+
+- **Sistema de Paquetes**: Classic, Premium y Gold con precios configurables
+- **Cotización PDF Profesional**: Diseño elegante con logo, 3 opciones de experiencia
+- **Precio Libre**: Compatibilidad con eventos anteriores al sistema de paquetes
+- **Exportar Backup Excel**: Descarga todos los eventos en formato Excel profesional con hojas separadas (Confirmados, Pendientes, Anulados, Resumen)
+- **Modo Legacy**: Eventos antiguos mantienen su formato de cotización original
+
+## Stack Tecnológico
+
+| Capa | Tecnología |
 |------|------------|
 | Frontend | React 18 + Vite |
 | Estilos | Tailwind CSS |
-| Graficos | Recharts |
-| PDF | jsPDF |
+| Gráficos | Recharts |
+| PDF | jsPDF + html2canvas |
+| Excel | ExcelJS |
 | Base de Datos | PostgreSQL (Supabase) |
-| Autenticacion | Supabase Auth |
+| Autenticación | Supabase Auth |
 | Hosting | Vercel |
 
 ## Estructura del Repositorio
@@ -33,39 +46,44 @@ El sistema incluye cinco modulos principales:
 ```
 dashboard-eventos-v2/
 ├── src/
-│   ├── App.jsx          # Componente principal
-│   ├── supabase.js      # Configuracion BD
-│   └── index.css        # Estilos
-├── SCHEMA.sql           # Estructura de BD
-├── PROJECT_SPEC.md      # Especificaciones
-├── DATA_MODEL.md        # Modelo de datos
-├── SETUP.md             # Guia de instalacion
-├── MIGRATION_MYSQL.md   # Guia migracion MySQL
+│   ├── App.jsx              # Componente principal
+│   ├── CotizacionTemplate.js # Template HTML para cotización PDF
+│   ├── supabase.js          # Configuración BD
+│   ├── constants.js         # Constantes del sistema
+│   ├── utils.js             # Funciones utilitarias
+│   ├── supabaseQueries.js   # Consultas a BD
+│   ├── hooks/
+│   │   ├── useAuth.js       # Autenticación
+│   │   └── useEventos.js    # Lógica de eventos
+│   └── index.css            # Estilos
+├── public/
+│   ├── logo-tero.jpg        # Logo color
+│   └── logo-tero-blanco.png # Logo blanco
+├── SCHEMA.sql               # Estructura de BD
+├── CLAUDE.md                # Contexto para IA
 └── README.md
 ```
 
-## Documentacion
+## Documentación
 
-| Archivo | Descripcion |
+| Archivo | Descripción |
 |---------|-------------|
 | [SCHEMA.sql](./SCHEMA.sql) | Estructura de base de datos PostgreSQL |
-| [PROJECT_SPEC.md](./PROJECT_SPEC.md) | Especificaciones del proyecto |
-| [DATA_MODEL.md](./DATA_MODEL.md) | Modelo de datos y relaciones |
-| [SETUP.md](./SETUP.md) | Guia de instalacion y configuracion |
-| [MIGRATION_MYSQL.md](./MIGRATION_MYSQL.md) | Guia de migracion a MySQL |
-| [DEPLOY_SERVER.md](./DEPLOY_SERVER.md) | Migracion de Vercel a servidor propio (con claves) |
+| [CLAUDE.md](./CLAUDE.md) | Contexto del proyecto para asistentes IA |
 
 ## Estado Actual
 
-**MVP operativo** con:
-- Sistema de eventos completo
-- Cobranzas con filtros por estado
-- Menus personalizables (Tapeo, Asado, 3 Pasos)
-- Cotizaciones PDF con IVA
-- Dashboard con estadisticas
-- Sistema de usuarios con roles
+**Sistema operativo** con:
+- Gestión completa de eventos con paquetes y precio libre
+- Cobranzas con filtros por estado y ajuste IPC
+- Menús personalizables (Tapeo, Asado, 3 Pasos, Premium, Brunch)
+- Cotizaciones PDF profesionales con 3 opciones
+- Dashboard con estadísticas
+- Exportación de backup a Excel
+- Sistema de usuarios con roles (admin, vendedor, lectura)
+- Caja con ingresos, egresos y transferencias
 
-## Instalacion Rapida
+## Instalación
 
 ```bash
 git clone https://github.com/Fpidal/Eventos.git
@@ -74,8 +92,14 @@ npm install
 npm run dev
 ```
 
-Ver [SETUP.md](./SETUP.md) para configuracion completa.
+## Variables de Entorno
+
+Crear archivo `.env` con:
+```
+VITE_SUPABASE_URL=tu_url_supabase
+VITE_SUPABASE_ANON_KEY=tu_anon_key
+```
 
 ---
 
-*Sistema de gestion de eventos - 2026*
+*Tero Restaurante - Sistema de Gestión de Eventos - 2026*

@@ -15,20 +15,21 @@ const NUEVO_EVENTO_INICIAL = {
   menu: 'Tapas',
   salon: 'Tero',
   tecnica: false,
-  tecnica_precio: '',
+  tecnica_precio: '0',
   tecnica_superior: false,
-  tecnica_superior_precio: '',
-  ceremonia: false,
-  ceremonia_precio: '',
+  tecnica_superior_precio: '0',
   dj: '',
-  celiacos: '',
-  vegetarianos: '',
-  veganos: '',
   otros: '',
   adultos: '',
-  precio_adulto: '',
   menores: '',
   precio_menor: '',
+  // Paquetes con precios por defecto
+  opcion_sugerida: '',
+  precio_classic: '120000',
+  precio_premium: '135000',
+  precio_gold: '155000',
+  precio_adulto: '', // Se calcula desde el paquete seleccionado
+  // Extras
   extra1_desc: '',
   extra1_valor: '',
   extra1_tipo: 'total',
@@ -84,12 +85,59 @@ export function useEventos({ user, pagos, fetchAuditoriaEventos }) {
     setLoading(false);
   };
 
+  // Fetch configuración de precios default
+  const fetchConfiguracion = async () => {
+    const { data, error } = await supabase
+      .from('configuracion')
+      .select('clave, valor')
+      .in('clave', ['precio_classic', 'precio_premium', 'precio_gold']);
+
+    if (error) {
+      console.error('Error fetching config:', error);
+      return null;
+    }
+
+    const config = {};
+    data?.forEach(item => {
+      config[item.clave] = item.valor;
+    });
+    return config;
+  };
+
+  // Abrir modal de nuevo evento con precios de configuración
+  const openNuevoEventoModal = async () => {
+    const config = await fetchConfiguracion();
+    if (config) {
+      setNuevoEvento({
+        ...NUEVO_EVENTO_INICIAL,
+        precio_classic: config.precio_classic || '120000',
+        precio_premium: config.precio_premium || '135000',
+        precio_gold: config.precio_gold || '155000'
+      });
+    } else {
+      setNuevoEvento(NUEVO_EVENTO_INICIAL);
+    }
+    setShowModal(true);
+  };
+
   // Calcular total para nuevo evento
   const calcularTotal = () => {
     const adultos = parseInt(nuevoEvento.adultos) || 0;
-    const precioAdulto = parseFloat(nuevoEvento.precio_adulto) || 0;
     const menores = parseInt(nuevoEvento.menores) || 0;
     const precioMenor = parseFloat(nuevoEvento.precio_menor) || 0;
+
+    // Precio según paquete seleccionado o precio libre
+    let precioAdulto = 0;
+    if (nuevoEvento.opcion_sugerida === 'Classic') {
+      precioAdulto = parseFloat(nuevoEvento.precio_classic) || 0;
+    } else if (nuevoEvento.opcion_sugerida === 'Premium') {
+      precioAdulto = parseFloat(nuevoEvento.precio_premium) || 0;
+    } else if (nuevoEvento.opcion_sugerida === 'Gold') {
+      precioAdulto = parseFloat(nuevoEvento.precio_gold) || 0;
+    } else {
+      // Precio libre (sin paquete seleccionado)
+      precioAdulto = parseFloat(nuevoEvento.precio_adulto) || 0;
+    }
 
     let totalExtras = 0;
     [1, 2, 3].forEach(i => {
@@ -109,9 +157,6 @@ export function useEventos({ user, pagos, fetchAuditoriaEventos }) {
     if (nuevoEvento.tecnica_superior) {
       totalServicios += parseFloat(nuevoEvento.tecnica_superior_precio) || 0;
     }
-    if (nuevoEvento.ceremonia) {
-      totalServicios += parseFloat(nuevoEvento.ceremonia_precio) || 0;
-    }
 
     return (adultos * precioAdulto) + (menores * precioMenor) + totalExtras + totalServicios;
   };
@@ -120,9 +165,21 @@ export function useEventos({ user, pagos, fetchAuditoriaEventos }) {
   const calcularTotalEdit = () => {
     if (!eventoEdit) return 0;
     const adultos = parseInt(eventoEdit.adultos) || 0;
-    const precioAdulto = parseFloat(eventoEdit.precio_adulto) || 0;
     const menores = parseInt(eventoEdit.menores) || 0;
     const precioMenor = parseFloat(eventoEdit.precio_menor) || 0;
+
+    // Precio según paquete seleccionado o precio libre
+    let precioAdulto = 0;
+    if (eventoEdit.opcion_sugerida === 'Classic') {
+      precioAdulto = parseFloat(eventoEdit.precio_classic) || 0;
+    } else if (eventoEdit.opcion_sugerida === 'Premium') {
+      precioAdulto = parseFloat(eventoEdit.precio_premium) || 0;
+    } else if (eventoEdit.opcion_sugerida === 'Gold') {
+      precioAdulto = parseFloat(eventoEdit.precio_gold) || 0;
+    } else {
+      // Precio libre (sin paquete seleccionado)
+      precioAdulto = parseFloat(eventoEdit.precio_adulto) || 0;
+    }
 
     let totalExtras = 0;
     [1, 2, 3].forEach(i => {
@@ -142,9 +199,6 @@ export function useEventos({ user, pagos, fetchAuditoriaEventos }) {
     if (eventoEdit.tecnica_superior) {
       totalServicios += parseFloat(eventoEdit.tecnica_superior_precio) || 0;
     }
-    if (eventoEdit.ceremonia) {
-      totalServicios += parseFloat(eventoEdit.ceremonia_precio) || 0;
-    }
 
     return (adultos * precioAdulto) + (menores * precioMenor) + totalExtras + totalServicios;
   };
@@ -155,6 +209,19 @@ export function useEventos({ user, pagos, fetchAuditoriaEventos }) {
     setSaving(true);
 
     const total = calcularTotal();
+
+    // Calcular precio_adulto según paquete seleccionado o precio libre
+    let precioAdultoFinal = 0;
+    if (nuevoEvento.opcion_sugerida === 'Classic') {
+      precioAdultoFinal = parseFloat(nuevoEvento.precio_classic) || 0;
+    } else if (nuevoEvento.opcion_sugerida === 'Premium') {
+      precioAdultoFinal = parseFloat(nuevoEvento.precio_premium) || 0;
+    } else if (nuevoEvento.opcion_sugerida === 'Gold') {
+      precioAdultoFinal = parseFloat(nuevoEvento.precio_gold) || 0;
+    } else {
+      // Precio libre
+      precioAdultoFinal = parseFloat(nuevoEvento.precio_adulto) || 0;
+    }
 
     const { error } = await supabase
       .from('eventos')
@@ -173,17 +240,18 @@ export function useEventos({ user, pagos, fetchAuditoriaEventos }) {
         tecnica_precio: parseFloat(nuevoEvento.tecnica_precio) || 0,
         tecnica_superior: nuevoEvento.tecnica_superior,
         tecnica_superior_precio: parseFloat(nuevoEvento.tecnica_superior_precio) || 0,
-        ceremonia: nuevoEvento.ceremonia,
-        ceremonia_precio: parseFloat(nuevoEvento.ceremonia_precio) || 0,
         dj: nuevoEvento.dj,
         otros: nuevoEvento.otros,
         adultos: parseInt(nuevoEvento.adultos) || 0,
-        precio_adulto: parseFloat(nuevoEvento.precio_adulto) || 0,
+        precio_adulto: precioAdultoFinal,
         menores: parseInt(nuevoEvento.menores) || 0,
         precio_menor: parseFloat(nuevoEvento.precio_menor) || 0,
-        celiacos: parseInt(nuevoEvento.celiacos) || 0,
-        vegetarianos: parseInt(nuevoEvento.vegetarianos) || 0,
-        veganos: parseInt(nuevoEvento.veganos) || 0,
+        // Precios de paquetes
+        precio_classic: parseFloat(nuevoEvento.precio_classic) || 120000,
+        precio_premium: parseFloat(nuevoEvento.precio_premium) || 135000,
+        precio_gold: parseFloat(nuevoEvento.precio_gold) || 155000,
+        opcion_sugerida: nuevoEvento.opcion_sugerida || '',
+        // Extras
         extra1_desc: nuevoEvento.extra1_desc,
         extra1_valor: parseFloat(nuevoEvento.extra1_valor) || 0,
         extra1_tipo: nuevoEvento.extra1_tipo,
@@ -227,20 +295,21 @@ export function useEventos({ user, pagos, fetchAuditoriaEventos }) {
       menu: evento.menu,
       salon: evento.salon || 'Tero',
       tecnica: evento.tecnica || false,
-      tecnica_precio: evento.tecnica_precio > 0 ? evento.tecnica_precio.toString() : '',
+      tecnica_precio: evento.tecnica_precio?.toString() || '0',
       tecnica_superior: evento.tecnica_superior || false,
-      tecnica_superior_precio: evento.tecnica_superior_precio > 0 ? evento.tecnica_superior_precio.toString() : '',
-      ceremonia: evento.ceremonia || false,
-      ceremonia_precio: evento.ceremonia_precio > 0 ? evento.ceremonia_precio.toString() : '',
+      tecnica_superior_precio: evento.tecnica_superior_precio?.toString() || '0',
       dj: evento.dj || '',
-      celiacos: evento.celiacos?.toString() || '',
-      vegetarianos: evento.vegetarianos?.toString() || '',
-      veganos: evento.veganos?.toString() || '',
       otros: evento.otros || '',
       adultos: evento.adultos?.toString() || '',
-      precio_adulto: evento.precio_adulto?.toString() || '',
       menores: evento.menores?.toString() || '',
       precio_menor: evento.precio_menor?.toString() || '',
+      // Paquetes - usar valores guardados o defaults
+      opcion_sugerida: evento.opcion_sugerida || '',
+      precio_classic: evento.precio_classic?.toString() || '120000',
+      precio_premium: evento.precio_premium?.toString() || '135000',
+      precio_gold: evento.precio_gold?.toString() || '155000',
+      precio_adulto: evento.precio_adulto?.toString() || '',
+      // Extras
       extra1_desc: evento.extra1_desc || '',
       extra1_valor: evento.extra1_valor?.toString() || '',
       extra1_tipo: evento.extra1_tipo || 'total',
@@ -267,6 +336,19 @@ export function useEventos({ user, pagos, fetchAuditoriaEventos }) {
 
     const total = calcularTotalEdit();
 
+    // Calcular precio_adulto según paquete seleccionado o precio libre
+    let precioAdultoFinal = 0;
+    if (eventoEdit.opcion_sugerida === 'Classic') {
+      precioAdultoFinal = parseFloat(eventoEdit.precio_classic) || 0;
+    } else if (eventoEdit.opcion_sugerida === 'Premium') {
+      precioAdultoFinal = parseFloat(eventoEdit.precio_premium) || 0;
+    } else if (eventoEdit.opcion_sugerida === 'Gold') {
+      precioAdultoFinal = parseFloat(eventoEdit.precio_gold) || 0;
+    } else {
+      // Precio libre
+      precioAdultoFinal = parseFloat(eventoEdit.precio_adulto) || 0;
+    }
+
     const { error } = await supabase
       .from('eventos')
       .update({
@@ -284,17 +366,18 @@ export function useEventos({ user, pagos, fetchAuditoriaEventos }) {
         tecnica_precio: parseFloat(eventoEdit.tecnica_precio) || 0,
         tecnica_superior: eventoEdit.tecnica_superior,
         tecnica_superior_precio: parseFloat(eventoEdit.tecnica_superior_precio) || 0,
-        ceremonia: eventoEdit.ceremonia,
-        ceremonia_precio: parseFloat(eventoEdit.ceremonia_precio) || 0,
         dj: eventoEdit.dj,
         otros: eventoEdit.otros,
         adultos: parseInt(eventoEdit.adultos) || 0,
-        precio_adulto: parseFloat(eventoEdit.precio_adulto) || 0,
+        precio_adulto: precioAdultoFinal,
         menores: parseInt(eventoEdit.menores) || 0,
         precio_menor: parseFloat(eventoEdit.precio_menor) || 0,
-        celiacos: parseInt(eventoEdit.celiacos) || 0,
-        vegetarianos: parseInt(eventoEdit.vegetarianos) || 0,
-        veganos: parseInt(eventoEdit.veganos) || 0,
+        // Precios de paquetes
+        precio_classic: parseFloat(eventoEdit.precio_classic) || 120000,
+        precio_premium: parseFloat(eventoEdit.precio_premium) || 135000,
+        precio_gold: parseFloat(eventoEdit.precio_gold) || 155000,
+        opcion_sugerida: eventoEdit.opcion_sugerida || '',
+        // Extras
         extra1_desc: eventoEdit.extra1_desc,
         extra1_valor: parseFloat(eventoEdit.extra1_valor) || 0,
         extra1_tipo: eventoEdit.extra1_tipo,
@@ -326,8 +409,6 @@ export function useEventos({ user, pagos, fetchAuditoriaEventos }) {
           tecnica_precio: parseFloat(eventoEdit.tecnica_precio) || 0,
           tecnica_superior: eventoEdit.tecnica_superior,
           tecnica_superior_precio: parseFloat(eventoEdit.tecnica_superior_precio) || 0,
-          ceremonia: eventoEdit.ceremonia,
-          ceremonia_precio: parseFloat(eventoEdit.ceremonia_precio) || 0,
           extra1_desc: eventoEdit.extra1_desc,
           extra1_valor: parseFloat(eventoEdit.extra1_valor) || 0,
           extra1_tipo: eventoEdit.extra1_tipo,
@@ -341,9 +422,13 @@ export function useEventos({ user, pagos, fetchAuditoriaEventos }) {
           extra3_tipo: eventoEdit.extra3_tipo,
           extra3_confirmado: eventoEdit.extra3_confirmado || false,
           adultos: parseInt(eventoEdit.adultos) || 0,
-          precio_adulto: parseFloat(eventoEdit.precio_adulto) || 0,
+          precio_adulto: precioAdultoFinal,
           menores: parseInt(eventoEdit.menores) || 0,
-          precio_menor: parseFloat(eventoEdit.precio_menor) || 0
+          precio_menor: parseFloat(eventoEdit.precio_menor) || 0,
+          opcion_sugerida: eventoEdit.opcion_sugerida || '',
+          precio_classic: parseFloat(eventoEdit.precio_classic) || 120000,
+          precio_premium: parseFloat(eventoEdit.precio_premium) || 135000,
+          precio_gold: parseFloat(eventoEdit.precio_gold) || 155000
         });
       }
       setEditMode(false);
@@ -658,6 +743,8 @@ export function useEventos({ user, pagos, fetchAuditoriaEventos }) {
 
     // Funciones
     fetchEventos,
+    fetchConfiguracion,
+    openNuevoEventoModal,
     calcularTotal,
     calcularTotalEdit,
     handleSubmit,
