@@ -2083,39 +2083,90 @@ export default function App() {
     doc.save(fileName);
   };
 
-  const generarCotizacion = (evento, menuData = null) => {
+  const generarCotizacion = async (evento, menuData = null) => {
+    // Detectar si es móvil
+    const esMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+
     // Generar HTML de la cotización
     const htmlContent = generarCotizacionHTML(evento);
 
-    // Abrir nueva ventana
-    const ventana = window.open('', '_blank', 'width=800,height=600');
-    if (!ventana) {
-      alert('Por favor, habilite las ventanas emergentes para generar la cotización.');
-      return;
-    }
+    if (esMobile) {
+      // En móvil: generar PDF directamente y descargar
+      try {
+        // Crear iframe oculto para renderizar
+        const iframe = document.createElement('iframe');
+        iframe.style.cssText = 'position:fixed;left:-9999px;width:794px;height:1123px;';
+        document.body.appendChild(iframe);
 
-    // Escribir el HTML
-    ventana.document.write(htmlContent);
-    ventana.document.close();
+        iframe.contentDocument.write(htmlContent);
+        iframe.contentDocument.close();
 
-    // Esperar que carguen las fuentes y luego imprimir
-    ventana.onload = () => {
-      // Esperar que carguen las fuentes de Google
-      if (ventana.document.fonts && ventana.document.fonts.ready) {
-        ventana.document.fonts.ready.then(() => {
+        // Esperar que cargue
+        await new Promise(resolve => {
+          iframe.onload = resolve;
+          setTimeout(resolve, 2000); // Fallback timeout
+        });
+
+        // Usar html2canvas para capturar
+        const html2canvas = (await import('html2canvas')).default;
+        const pages = iframe.contentDocument.querySelectorAll('.page');
+
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const pdfWidth = 210;
+        const pdfHeight = 297;
+
+        for (let i = 0; i < pages.length; i++) {
+          const canvas = await html2canvas(pages[i], {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#ffffff'
+          });
+
+          const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+          if (i > 0) pdf.addPage();
+          pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+        }
+
+        // Limpiar iframe
+        document.body.removeChild(iframe);
+
+        // Descargar PDF
+        const nombreArchivo = `Cotizacion_${evento.cliente?.replace(/\s+/g, '_') || 'evento'}_${evento.fecha || 'sin_fecha'}.pdf`;
+        pdf.save(nombreArchivo);
+
+      } catch (err) {
+        console.error('Error generando PDF:', err);
+        alert('Error al generar PDF. Intenta desde una computadora.');
+      }
+    } else {
+      // En desktop: abrir ventana e imprimir
+      const ventana = window.open('', '_blank', 'width=800,height=600');
+      if (!ventana) {
+        alert('Por favor, habilite las ventanas emergentes para generar la cotización.');
+        return;
+      }
+
+      ventana.document.write(htmlContent);
+      ventana.document.close();
+
+      ventana.onload = () => {
+        if (ventana.document.fonts && ventana.document.fonts.ready) {
+          ventana.document.fonts.ready.then(() => {
+            setTimeout(() => {
+              ventana.print();
+              ventana.onafterprint = () => ventana.close();
+            }, 100);
+          });
+        } else {
           setTimeout(() => {
             ventana.print();
             ventana.onafterprint = () => ventana.close();
-          }, 100);
-        });
-      } else {
-        // Fallback para browsers sin soporte de fonts.ready
-        setTimeout(() => {
-          ventana.print();
-          ventana.onafterprint = () => ventana.close();
-        }, 500);
-      }
-    };
+          }, 500);
+        }
+      };
+    }
   };
 
   // ============ GENERADOR DE RECIBO DE PAGO ============
@@ -2822,8 +2873,8 @@ export default function App() {
     <div className="h-screen w-full max-w-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white overflow-hidden box-border flex flex-col">
       {/* Modal Nuevo Evento */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-1 overflow-y-auto">
-          <div className="glass rounded-xl p-2 w-full max-w-xl max-h-[90vh] overflow-y-auto my-auto scale-[0.92] origin-center">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-2 sm:p-4 overflow-y-auto">
+          <div className="glass rounded-xl p-3 sm:p-4 w-full max-w-xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto my-auto">
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-sm font-bold">Nuevo Evento</h2>
               <button onClick={() => setShowModal(false)} className="p-1 hover:bg-white/10 rounded-lg">
@@ -2831,9 +2882,9 @@ export default function App() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-1">
+            <form onSubmit={handleSubmit} className="space-y-2">
               {/* FILA 1: Fecha, Cliente, Teléfono, Vendedor */}
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Fecha *</label>
                   <input type="date" required value={nuevoEvento.fecha} onChange={(e) => setNuevoEvento({...nuevoEvento, fecha: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none focus:border-purple-500/50 [&::-webkit-calendar-picker-indicator]:invert" />
@@ -2865,7 +2916,7 @@ export default function App() {
               </div>
 
               {/* FILA 2: Salón, Turno, Hora Inicio, Hora Fin */}
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Salón</label>
                   <select value={nuevoEvento.salon} onChange={(e) => setNuevoEvento({...nuevoEvento, salon: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none">
@@ -2907,7 +2958,7 @@ export default function App() {
               </div>
 
               {/* FILA 3: Tipo Evento, Menú Base, Menú Detallado */}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Tipo Evento</label>
                   <select value={nuevoEvento.tipo_evento} onChange={(e) => setNuevoEvento({...nuevoEvento, tipo_evento: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none">
@@ -2930,7 +2981,7 @@ export default function App() {
               </div>
 
               {/* SECCIÓN TÉCNICA - siempre visible */}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-3 gap-2">
                 <div className={`p-2 rounded-lg border ${nuevoEvento.tecnica ? 'border-purple-500/50 bg-purple-500/10' : 'border-white/10 bg-white/5'}`}>
                   <div className="flex items-center gap-1 mb-1">
                     <input type="checkbox" id="tecnica_new" checked={nuevoEvento.tecnica} onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica: e.target.checked})} className="w-3 h-3 rounded accent-purple-500" />
@@ -2952,7 +3003,7 @@ export default function App() {
               </div>
 
               {/* FILA ADULTOS/MENORES */}
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Adultos *</label>
                   <input type="number" required min="0" value={nuevoEvento.adultos} onChange={(e) => setNuevoEvento({...nuevoEvento, adultos: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none" />
@@ -2978,21 +3029,13 @@ export default function App() {
                 <label className="block text-xs text-amber-400 font-semibold mb-2">PRECIO POR ADULTO</label>
 
                 {/* Opción Precio Libre */}
-                <div className={`grid grid-cols-12 gap-2 p-1.5 rounded-lg mb-1 items-center ${!nuevoEvento.opcion_sugerida ? 'bg-slate-500/20 border border-slate-400/50' : 'bg-white/5 border border-white/10'}`}>
-                  <div className="col-span-1 flex justify-center">
-                    <input type="radio" name="paquete_new" checked={!nuevoEvento.opcion_sugerida} onChange={() => setNuevoEvento({...nuevoEvento, opcion_sugerida: ''})} className="w-4 h-4 accent-slate-400" />
-                  </div>
-                  <div className="col-span-3">
-                    <span className={`text-xs font-bold ${!nuevoEvento.opcion_sugerida ? 'text-slate-300' : 'text-white'}`}>PRECIO LIBRE</span>
-                  </div>
-                  <div className="col-span-4">
-                    <input type="text" inputMode="numeric" placeholder="$0" value={formatNumberInput(nuevoEvento.precio_adulto)} onChange={(e) => setNuevoEvento({...nuevoEvento, precio_adulto: parseNumberInput(e.target.value)})} className={`w-full px-2 py-1 rounded border text-xs focus:outline-none ${!nuevoEvento.opcion_sugerida ? 'border-slate-400/50 bg-white/10 text-white' : 'border-white/10 bg-white/5 text-slate-400'}`} />
-                  </div>
-                  <div className="col-span-4 text-right">
-                    <span className={`text-xs font-semibold ${!nuevoEvento.opcion_sugerida ? 'text-slate-300' : 'text-slate-500'}`}>
-                      → {displayPrice((parseInt(nuevoEvento.adultos) || 0) * (parseFloat(nuevoEvento.precio_adulto) || 0))}
-                    </span>
-                  </div>
+                <div className={`flex flex-wrap sm:flex-nowrap items-center gap-2 p-2 rounded-lg mb-1 ${!nuevoEvento.opcion_sugerida ? 'bg-slate-500/20 border border-slate-400/50' : 'bg-white/5 border border-white/10'}`}>
+                  <input type="radio" name="paquete_new" checked={!nuevoEvento.opcion_sugerida} onChange={() => setNuevoEvento({...nuevoEvento, opcion_sugerida: ''})} className="w-4 h-4 accent-slate-400" />
+                  <span className={`text-xs font-bold min-w-[80px] ${!nuevoEvento.opcion_sugerida ? 'text-slate-300' : 'text-white'}`}>LIBRE</span>
+                  <input type="text" inputMode="numeric" placeholder="$0" value={formatNumberInput(nuevoEvento.precio_adulto)} onChange={(e) => setNuevoEvento({...nuevoEvento, precio_adulto: parseNumberInput(e.target.value)})} className={`flex-1 min-w-[80px] px-2 py-1 rounded border text-xs focus:outline-none ${!nuevoEvento.opcion_sugerida ? 'border-slate-400/50 bg-white/10 text-white' : 'border-white/10 bg-white/5 text-slate-400'}`} />
+                  <span className={`text-xs font-semibold whitespace-nowrap ${!nuevoEvento.opcion_sugerida ? 'text-slate-300' : 'text-slate-500'}`}>
+                    → {displayPrice((parseInt(nuevoEvento.adultos) || 0) * (parseFloat(nuevoEvento.precio_adulto) || 0))}
+                  </span>
                 </div>
 
                 {/* Paquetes Classic/Premium/Gold */}
@@ -3001,21 +3044,13 @@ export default function App() {
                   { key: 'Premium', label: 'PREMIUM', field: 'precio_premium' },
                   { key: 'Gold', label: 'GOLD', field: 'precio_gold' }
                 ].map(pkg => (
-                  <div key={pkg.key} className={`grid grid-cols-12 gap-2 p-1.5 rounded-lg mb-1 items-center ${nuevoEvento.opcion_sugerida === pkg.key ? 'bg-amber-500/20 border border-amber-500/50' : 'bg-white/5 border border-white/10'}`}>
-                    <div className="col-span-1 flex justify-center">
-                      <input type="radio" name="paquete_new" checked={nuevoEvento.opcion_sugerida === pkg.key} onChange={() => setNuevoEvento({...nuevoEvento, opcion_sugerida: pkg.key})} className="w-4 h-4 accent-amber-500" />
-                    </div>
-                    <div className="col-span-3">
-                      <span className={`text-xs font-bold ${nuevoEvento.opcion_sugerida === pkg.key ? 'text-amber-400' : 'text-white'}`}>{pkg.label}</span>
-                    </div>
-                    <div className="col-span-4">
-                      <input type="text" inputMode="numeric" value={formatNumberInput(nuevoEvento[pkg.field])} onChange={(e) => setNuevoEvento({...nuevoEvento, [pkg.field]: parseNumberInput(e.target.value)})} className={`w-full px-2 py-1 rounded border text-xs focus:outline-none ${nuevoEvento.opcion_sugerida === pkg.key ? 'border-amber-500/50 bg-white/10 text-white' : 'border-white/10 bg-white/5 text-slate-400'}`} />
-                    </div>
-                    <div className="col-span-4 text-right">
-                      <span className={`text-xs font-semibold ${nuevoEvento.opcion_sugerida === pkg.key ? 'text-amber-400' : 'text-slate-500'}`}>
-                        → {displayPrice((parseInt(nuevoEvento.adultos) || 0) * (parseFloat(nuevoEvento[pkg.field]) || 0))}
-                      </span>
-                    </div>
+                  <div key={pkg.key} className={`flex flex-wrap sm:flex-nowrap items-center gap-2 p-2 rounded-lg mb-1 ${nuevoEvento.opcion_sugerida === pkg.key ? 'bg-amber-500/20 border border-amber-500/50' : 'bg-white/5 border border-white/10'}`}>
+                    <input type="radio" name="paquete_new" checked={nuevoEvento.opcion_sugerida === pkg.key} onChange={() => setNuevoEvento({...nuevoEvento, opcion_sugerida: pkg.key})} className="w-4 h-4 accent-amber-500" />
+                    <span className={`text-xs font-bold min-w-[80px] ${nuevoEvento.opcion_sugerida === pkg.key ? 'text-amber-400' : 'text-white'}`}>{pkg.label}</span>
+                    <input type="text" inputMode="numeric" value={formatNumberInput(nuevoEvento[pkg.field])} onChange={(e) => setNuevoEvento({...nuevoEvento, [pkg.field]: parseNumberInput(e.target.value)})} className={`flex-1 min-w-[80px] px-2 py-1 rounded border text-xs focus:outline-none ${nuevoEvento.opcion_sugerida === pkg.key ? 'border-amber-500/50 bg-white/10 text-white' : 'border-white/10 bg-white/5 text-slate-400'}`} />
+                    <span className={`text-xs font-semibold whitespace-nowrap ${nuevoEvento.opcion_sugerida === pkg.key ? 'text-amber-400' : 'text-slate-500'}`}>
+                      → {displayPrice((parseInt(nuevoEvento.adultos) || 0) * (parseFloat(nuevoEvento[pkg.field]) || 0))}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -3047,8 +3082,8 @@ export default function App() {
               </div>
 
               {/* OBSERVACIONES + TOTAL + BOTÓN */}
-              <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="sm:col-span-2">
                   <label className="block text-xs text-slate-400 mb-0.5">Observaciones</label>
                   <textarea value={nuevoEvento.otros} onChange={(e) => setNuevoEvento({...nuevoEvento, otros: e.target.value})} rows={4} placeholder="Aclaraciones, notas especiales, requerimientos del cliente..." className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-xs focus:outline-none resize-none" />
                 </div>
@@ -3209,8 +3244,8 @@ export default function App() {
 
       {/* Modal Editar Evento */}
       {editMode && eventoEdit && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-1 overflow-y-auto">
-          <div className="glass rounded-xl p-2 w-full max-w-xl max-h-[90vh] overflow-y-auto my-auto scale-[0.92] origin-center">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
+          <div className="glass rounded-xl p-3 sm:p-4 w-full max-w-xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto my-auto">
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-sm font-bold">Editar Evento</h2>
               <button onClick={() => { setEditMode(false); setEventoEdit(null); }} className="p-1 hover:bg-white/10 rounded-lg">
@@ -3218,9 +3253,9 @@ export default function App() {
               </button>
             </div>
 
-            <form onSubmit={handleUpdate} className="space-y-1">
+            <form onSubmit={handleUpdate} className="space-y-2">
               {/* FILA 1: Fecha, Cliente, Teléfono, Vendedor */}
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Fecha *</label>
                   <input type="date" required value={eventoEdit.fecha} onChange={(e) => setEventoEdit({...eventoEdit, fecha: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none [&::-webkit-calendar-picker-indicator]:invert" />
@@ -3252,7 +3287,7 @@ export default function App() {
               </div>
 
               {/* FILA 2: Salón, Turno, Hora Inicio, Hora Fin */}
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Salón</label>
                   <select value={eventoEdit.salon} onChange={(e) => setEventoEdit({...eventoEdit, salon: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none">
@@ -3294,7 +3329,7 @@ export default function App() {
               </div>
 
               {/* FILA 3: Tipo Evento, Menú Base, Menú Detallado */}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Tipo Evento</label>
                   <select value={eventoEdit.tipo_evento} onChange={(e) => setEventoEdit({...eventoEdit, tipo_evento: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none">
@@ -3317,7 +3352,7 @@ export default function App() {
               </div>
 
               {/* SECCIÓN TÉCNICA - siempre visible */}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-3 gap-2">
                 <div className={`p-2 rounded-lg border ${eventoEdit.tecnica ? 'border-purple-500/50 bg-purple-500/10' : 'border-white/10 bg-white/5'}`}>
                   <div className="flex items-center gap-1 mb-1">
                     <input type="checkbox" id="tecnica_edit" checked={eventoEdit.tecnica} onChange={(e) => setEventoEdit({...eventoEdit, tecnica: e.target.checked})} className="w-3 h-3 rounded accent-purple-500" />
@@ -3339,7 +3374,7 @@ export default function App() {
               </div>
 
               {/* FILA ADULTOS/MENORES */}
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div>
                   <label className="block text-xs text-slate-400 mb-0.5">Adultos *</label>
                   <input type="number" required min="0" value={eventoEdit.adultos} onChange={(e) => setEventoEdit({...eventoEdit, adultos: e.target.value})} className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-sm focus:outline-none" />
@@ -3373,21 +3408,13 @@ export default function App() {
                 <label className="block text-xs text-amber-400 font-semibold mb-2">PRECIO POR ADULTO</label>
 
                 {/* Opción Precio Libre */}
-                <div className={`grid grid-cols-12 gap-2 p-1.5 rounded-lg mb-1 items-center ${!eventoEdit.opcion_sugerida ? 'bg-slate-500/20 border border-slate-400/50' : 'bg-white/5 border border-white/10'}`}>
-                  <div className="col-span-1 flex justify-center">
-                    <input type="radio" name="paquete_edit" checked={!eventoEdit.opcion_sugerida} onChange={() => setEventoEdit({...eventoEdit, opcion_sugerida: ''})} className="w-4 h-4 accent-slate-400" />
-                  </div>
-                  <div className="col-span-3">
-                    <span className={`text-xs font-bold ${!eventoEdit.opcion_sugerida ? 'text-slate-300' : 'text-white'}`}>PRECIO LIBRE</span>
-                  </div>
-                  <div className="col-span-4">
-                    <input type="text" inputMode="numeric" placeholder="$0" value={formatNumberInput(eventoEdit.precio_adulto)} onChange={(e) => setEventoEdit({...eventoEdit, precio_adulto: parseNumberInput(e.target.value)})} className={`w-full px-2 py-1 rounded border text-xs focus:outline-none ${!eventoEdit.opcion_sugerida ? 'border-slate-400/50 bg-white/10 text-white' : 'border-white/10 bg-white/5 text-slate-400'}`} />
-                  </div>
-                  <div className="col-span-4 text-right">
-                    <span className={`text-xs font-semibold ${!eventoEdit.opcion_sugerida ? 'text-slate-300' : 'text-slate-500'}`}>
-                      → {displayPrice((parseInt(eventoEdit.adultos) || 0) * (parseFloat(eventoEdit.precio_adulto) || 0))}
-                    </span>
-                  </div>
+                <div className={`flex flex-wrap sm:flex-nowrap items-center gap-2 p-2 rounded-lg mb-1 ${!eventoEdit.opcion_sugerida ? 'bg-slate-500/20 border border-slate-400/50' : 'bg-white/5 border border-white/10'}`}>
+                  <input type="radio" name="paquete_edit" checked={!eventoEdit.opcion_sugerida} onChange={() => setEventoEdit({...eventoEdit, opcion_sugerida: ''})} className="w-4 h-4 accent-slate-400" />
+                  <span className={`text-xs font-bold min-w-[80px] ${!eventoEdit.opcion_sugerida ? 'text-slate-300' : 'text-white'}`}>LIBRE</span>
+                  <input type="text" inputMode="numeric" placeholder="$0" value={formatNumberInput(eventoEdit.precio_adulto)} onChange={(e) => setEventoEdit({...eventoEdit, precio_adulto: parseNumberInput(e.target.value)})} className={`flex-1 min-w-[80px] px-2 py-1 rounded border text-xs focus:outline-none ${!eventoEdit.opcion_sugerida ? 'border-slate-400/50 bg-white/10 text-white' : 'border-white/10 bg-white/5 text-slate-400'}`} />
+                  <span className={`text-xs font-semibold whitespace-nowrap ${!eventoEdit.opcion_sugerida ? 'text-slate-300' : 'text-slate-500'}`}>
+                    → {displayPrice((parseInt(eventoEdit.adultos) || 0) * (parseFloat(eventoEdit.precio_adulto) || 0))}
+                  </span>
                 </div>
 
                 {/* Paquetes Classic/Premium/Gold */}
@@ -3396,21 +3423,13 @@ export default function App() {
                   { key: 'Premium', label: 'PREMIUM', field: 'precio_premium' },
                   { key: 'Gold', label: 'GOLD', field: 'precio_gold' }
                 ].map(pkg => (
-                  <div key={pkg.key} className={`grid grid-cols-12 gap-2 p-1.5 rounded-lg mb-1 items-center ${eventoEdit.opcion_sugerida === pkg.key ? 'bg-amber-500/20 border border-amber-500/50' : 'bg-white/5 border border-white/10'}`}>
-                    <div className="col-span-1 flex justify-center">
-                      <input type="radio" name="paquete_edit" checked={eventoEdit.opcion_sugerida === pkg.key} onChange={() => setEventoEdit({...eventoEdit, opcion_sugerida: pkg.key})} className="w-4 h-4 accent-amber-500" />
-                    </div>
-                    <div className="col-span-3">
-                      <span className={`text-xs font-bold ${eventoEdit.opcion_sugerida === pkg.key ? 'text-amber-400' : 'text-white'}`}>{pkg.label}</span>
-                    </div>
-                    <div className="col-span-4">
-                      <input type="text" inputMode="numeric" value={formatNumberInput(eventoEdit[pkg.field])} onChange={(e) => setEventoEdit({...eventoEdit, [pkg.field]: parseNumberInput(e.target.value)})} className={`w-full px-2 py-1 rounded border text-xs focus:outline-none ${eventoEdit.opcion_sugerida === pkg.key ? 'border-amber-500/50 bg-white/10 text-white' : 'border-white/10 bg-white/5 text-slate-400'}`} />
-                    </div>
-                    <div className="col-span-4 text-right">
-                      <span className={`text-xs font-semibold ${eventoEdit.opcion_sugerida === pkg.key ? 'text-amber-400' : 'text-slate-500'}`}>
-                        → {displayPrice((parseInt(eventoEdit.adultos) || 0) * (parseFloat(eventoEdit[pkg.field]) || 0))}
-                      </span>
-                    </div>
+                  <div key={pkg.key} className={`flex flex-wrap sm:flex-nowrap items-center gap-2 p-2 rounded-lg mb-1 ${eventoEdit.opcion_sugerida === pkg.key ? 'bg-amber-500/20 border border-amber-500/50' : 'bg-white/5 border border-white/10'}`}>
+                    <input type="radio" name="paquete_edit" checked={eventoEdit.opcion_sugerida === pkg.key} onChange={() => setEventoEdit({...eventoEdit, opcion_sugerida: pkg.key})} className="w-4 h-4 accent-amber-500" />
+                    <span className={`text-xs font-bold min-w-[80px] ${eventoEdit.opcion_sugerida === pkg.key ? 'text-amber-400' : 'text-white'}`}>{pkg.label}</span>
+                    <input type="text" inputMode="numeric" value={formatNumberInput(eventoEdit[pkg.field])} onChange={(e) => setEventoEdit({...eventoEdit, [pkg.field]: parseNumberInput(e.target.value)})} className={`flex-1 min-w-[80px] px-2 py-1 rounded border text-xs focus:outline-none ${eventoEdit.opcion_sugerida === pkg.key ? 'border-amber-500/50 bg-white/10 text-white' : 'border-white/10 bg-white/5 text-slate-400'}`} />
+                    <span className={`text-xs font-semibold whitespace-nowrap ${eventoEdit.opcion_sugerida === pkg.key ? 'text-amber-400' : 'text-slate-500'}`}>
+                      → {displayPrice((parseInt(eventoEdit.adultos) || 0) * (parseFloat(eventoEdit[pkg.field]) || 0))}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -3442,8 +3461,8 @@ export default function App() {
               </div>
 
               {/* OBSERVACIONES + TOTAL + BOTÓN */}
-              <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="sm:col-span-2">
                   <label className="block text-xs text-slate-400 mb-0.5">Observaciones</label>
                   <textarea value={eventoEdit.otros} onChange={(e) => setEventoEdit({...eventoEdit, otros: e.target.value})} rows={4} placeholder="Aclaraciones, notas especiales, requerimientos del cliente..." className="w-full px-2 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white text-xs focus:outline-none resize-none" />
                 </div>
