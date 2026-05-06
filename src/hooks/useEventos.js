@@ -23,11 +23,11 @@ const NUEVO_EVENTO_INICIAL = {
   adultos: '',
   menores: '',
   precio_menor: '',
-  // Paquetes con precios por defecto
+  // Paquetes con precios por defecto (fallback si no hay config en BD)
   opcion_sugerida: '',
   precio_classic: '120000',
-  precio_premium: '135000',
-  precio_gold: '155000',
+  precio_premium: '140000',
+  precio_gold: '165000',
   precio_adulto: '', // Se calcula desde el paquete seleccionado
   // Extras
   extra1_desc: '',
@@ -111,8 +111,8 @@ export function useEventos({ user, pagos, fetchAuditoriaEventos }) {
       setNuevoEvento({
         ...NUEVO_EVENTO_INICIAL,
         precio_classic: config.precio_classic || '120000',
-        precio_premium: config.precio_premium || '135000',
-        precio_gold: config.precio_gold || '155000'
+        precio_premium: config.precio_premium || '140000',
+        precio_gold: config.precio_gold || '165000'
       });
     } else {
       setNuevoEvento(NUEVO_EVENTO_INICIAL);
@@ -306,8 +306,8 @@ export function useEventos({ user, pagos, fetchAuditoriaEventos }) {
       // Paquetes - usar valores guardados o defaults
       opcion_sugerida: evento.opcion_sugerida || '',
       precio_classic: evento.precio_classic?.toString() || '120000',
-      precio_premium: evento.precio_premium?.toString() || '135000',
-      precio_gold: evento.precio_gold?.toString() || '155000',
+      precio_premium: evento.precio_premium?.toString() || '140000',
+      precio_gold: evento.precio_gold?.toString() || '165000',
       precio_adulto: evento.precio_adulto?.toString() || '',
       // Extras
       extra1_desc: evento.extra1_desc || '',
