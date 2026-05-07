@@ -16,9 +16,15 @@ El sistema incluye los siguientes módulos:
 
 5. **Menús** - Creación de menús personalizados con categorías, platos predefinidos y extras
 
-6. **Informes** - Auditoría de cambios, estadísticas y exportación de backup a Excel
+6. **Informes** - Auditoría de cambios, estadísticas, gestión de precios (admin) y exportación de backup a Excel
 
 7. **Caja** - Control de ingresos, egresos y transferencias entre cajas
+
+## Novedades v2.2
+
+- **Gestión de Precios**: Editar precios de paquetes (Classic/Premium/Gold) desde Informes (solo admin)
+- **Soporte Móvil Mejorado**: Formularios responsive, PDF descargable en móvil, modales optimizados
+- **Precios por Evento**: Cada evento guarda sus propios precios, independiente de cambios futuros
 
 ## Novedades v2.1
 
@@ -82,6 +88,8 @@ dashboard-eventos-v2/
 - Exportación de backup a Excel
 - Sistema de usuarios con roles (admin, vendedor, lectura)
 - Caja con ingresos, egresos y transferencias
+- Gestión de precios de paquetes desde el sistema
+- Soporte completo para dispositivos móviles
 
 ## Instalación
 
