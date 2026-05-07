@@ -115,6 +115,8 @@ export default function App() {
   const [auditoriaEventos, setAuditoriaEventos] = useState([]);
   const [auditoriaCaja, setAuditoriaCaja] = useState([]);
   const [informeActivo, setInformeActivo] = useState('eliminados');
+  const [preciosConfig, setPreciosConfig] = useState({ precio_classic: '', precio_premium: '', precio_gold: '' });
+  const [savingPrecios, setSavingPrecios] = useState(false);
   const [motivoModificacion, setMotivoModificacion] = useState('');
   const [busquedaContacto, setBusquedaContacto] = useState('');
 
@@ -226,6 +228,13 @@ export default function App() {
       }
     }
   }, [user, userRole]);
+
+  // Cargar precios cuando se selecciona la pestaña de precios
+  useEffect(() => {
+    if (informeActivo === 'precios' && userRole === 'admin') {
+      fetchPreciosConfig();
+    }
+  }, [informeActivo]);
 
   // Cargar catálogo desde localStorage o datos iniciales
   useEffect(() => {
@@ -925,6 +934,50 @@ export default function App() {
     const { data, error } = await queryClientes();
     if (!error && data) {
       setClientes(data);
+    }
+  };
+
+  // Fetch precios de configuración
+  const fetchPreciosConfig = async () => {
+    const { data, error } = await supabase
+      .from('configuracion')
+      .select('clave, valor')
+      .in('clave', ['precio_classic', 'precio_premium', 'precio_gold']);
+
+    if (!error && data) {
+      const config = {};
+      data.forEach(item => {
+        config[item.clave] = item.valor;
+      });
+      setPreciosConfig({
+        precio_classic: config.precio_classic || '',
+        precio_premium: config.precio_premium || '',
+        precio_gold: config.precio_gold || ''
+      });
+    }
+  };
+
+  // Guardar precios de configuración
+  const handleGuardarPrecios = async () => {
+    setSavingPrecios(true);
+    try {
+      const precios = ['precio_classic', 'precio_premium', 'precio_gold'];
+      for (const clave of precios) {
+        const valor = preciosConfig[clave];
+        if (valor) {
+          // Upsert: actualiza si existe, inserta si no
+          const { error } = await supabase
+            .from('configuracion')
+            .upsert({ clave, valor }, { onConflict: 'clave' });
+          if (error) throw error;
+        }
+      }
+      alert('Precios guardados correctamente');
+    } catch (error) {
+      console.error('Error al guardar precios:', error);
+      alert('Error al guardar los precios: ' + (error.message || JSON.stringify(error)));
+    } finally {
+      setSavingPrecios(false);
     }
   };
 
@@ -6266,6 +6319,18 @@ export default function App() {
               >
                 Estadísticas
               </button>
+              {userRole === 'admin' && (
+                <button
+                  onClick={() => setInformeActivo('precios')}
+                  className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                    informeActivo === 'precios'
+                      ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/50'
+                      : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                  }`}
+                >
+                  Precios
+                </button>
+              )}
 
               {/* Botón Exportar Backup */}
               <button
@@ -6643,6 +6708,95 @@ export default function App() {
                 </div>
               );
             })()}
+
+            {/* Gestión de Precios */}
+            {informeActivo === 'precios' && userRole === 'admin' && (
+              <div className="glass rounded-2xl p-5">
+                <h3 className="text-lg font-semibold mb-4 text-indigo-400">Gestión de Precios por Persona</h3>
+                <p className="text-slate-400 text-sm mb-6">
+                  Configura los precios base para cada paquete. Estos valores se aplicarán a los nuevos eventos.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  {/* Classic */}
+                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-2xl">🥂</span>
+                      <h4 className="text-lg font-semibold text-amber-400">CLASSIC</h4>
+                    </div>
+                    <label className="text-slate-400 text-sm">Precio por persona</label>
+                    <div className="relative mt-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                      <input
+                        type="text"
+                        value={preciosConfig.precio_classic ? formatNumberInput(preciosConfig.precio_classic) : ''}
+                        onChange={(e) => setPreciosConfig({ ...preciosConfig, precio_classic: parseNumberInput(e.target.value) })}
+                        className="w-full pl-8 pr-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-right"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Premium */}
+                  <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-2xl">✨</span>
+                      <h4 className="text-lg font-semibold text-purple-400">PREMIUM</h4>
+                    </div>
+                    <label className="text-slate-400 text-sm">Precio por persona</label>
+                    <div className="relative mt-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                      <input
+                        type="text"
+                        value={preciosConfig.precio_premium ? formatNumberInput(preciosConfig.precio_premium) : ''}
+                        onChange={(e) => setPreciosConfig({ ...preciosConfig, precio_premium: parseNumberInput(e.target.value) })}
+                        className="w-full pl-8 pr-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-right"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Gold */}
+                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-2xl">👑</span>
+                      <h4 className="text-lg font-semibold text-yellow-400">GOLD</h4>
+                    </div>
+                    <label className="text-slate-400 text-sm">Precio por persona</label>
+                    <div className="relative mt-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                      <input
+                        type="text"
+                        value={preciosConfig.precio_gold ? formatNumberInput(preciosConfig.precio_gold) : ''}
+                        onChange={(e) => setPreciosConfig({ ...preciosConfig, precio_gold: parseNumberInput(e.target.value) })}
+                        className="w-full pl-8 pr-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-right"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end mt-6">
+                  <button
+                    onClick={handleGuardarPrecios}
+                    disabled={savingPrecios}
+                    className="px-6 py-2 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {savingPrecios ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Guardando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Guardar Precios
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
