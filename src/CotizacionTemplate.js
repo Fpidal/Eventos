@@ -1023,6 +1023,7 @@ export const generarCotizacionHTML = (evento) => {
           <div class="pi"><div class="dot g"></div><div class="pit">Técnica superior de sonido e iluminación</div></div>
           <div class="pi"><div class="dot g"></div><div class="pit">Iluminación exterior en jardín</div></div>
           <div class="pi"><div class="dot g"></div><div class="pit">DJ profesional incluido</div></div>
+          <div class="pi"><div class="dot g"></div><div class="pit">Mesa de fiambres y quesos</div></div>
           <div class="ptots">
             <div class="pkg-row"><span>${adultos} adultos × ${formatMoney(PREMIUM_PP)}</span><span>${formatMoney(sub1Premium)}</span></div>
             ${menores > 0 ? `<div class="pkg-row"><span>${menores} menores × ${formatMoney(precioMenor)}</span><span>${formatMoney(menoresTotal)}</span></div>` : ''}
