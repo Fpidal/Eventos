@@ -980,6 +980,8 @@ export const generarCotizacionHTML = (evento) => {
     </div>
     ` : ''}
 
+    ${opcionalesHTML}
+
     ` : `
     <!-- MODO NUEVO - 3 paquetes -->
     <div class="p2-title">OPCIONES DE EXPERIENCIA</div>
