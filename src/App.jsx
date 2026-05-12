@@ -2188,8 +2188,9 @@ export default function App() {
         // Limpiar
         document.body.removeChild(container);
 
-        // Descargar PDF
-        const nombreArchivo = `Cotizacion_${evento.cliente?.replace(/\s+/g, '_') || 'evento'}_${evento.fecha || 'sin_fecha'}.pdf`;
+        // Descargar PDF - Formato: NombreCliente - DD-MM-YYYY.pdf
+        const fechaFormateada = evento.fecha ? evento.fecha.split('-').reverse().join('-') : 'sin_fecha';
+        const nombreArchivo = `${evento.cliente?.replace(/\s+/g, '_') || 'evento'} - ${fechaFormateada}.pdf`;
         pdf.save(nombreArchivo);
 
       } catch (err) {
