@@ -365,7 +365,7 @@ export const generarCotizacionHTML = (evento) => {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Cotización - ${evento.cliente || 'Evento'}</title>
+  <title>${evento.cliente || 'Evento'} - ${evento.fecha ? evento.fecha.split('-').reverse().join('-') : ''}</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     @page {
