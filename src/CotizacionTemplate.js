@@ -303,6 +303,17 @@ export const generarCotizacionHTML = (evento) => {
     `;
   }
 
+  // Versión sin observaciones para modo Libre (ya tiene su propia sección de observaciones)
+  let opcionalesLegacyHTML = '';
+  if (todosLosExtras.length > 0) {
+    opcionalesLegacyHTML = `
+      <div class="opc">
+        <div class="opt">OPCIONALES — Servicios adicionales disponibles</div>
+        ${todosLosExtras.join('')}
+      </div>
+    `;
+  }
+
   // ============ BADGES Y HEADERS ============
   // Badges fijos por paquete (PREMIUM y GOLD siempre tienen badge)
   const badgePremium = '<div class="rec">★ RECOMENDADO</div>';
@@ -980,7 +991,7 @@ export const generarCotizacionHTML = (evento) => {
     </div>
     ` : ''}
 
-    ${opcionalesHTML}
+    ${opcionalesLegacyHTML}
 
     ` : `
     <!-- MODO NUEVO - 3 paquetes -->
