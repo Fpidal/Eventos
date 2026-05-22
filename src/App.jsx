@@ -7906,9 +7906,13 @@ export default function App() {
                       } else {
                         // Egreso normal (Pagos extras, Otros, etc.)
                         // persona = aportante (de qué caja sale el dinero)
+                        // Concatenar concepto + observación si existe
+                        const conceptoFinal = cajaEgresoForm.observacion
+                          ? `${cajaEgresoForm.concepto} - ${cajaEgresoForm.observacion}`
+                          : cajaEgresoForm.concepto;
                         const data = {
                           tipo: 'egreso',
-                          concepto: cajaEgresoForm.observacion || cajaEgresoForm.concepto,
+                          concepto: conceptoFinal,
                           monto_pesos: totalPesos,
                           monto_dolares: dolares || null,
                           cotizacion: dolares ? tc : null,
@@ -8080,16 +8084,37 @@ export default function App() {
                               // Detectar si es R. Socios para cargar el receptor
                               const esRetiroSocios = item.concepto && item.concepto.startsWith('R. Socios a ');
                               const receptor = esRetiroSocios ? item.concepto.replace('R. Socios a ', '').split(' | ')[0] : '';
+
+                              // Detectar concepto y observación (formato: "Concepto - Observación")
+                              let conceptoEdit = '';
+                              let observacionEdit = '';
+                              if (esRetiroSocios) {
+                                conceptoEdit = 'R. Socios';
+                                observacionEdit = item.concepto.includes(' | ') ? item.concepto.split(' | ')[1] : '';
+                              } else {
+                                // Buscar si empieza con algún concepto conocido
+                                const conceptoEncontrado = CONCEPTOS_EGRESO.find(c => item.concepto === c || item.concepto.startsWith(c + ' - '));
+                                if (conceptoEncontrado) {
+                                  conceptoEdit = conceptoEncontrado;
+                                  observacionEdit = item.concepto.startsWith(conceptoEncontrado + ' - ')
+                                    ? item.concepto.replace(conceptoEncontrado + ' - ', '')
+                                    : '';
+                                } else {
+                                  conceptoEdit = 'Otros';
+                                  observacionEdit = item.concepto;
+                                }
+                              }
+
                               setEditingCajaEgreso(item.id);
                               setCajaEgresoForm({
                                 fecha: item.fecha,
-                                concepto: esRetiroSocios ? 'R. Socios' : (CONCEPTOS_EGRESO.includes(item.concepto) ? item.concepto : 'Otros'),
+                                concepto: conceptoEdit,
                                 receptor: receptor,
                                 aportante: item.persona || item.aportante || '',
                                 monto_pesos: (item.monto_pesos || '').toString(),
                                 monto_dolares: (item.monto_dolares || '').toString(),
                                 cotizacion: (item.cotizacion || '').toString(),
-                                observacion: esRetiroSocios ? (item.concepto.includes(' | ') ? item.concepto.split(' | ')[1] : '') : (CONCEPTOS_EGRESO.includes(item.concepto) ? '' : item.concepto)
+                                observacion: observacionEdit
                               });
                               setShowCajaEgresoForm(true);
                             }} className="p-1 text-blue-400 hover:text-blue-300">
