@@ -1098,7 +1098,7 @@ export const generarCotizacionHTML = (evento) => {
     </div>
 
     <div class="p2f">
-      <div class="p2ft">Av. Agustín M. García 9501, Benavidez · Zona Norte · 11 6869 3886 · @teroresto.eventos · www.teroresto.com.ar</div>
+      <div class="p2ft">Av. Agustín M. García 9501, Benavidez · Zona Norte · 11 3112 8757 · @teroresto.eventos · www.teroresto.com.ar</div>
     </div>
   </div>
 </div>
