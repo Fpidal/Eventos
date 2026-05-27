@@ -2499,6 +2499,273 @@ export default function App() {
     doc.save(fileName);
   };
 
+  // Generar PDF Estado de Cuenta
+  const generarEstadoCuenta = (eventoData) => {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    // Colores (mismo estilo que recibo)
+    const VERDE_TERO = [85, 107, 47];
+    const TERRACOTA = [180, 90, 50];
+    const NEGRO = [17, 24, 39];
+    const GRIS_OSCURO = [55, 65, 81];
+    const GRIS_SEC = [107, 114, 128];
+    const GRIS_LINEA = [229, 231, 235];
+    const VERDE_FUERTE = [22, 120, 60];
+    const TERRACOTA_SUAVE = [255, 248, 243];
+
+    const pageWidth = 210;
+    const marginLeft = 20;
+    const marginRight = 20;
+    const contentWidth = pageWidth - marginLeft - marginRight;
+    const centerX = pageWidth / 2;
+
+    let y = 20;
+
+    const formatMoneyPDF = (num) => {
+      if (!num && num !== 0) return '$0';
+      return '$' + Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    };
+
+    // --- ENCABEZADO ---
+    doc.setFontSize(14);
+    doc.setTextColor(...NEGRO);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ESTADO DE CUENTA', marginLeft, y + 8);
+
+    try {
+      doc.addImage('/logo-tero.jpg', 'JPEG', pageWidth - marginRight - 27, y, 27, 17);
+    } catch (e) {
+      doc.setFontSize(12);
+      doc.setTextColor(...VERDE_TERO);
+      doc.text('TERO', pageWidth - marginRight, y + 10, { align: 'right' });
+    }
+    y += 20;
+
+    // Fecha de emisión
+    const hoy = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    doc.setFontSize(9);
+    doc.setTextColor(...GRIS_SEC);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Fecha de emisión: ' + hoy, pageWidth - marginRight, y, { align: 'right' });
+    y += 4;
+
+    // Línea divisoria
+    doc.setDrawColor(...TERRACOTA);
+    doc.setLineWidth(0.8);
+    doc.line(marginLeft, y, pageWidth - marginRight, y);
+    y += 10;
+
+    // --- DATOS DEL EVENTO ---
+    doc.setFillColor(...TERRACOTA_SUAVE);
+    doc.roundedRect(marginLeft, y, contentWidth, 28, 2, 2, 'F');
+
+    let yBox = y + 6;
+    doc.setFontSize(9);
+    doc.setTextColor(...TERRACOTA);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DATOS DEL EVENTO', marginLeft + 5, yBox);
+    yBox += 7;
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('Cliente:', marginLeft + 5, yBox);
+    doc.setTextColor(...NEGRO);
+    doc.setFont('helvetica', 'bold');
+    doc.text(eventoData.cliente || '-', marginLeft + 25, yBox);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('Evento:', marginLeft + 85, yBox);
+    doc.setTextColor(...GRIS_OSCURO);
+    doc.text(eventoData.tipoEvento || '-', marginLeft + 103, yBox);
+    yBox += 6;
+
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('Fecha:', marginLeft + 5, yBox);
+    doc.setTextColor(...GRIS_OSCURO);
+    doc.text(formatDate(eventoData.fecha), marginLeft + 25, yBox);
+
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('Salón:', marginLeft + 85, yBox);
+    doc.setTextColor(...GRIS_OSCURO);
+    doc.text(eventoData.salon || 'Tero', marginLeft + 103, yBox);
+
+    y += 34;
+
+    // --- RESUMEN DEL EVENTO ---
+    doc.setFontSize(10);
+    doc.setTextColor(...NEGRO);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RESUMEN', marginLeft, y);
+    y += 8;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+
+    // Total evento
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('Total evento:', marginLeft, y);
+    doc.setTextColor(...GRIS_OSCURO);
+    doc.text(formatMoneyPDF(eventoData.totalEvento), pageWidth - marginRight, y, { align: 'right' });
+    y += 6;
+
+    // IVA
+    doc.setTextColor(...GRIS_SEC);
+    doc.text('IVA 21%:', marginLeft, y);
+    doc.setTextColor(...GRIS_OSCURO);
+    doc.text(eventoData.ivaEvento > 0 ? formatMoneyPDF(eventoData.ivaEvento) : '-', pageWidth - marginRight, y, { align: 'right' });
+    y += 6;
+
+    // Total con IVA
+    doc.setDrawColor(...GRIS_LINEA);
+    doc.setLineWidth(0.3);
+    doc.line(marginLeft, y, pageWidth - marginRight, y);
+    y += 5;
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...NEGRO);
+    doc.text('Total con IVA:', marginLeft, y);
+    doc.text(formatMoneyPDF(eventoData.totalEvento + (eventoData.ivaEvento || 0)), pageWidth - marginRight, y, { align: 'right' });
+    y += 12;
+
+    // --- DETALLE DE PAGOS ---
+    doc.setFontSize(10);
+    doc.setTextColor(...NEGRO);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PAGOS REALIZADOS', marginLeft, y);
+    y += 8;
+
+    if (eventoData.pagos && eventoData.pagos.length > 0) {
+      // Encabezado tabla
+      doc.setFillColor(245, 245, 245);
+      doc.rect(marginLeft, y, contentWidth, 6, 'F');
+      doc.setFontSize(7);
+      doc.setTextColor(...GRIS_SEC);
+      doc.setFont('helvetica', 'bold');
+      doc.text('FECHA', marginLeft + 2, y + 4);
+      doc.text('CONCEPTO', marginLeft + 30, y + 4);
+      doc.text('MONTO', pageWidth - marginRight - 2, y + 4, { align: 'right' });
+      y += 8;
+
+      // Filas de pagos
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      eventoData.pagos.forEach(pago => {
+        doc.setTextColor(...GRIS_OSCURO);
+        doc.text(formatDate(pago.fecha), marginLeft + 2, y);
+
+        let conceptoTexto = pago.concepto === 'seña' ? 'Seña' : pago.concepto === 'ajuste_ipc' ? 'Ajuste IPC' : 'Pago';
+        if (pago.cobrador) conceptoTexto += ' - ' + pago.cobrador;
+        doc.text(conceptoTexto, marginLeft + 30, y);
+
+        doc.setTextColor(...VERDE_FUERTE);
+        doc.text(formatMoneyPDF(pago.monto), pageWidth - marginRight - 2, y, { align: 'right' });
+        y += 5;
+      });
+
+      // Total pagado
+      doc.setDrawColor(...GRIS_LINEA);
+      doc.line(marginLeft, y, pageWidth - marginRight, y);
+      y += 5;
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...VERDE_TERO);
+      doc.text('Total pagado:', marginLeft, y);
+      doc.text(formatMoneyPDF(eventoData.pagosYSenas), pageWidth - marginRight, y, { align: 'right' });
+      y += 10;
+    } else {
+      doc.setFontSize(8);
+      doc.setTextColor(...GRIS_SEC);
+      doc.text('No hay pagos registrados', marginLeft, y);
+      y += 10;
+    }
+
+    // --- DETALLE IPC ---
+    if (eventoData.detalleIPC && eventoData.detalleIPC.length > 0) {
+      doc.setFontSize(10);
+      doc.setTextColor(...NEGRO);
+      doc.setFont('helvetica', 'bold');
+      doc.text('AJUSTES POR IPC', marginLeft, y);
+      y += 8;
+
+      // Encabezado tabla
+      doc.setFillColor(255, 250, 240);
+      doc.rect(marginLeft, y, contentWidth, 6, 'F');
+      doc.setFontSize(7);
+      doc.setTextColor(...GRIS_SEC);
+      doc.setFont('helvetica', 'bold');
+      doc.text('PERÍODO', marginLeft + 2, y + 4);
+      doc.text('SALDO BASE', marginLeft + 50, y + 4);
+      doc.text('% IPC', marginLeft + 90, y + 4);
+      doc.text('INTERÉS', pageWidth - marginRight - 2, y + 4, { align: 'right' });
+      y += 8;
+
+      const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      eventoData.detalleIPC.forEach(d => {
+        doc.setTextColor(...GRIS_OSCURO);
+        doc.text(meses[d.mes-1] + ' ' + d.año, marginLeft + 2, y);
+        doc.text(formatMoneyPDF(d.saldoBase), marginLeft + 50, y);
+        doc.text(d.ipc + '%', marginLeft + 90, y);
+        doc.setTextColor(...TERRACOTA);
+        doc.text('+' + formatMoneyPDF(d.interes), pageWidth - marginRight - 2, y, { align: 'right' });
+        y += 5;
+      });
+
+      // Total IPC
+      doc.setDrawColor(...GRIS_LINEA);
+      doc.line(marginLeft, y, pageWidth - marginRight, y);
+      y += 5;
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...TERRACOTA);
+      doc.text('Total IPC acumulado:', marginLeft, y);
+      doc.text('+' + formatMoneyPDF(eventoData.ipcAcumulado), pageWidth - marginRight, y, { align: 'right' });
+      y += 12;
+    }
+
+    // --- SALDO FINAL ---
+    doc.setFillColor(240, 248, 240);
+    doc.rect(marginLeft, y, contentWidth, 18, 'F');
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    if (eventoData.saldoTotal > 0) {
+      doc.setTextColor(...TERRACOTA);
+      doc.text('SALDO PENDIENTE', marginLeft + 5, y + 12);
+      doc.setFontSize(16);
+      doc.text(formatMoneyPDF(eventoData.saldoTotal), pageWidth - marginRight - 5, y + 12, { align: 'right' });
+    } else if (eventoData.saldoTotal < 0) {
+      doc.setTextColor([59, 130, 246]); // Azul
+      doc.text('SALDO A FAVOR', marginLeft + 5, y + 12);
+      doc.setFontSize(16);
+      doc.text(formatMoneyPDF(Math.abs(eventoData.saldoTotal)), pageWidth - marginRight - 5, y + 12, { align: 'right' });
+    } else {
+      doc.setTextColor(...VERDE_FUERTE);
+      doc.text('EVENTO CANCELADO', marginLeft + 5, y + 12);
+      doc.setFontSize(16);
+      doc.text(formatMoneyPDF(0), pageWidth - marginRight - 5, y + 12, { align: 'right' });
+    }
+    y += 28;
+
+    // --- FOOTER ---
+    doc.setFontSize(8);
+    doc.setTextColor(...GRIS_SEC);
+    doc.setFont('helvetica', 'italic');
+    doc.text('Gracias por confiar en Tero', centerX, y, { align: 'center' });
+    y += 5;
+    doc.setFontSize(7);
+    doc.text('Av. Agustín M. García 9501, Benavidez · 11 3112 8757 · @teroresto.eventos', centerX, y, { align: 'center' });
+
+    // Guardar
+    const fechaArchivo = eventoData.fecha ? eventoData.fecha.split('-').reverse().join('-') : 'sin_fecha';
+    const fileName = 'EstadoCuenta_' + (eventoData.cliente || 'evento').replace(/\s+/g, '_') + '_' + fechaArchivo + '.pdf';
+    doc.save(fileName);
+  };
+
   // comensalesPorMes depende de eventosDelAño (del hook useEventos)
   const comensalesPorMes = useMemo(() => {
     const orden = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -5466,8 +5733,15 @@ export default function App() {
                           </span>
                         </td>
                         <td className="px-3 py-2">
-                          {canCreate && (
-                            <div className="flex items-center justify-center gap-2">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => generarEstadoCuenta(evento)}
+                              className="p-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
+                              title="Estado de cuenta PDF"
+                            >
+                              <FileText className="w-4 h-4" />
+                            </button>
+                            {canCreate && (
                               <button
                                 onClick={() => {
                                   setSelectedEventoPago(evento);
@@ -5480,8 +5754,8 @@ export default function App() {
                               >
                                 <Plus className="w-4 h-4" />
                               </button>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
