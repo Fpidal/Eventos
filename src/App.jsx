@@ -6718,18 +6718,19 @@ export default function App() {
 
             {/* Estadísticas */}
             {informeActivo === 'estadisticas' && (() => {
-              // Calcular estadísticas
-              const eventosRealizados = eventos.filter(e => e.estado === 'realizado' || new Date(e.fecha) < new Date());
-              const eventosFuturos = eventos.filter(e => e.estado !== 'realizado' && new Date(e.fecha) >= new Date());
+              // Calcular estadísticas - Solo eventos confirmados y no anulados
+              const eventosValidos = eventos.filter(e => e.confirmado && !e.anulado);
+              const eventosRealizados = eventosValidos.filter(e => e.estado === 'realizado' || new Date(e.fecha) < new Date());
+              const eventosFuturos = eventosValidos.filter(e => e.estado !== 'realizado' && new Date(e.fecha) >= new Date());
 
-              const totalAdultos = eventos.reduce((sum, e) => sum + (e.adultos || 0), 0);
-              const totalMenores = eventos.reduce((sum, e) => sum + (e.menores || 0), 0);
+              const totalAdultos = eventosValidos.reduce((sum, e) => sum + (e.adultos || 0), 0);
+              const totalMenores = eventosValidos.reduce((sum, e) => sum + (e.menores || 0), 0);
               const totalComensales = totalAdultos + totalMenores;
-              const promedioComensales = eventos.length > 0 ? Math.round(totalComensales / eventos.length) : 0;
+              const promedioComensales = eventosValidos.length > 0 ? Math.round(totalComensales / eventosValidos.length) : 0;
 
               // Tipos de evento
               const tiposEvento = {};
-              eventos.forEach(e => {
+              eventosValidos.forEach(e => {
                 const tipo = e.tipo_evento || 'Sin especificar';
                 tiposEvento[tipo] = (tiposEvento[tipo] || 0) + 1;
               });
@@ -6737,7 +6738,7 @@ export default function App() {
 
               // Tipos de menú
               const tiposMenu = {};
-              eventos.forEach(e => {
+              eventosValidos.forEach(e => {
                 const menu = e.menu || 'Sin especificar';
                 tiposMenu[menu] = (tiposMenu[menu] || 0) + 1;
               });
@@ -6745,7 +6746,7 @@ export default function App() {
 
               // Salones
               const salones = {};
-              eventos.forEach(e => {
+              eventosValidos.forEach(e => {
                 const salon = e.salon || 'Sin especificar';
                 salones[salon] = (salones[salon] || 0) + 1;
               });
@@ -6753,7 +6754,7 @@ export default function App() {
 
               // Vendedores
               const vendedores = {};
-              eventos.forEach(e => {
+              eventosValidos.forEach(e => {
                 const vendedor = e.vendedor || 'Sin especificar';
                 vendedores[vendedor] = (vendedores[vendedor] || 0) + 1;
               });
@@ -6761,15 +6762,15 @@ export default function App() {
 
               // Turnos
               const turnos = {};
-              eventos.forEach(e => {
+              eventosValidos.forEach(e => {
                 const turno = e.turno || 'Sin especificar';
                 turnos[turno] = (turnos[turno] || 0) + 1;
               });
               const turnosOrdenados = Object.entries(turnos).sort((a, b) => b[1] - a[1]);
 
               // Facturación
-              const facturacionTotal = eventos.reduce((sum, e) => sum + (e.total_evento || 0), 0);
-              const facturacionPromedio = eventos.length > 0 ? facturacionTotal / eventos.length : 0;
+              const facturacionTotal = eventosValidos.reduce((sum, e) => sum + (e.total_evento || 0), 0);
+              const facturacionPromedio = eventosValidos.length > 0 ? facturacionTotal / eventosValidos.length : 0;
 
               // Eventos por mes (últimos 12 meses)
               const eventosPorMes = {};
@@ -6798,7 +6799,7 @@ export default function App() {
                   {/* Resumen General */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="glass rounded-xl p-4 text-center">
-                      <p className="text-3xl font-bold text-emerald-400">{eventos.length}</p>
+                      <p className="text-3xl font-bold text-emerald-400">{eventosValidos.length}</p>
                       <p className="text-sm text-slate-400">Total Eventos</p>
                     </div>
                     <div className="glass rounded-xl p-4 text-center">
@@ -6850,7 +6851,7 @@ export default function App() {
                               <div className="w-32 bg-white/10 rounded-full h-2">
                                 <div
                                   className="bg-blue-500 h-2 rounded-full"
-                                  style={{ width: `${(cantidad / eventos.length) * 100}%` }}
+                                  style={{ width: `${(cantidad / eventosValidos.length) * 100}%` }}
                                 />
                               </div>
                               <span className="text-white font-medium w-8 text-right">{cantidad}</span>
@@ -6871,7 +6872,7 @@ export default function App() {
                               <div className="w-32 bg-white/10 rounded-full h-2">
                                 <div
                                   className="bg-purple-500 h-2 rounded-full"
-                                  style={{ width: `${(cantidad / eventos.length) * 100}%` }}
+                                  style={{ width: `${(cantidad / eventosValidos.length) * 100}%` }}
                                 />
                               </div>
                               <span className="text-white font-medium w-8 text-right">{cantidad}</span>
@@ -6892,7 +6893,7 @@ export default function App() {
                               <div className="w-32 bg-white/10 rounded-full h-2">
                                 <div
                                   className="bg-amber-500 h-2 rounded-full"
-                                  style={{ width: `${(cantidad / eventos.length) * 100}%` }}
+                                  style={{ width: `${(cantidad / eventosValidos.length) * 100}%` }}
                                 />
                               </div>
                               <span className="text-white font-medium w-8 text-right">{cantidad}</span>
@@ -6913,7 +6914,7 @@ export default function App() {
                               <div className="w-32 bg-white/10 rounded-full h-2">
                                 <div
                                   className="bg-rose-500 h-2 rounded-full"
-                                  style={{ width: `${(cantidad / eventos.length) * 100}%` }}
+                                  style={{ width: `${(cantidad / eventosValidos.length) * 100}%` }}
                                 />
                               </div>
                               <span className="text-white font-medium w-8 text-right">{cantidad}</span>
@@ -6971,7 +6972,7 @@ export default function App() {
                         <p className="text-sm text-slate-400">Próximos</p>
                       </div>
                       <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-center">
-                        <p className="text-2xl font-bold text-amber-400">{eventos.filter(e => e.estado === 'pendiente').length}</p>
+                        <p className="text-2xl font-bold text-amber-400">{eventosValidos.filter(e => e.estado === 'pendiente').length}</p>
                         <p className="text-sm text-slate-400">Pendientes Pago</p>
                       </div>
                       <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-center">
