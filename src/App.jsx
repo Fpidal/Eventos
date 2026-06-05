@@ -1157,8 +1157,15 @@ export default function App() {
     setNuevoMenu({ ...nuevoMenu, extras: newExtras });
   };
 
-  const handleSaveMenu = async (e) => {
+  const handleSaveMenu = async (e, guardarComoNuevo = false) => {
     e.preventDefault();
+
+    // "Guardar como nuevo": si el nombre es igual al original, avisar para no duplicar
+    if (guardarComoNuevo && editingMenu && nuevoMenu.nombre.trim() === editingMenu.nombre.trim()) {
+      alert('Cambiá el nombre del menú antes de guardarlo como nuevo (para no duplicar el original).');
+      return;
+    }
+
     setSaving(true);
 
     const menuData = {
@@ -1171,7 +1178,7 @@ export default function App() {
     console.log('Guardando menú:', menuData);
 
     let result;
-    if (editingMenu) {
+    if (editingMenu && !guardarComoNuevo) {
       result = await supabase
         .from('menus')
         .update(menuData)
@@ -8995,6 +9002,17 @@ export default function App() {
                   >
                     Cancelar
                   </button>
+                  {editingMenu && (
+                    <button
+                      type="button"
+                      onClick={(e) => handleSaveMenu(e, true)}
+                      disabled={saving}
+                      className="flex-1 py-3 rounded-xl border border-emerald-500/40 text-emerald-300 font-semibold hover:bg-emerald-500/10 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Guardar como nuevo
+                    </button>
+                  )}
                   <button
                     type="submit"
                     disabled={saving}
