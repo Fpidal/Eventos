@@ -115,7 +115,7 @@ export default function App() {
   const [auditoriaEventos, setAuditoriaEventos] = useState([]);
   const [auditoriaCaja, setAuditoriaCaja] = useState([]);
   const [informeActivo, setInformeActivo] = useState('eliminados');
-  const [preciosConfig, setPreciosConfig] = useState({ precio_classic: '', precio_premium: '', precio_gold: '' });
+  const [preciosConfig, setPreciosConfig] = useState({ precio_classic: '', precio_premium: '', precio_gold: '', precio_tecnica: '', precio_tecnica_superior: '', precio_dj: '' });
   const [savingPrecios, setSavingPrecios] = useState(false);
   const [motivoModificacion, setMotivoModificacion] = useState('');
   const [busquedaContacto, setBusquedaContacto] = useState('');
@@ -223,6 +223,7 @@ export default function App() {
       fetchAuditoriaCaja();
       fetchCajaMovimientos();
       fetchTipoCambio();
+      fetchPreciosConfig();
       if (userRole === 'admin') {
         fetchUsuarios();
       }
@@ -942,7 +943,7 @@ export default function App() {
     const { data, error } = await supabase
       .from('configuracion')
       .select('clave, valor')
-      .in('clave', ['precio_classic', 'precio_premium', 'precio_gold']);
+      .in('clave', ['precio_classic', 'precio_premium', 'precio_gold', 'precio_tecnica', 'precio_tecnica_superior', 'precio_dj']);
 
     if (!error && data) {
       const config = {};
@@ -952,7 +953,10 @@ export default function App() {
       setPreciosConfig({
         precio_classic: config.precio_classic || '',
         precio_premium: config.precio_premium || '',
-        precio_gold: config.precio_gold || ''
+        precio_gold: config.precio_gold || '',
+        precio_tecnica: config.precio_tecnica || '',
+        precio_tecnica_superior: config.precio_tecnica_superior || '',
+        precio_dj: config.precio_dj || ''
       });
     }
   };
@@ -961,7 +965,7 @@ export default function App() {
   const handleGuardarPrecios = async () => {
     setSavingPrecios(true);
     try {
-      const precios = ['precio_classic', 'precio_premium', 'precio_gold'];
+      const precios = ['precio_classic', 'precio_premium', 'precio_gold', 'precio_tecnica', 'precio_tecnica_superior', 'precio_dj'];
       for (const clave of precios) {
         const valor = preciosConfig[clave];
         if (valor) {
@@ -3319,6 +3323,7 @@ export default function App() {
                     <label htmlFor="tecnica_new" className="text-[10px] cursor-pointer"><Mic className="w-3 h-3 text-purple-400 inline" /> Técnica</label>
                   </div>
                   <input type="text" inputMode="numeric" placeholder="$0" value={formatNumberInput(nuevoEvento.tecnica_precio)} onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica_precio: parseNumberInput(e.target.value)})} className={`w-full px-2 py-1 rounded border text-xs focus:outline-none ${nuevoEvento.tecnica ? 'border-purple-500/30 bg-white/10 text-white' : 'border-white/10 bg-white/5 text-slate-500'}`} />
+                  {preciosConfig.precio_tecnica && <span className="block text-[9px] text-slate-500 mt-0.5">ref. ${formatNumberInput(preciosConfig.precio_tecnica)}</span>}
                 </div>
                 <div className={`p-2 rounded-lg border ${nuevoEvento.tecnica_superior ? 'border-amber-500/50 bg-amber-500/10' : 'border-white/10 bg-white/5'}`}>
                   <div className="flex items-center gap-1 mb-1">
@@ -3326,10 +3331,12 @@ export default function App() {
                     <label htmlFor="tecnica_superior_new" className="text-[10px] cursor-pointer"><Mic className="w-3 h-3 text-amber-400 inline" /> Téc.Sup</label>
                   </div>
                   <input type="text" inputMode="numeric" placeholder="$0" value={formatNumberInput(nuevoEvento.tecnica_superior_precio)} onChange={(e) => setNuevoEvento({...nuevoEvento, tecnica_superior_precio: parseNumberInput(e.target.value)})} className={`w-full px-2 py-1 rounded border text-xs focus:outline-none ${nuevoEvento.tecnica_superior ? 'border-amber-500/30 bg-white/10 text-white' : 'border-white/10 bg-white/5 text-slate-500'}`} />
+                  {preciosConfig.precio_tecnica_superior && <span className="block text-[9px] text-slate-500 mt-0.5">ref. ${formatNumberInput(preciosConfig.precio_tecnica_superior)}</span>}
                 </div>
                 <div className="p-2 rounded-lg border border-white/10 bg-white/5">
                   <label className="block text-[10px] text-slate-400 mb-1">DJ</label>
                   <input type="text" placeholder="Nombre DJ" value={nuevoEvento.dj} onChange={(e) => setNuevoEvento({...nuevoEvento, dj: e.target.value})} className="w-full px-2 py-1 rounded border border-white/10 bg-white/5 text-white text-xs focus:outline-none" />
+                  {preciosConfig.precio_dj && <span className="block text-[9px] text-slate-500 mt-0.5">ref. ${formatNumberInput(preciosConfig.precio_dj)}</span>}
                 </div>
               </div>
 
@@ -3690,6 +3697,7 @@ export default function App() {
                     <label htmlFor="tecnica_edit" className="text-[10px] cursor-pointer"><Mic className="w-3 h-3 text-purple-400 inline" /> Técnica</label>
                   </div>
                   <input type="text" inputMode="numeric" placeholder="$0" value={formatNumberInput(eventoEdit.tecnica_precio)} onChange={(e) => setEventoEdit({...eventoEdit, tecnica_precio: parseNumberInput(e.target.value)})} className={`w-full px-2 py-1 rounded border text-xs focus:outline-none ${eventoEdit.tecnica ? 'border-purple-500/30 bg-white/10 text-white' : 'border-white/10 bg-white/5 text-slate-500'}`} />
+                  {preciosConfig.precio_tecnica && <span className="block text-[9px] text-slate-500 mt-0.5">ref. ${formatNumberInput(preciosConfig.precio_tecnica)}</span>}
                 </div>
                 <div className={`p-2 rounded-lg border ${eventoEdit.tecnica_superior ? 'border-amber-500/50 bg-amber-500/10' : 'border-white/10 bg-white/5'}`}>
                   <div className="flex items-center gap-1 mb-1">
@@ -3697,10 +3705,12 @@ export default function App() {
                     <label htmlFor="tecnica_superior_edit" className="text-[10px] cursor-pointer"><Mic className="w-3 h-3 text-amber-400 inline" /> Téc.Sup</label>
                   </div>
                   <input type="text" inputMode="numeric" placeholder="$0" value={formatNumberInput(eventoEdit.tecnica_superior_precio)} onChange={(e) => setEventoEdit({...eventoEdit, tecnica_superior_precio: parseNumberInput(e.target.value)})} className={`w-full px-2 py-1 rounded border text-xs focus:outline-none ${eventoEdit.tecnica_superior ? 'border-amber-500/30 bg-white/10 text-white' : 'border-white/10 bg-white/5 text-slate-500'}`} />
+                  {preciosConfig.precio_tecnica_superior && <span className="block text-[9px] text-slate-500 mt-0.5">ref. ${formatNumberInput(preciosConfig.precio_tecnica_superior)}</span>}
                 </div>
                 <div className="p-2 rounded-lg border border-white/10 bg-white/5">
                   <label className="block text-[10px] text-slate-400 mb-1">DJ</label>
                   <input type="text" placeholder="Nombre DJ" value={eventoEdit.dj} onChange={(e) => setEventoEdit({...eventoEdit, dj: e.target.value})} className="w-full px-2 py-1 rounded border border-white/10 bg-white/5 text-white text-xs focus:outline-none" />
+                  {preciosConfig.precio_dj && <span className="block text-[9px] text-slate-500 mt-0.5">ref. ${formatNumberInput(preciosConfig.precio_dj)}</span>}
                 </div>
               </div>
 
@@ -7052,6 +7062,70 @@ export default function App() {
                         type="text"
                         value={preciosConfig.precio_gold ? formatNumberInput(preciosConfig.precio_gold) : ''}
                         onChange={(e) => setPreciosConfig({ ...preciosConfig, precio_gold: parseNumberInput(e.target.value) })}
+                        className="w-full pl-8 pr-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-right"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <h4 className="text-base font-semibold mt-8 mb-1 text-indigo-400">Costos adicionales</h4>
+                <p className="text-slate-400 text-sm mb-4">
+                  Valores de referencia que se mostrarán en gris al cotizar (Técnica, Téc. Superior y DJ).
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  {/* Técnica */}
+                  <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Mic className="w-5 h-5 text-purple-400" />
+                      <h4 className="text-lg font-semibold text-purple-400">TÉCNICA</h4>
+                    </div>
+                    <label className="text-slate-400 text-sm">Costo de referencia</label>
+                    <div className="relative mt-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                      <input
+                        type="text"
+                        value={preciosConfig.precio_tecnica ? formatNumberInput(preciosConfig.precio_tecnica) : ''}
+                        onChange={(e) => setPreciosConfig({ ...preciosConfig, precio_tecnica: parseNumberInput(e.target.value) })}
+                        className="w-full pl-8 pr-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-right"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Técnica Superior */}
+                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Mic className="w-5 h-5 text-amber-400" />
+                      <h4 className="text-lg font-semibold text-amber-400">TÉC. SUPERIOR</h4>
+                    </div>
+                    <label className="text-slate-400 text-sm">Costo de referencia</label>
+                    <div className="relative mt-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                      <input
+                        type="text"
+                        value={preciosConfig.precio_tecnica_superior ? formatNumberInput(preciosConfig.precio_tecnica_superior) : ''}
+                        onChange={(e) => setPreciosConfig({ ...preciosConfig, precio_tecnica_superior: parseNumberInput(e.target.value) })}
+                        className="w-full pl-8 pr-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-right"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+
+                  {/* DJ */}
+                  <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-2xl">🎧</span>
+                      <h4 className="text-lg font-semibold text-cyan-400">DJ</h4>
+                    </div>
+                    <label className="text-slate-400 text-sm">Costo de referencia</label>
+                    <div className="relative mt-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                      <input
+                        type="text"
+                        value={preciosConfig.precio_dj ? formatNumberInput(preciosConfig.precio_dj) : ''}
+                        onChange={(e) => setPreciosConfig({ ...preciosConfig, precio_dj: parseNumberInput(e.target.value) })}
                         className="w-full pl-8 pr-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-right"
                         placeholder="0"
                       />
