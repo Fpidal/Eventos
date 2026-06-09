@@ -115,7 +115,7 @@ export default function App() {
   const [auditoriaEventos, setAuditoriaEventos] = useState([]);
   const [auditoriaCaja, setAuditoriaCaja] = useState([]);
   const [informeActivo, setInformeActivo] = useState('eliminados');
-  const [preciosConfig, setPreciosConfig] = useState({ precio_classic: '', precio_premium: '', precio_gold: '', precio_tecnica: '', precio_tecnica_superior: '', precio_dj: '' });
+  const [preciosConfig, setPreciosConfig] = useState({ precio_classic: '', precio_premium: '', precio_gold: '', precio_tecnica: '', precio_tecnica_superior: '', precio_dj: '', precio_tecnica_mes: '', precio_tecnica_superior_mes: '', precio_dj_mes: '' });
   const [savingPrecios, setSavingPrecios] = useState(false);
   const [motivoModificacion, setMotivoModificacion] = useState('');
   const [busquedaContacto, setBusquedaContacto] = useState('');
@@ -943,7 +943,7 @@ export default function App() {
     const { data, error } = await supabase
       .from('configuracion')
       .select('clave, valor')
-      .in('clave', ['precio_classic', 'precio_premium', 'precio_gold', 'precio_tecnica', 'precio_tecnica_superior', 'precio_dj']);
+      .in('clave', ['precio_classic', 'precio_premium', 'precio_gold', 'precio_tecnica', 'precio_tecnica_superior', 'precio_dj', 'precio_tecnica_mes', 'precio_tecnica_superior_mes', 'precio_dj_mes']);
 
     if (!error && data) {
       const config = {};
@@ -956,7 +956,10 @@ export default function App() {
         precio_gold: config.precio_gold || '',
         precio_tecnica: config.precio_tecnica || '',
         precio_tecnica_superior: config.precio_tecnica_superior || '',
-        precio_dj: config.precio_dj || ''
+        precio_dj: config.precio_dj || '',
+        precio_tecnica_mes: config.precio_tecnica_mes ? String(parseInt(config.precio_tecnica_mes)) : '',
+        precio_tecnica_superior_mes: config.precio_tecnica_superior_mes ? String(parseInt(config.precio_tecnica_superior_mes)) : '',
+        precio_dj_mes: config.precio_dj_mes ? String(parseInt(config.precio_dj_mes)) : ''
       });
     }
   };
@@ -965,7 +968,7 @@ export default function App() {
   const handleGuardarPrecios = async () => {
     setSavingPrecios(true);
     try {
-      const precios = ['precio_classic', 'precio_premium', 'precio_gold', 'precio_tecnica', 'precio_tecnica_superior', 'precio_dj'];
+      const precios = ['precio_classic', 'precio_premium', 'precio_gold', 'precio_tecnica', 'precio_tecnica_superior', 'precio_dj', 'precio_tecnica_mes', 'precio_tecnica_superior_mes', 'precio_dj_mes'];
       for (const clave of precios) {
         const valor = preciosConfig[clave];
         if (valor) {
@@ -4807,6 +4810,7 @@ export default function App() {
                           <div className="flex flex-wrap items-center gap-x-2 text-xs sm:text-sm mt-1 text-slate-500">
                             <span className={`${e.turno === 'Noche' ? 'text-indigo-400' : 'text-amber-400'}`}>{e.turno}</span>
                             <span>• {e.vendedor}</span>
+                            <span className="flex items-center gap-0.5">• <MapPin className="w-3 h-3" />{e.salon || 'Tero'}</span>
                           </div>
 
                           {/* Indicadores de servicios */}
@@ -5063,6 +5067,7 @@ export default function App() {
                           <div className="flex flex-wrap items-center gap-x-2 text-xs sm:text-sm mt-1 text-slate-500">
                             <span className={`${e.turno === 'Noche' ? 'text-indigo-400' : 'text-amber-400'}`}>{e.turno}</span>
                             <span>• {e.vendedor}</span>
+                            <span className="flex items-center gap-0.5">• <MapPin className="w-3 h-3" />{e.salon || 'Tero'}</span>
                           </div>
 
                           {/* Indicadores de servicios */}
@@ -7069,69 +7074,168 @@ export default function App() {
                   </div>
                 </div>
 
-                <h4 className="text-base font-semibold mt-8 mb-1 text-indigo-400">Costos adicionales</h4>
-                <p className="text-slate-400 text-sm mb-4">
-                  Valores de referencia que se mostrarán en gris al cotizar (Técnica, Téc. Superior y DJ).
-                </p>
+                {(() => {
+                  // Meses con IPC aplicado, en orden cronológico ascendente
+                  const mesesAplicados = [...ipcMensual]
+                    .filter(i => i.aplicado && i.ipc_aplicado)
+                    .sort((a, b) => (a.año !== b.año ? a.año - b.año : a.mes - b.mes));
+                  const ultimoIPC = mesesAplicados[mesesAplicados.length - 1];
+                  const ultimoMesKey = ultimoIPC ? String(ultimoIPC.año * 100 + ultimoIPC.mes) : '';
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                  {/* Técnica */}
-                  <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Mic className="w-5 h-5 text-purple-400" />
-                      <h4 className="text-lg font-semibold text-purple-400">TÉCNICA</h4>
-                    </div>
-                    <label className="text-slate-400 text-sm">Costo de referencia</label>
-                    <div className="relative mt-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
-                      <input
-                        type="text"
-                        value={preciosConfig.precio_tecnica ? formatNumberInput(preciosConfig.precio_tecnica) : ''}
-                        onChange={(e) => setPreciosConfig({ ...preciosConfig, precio_tecnica: parseNumberInput(e.target.value) })}
-                        className="w-full pl-8 pr-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-right"
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
+                  // Calcula la sugerencia de un servicio según su mes base guardado
+                  const calcServicio = (key, mesKey) => {
+                    const actual = parseFloat(preciosConfig[key]) || 0;
+                    const baseNum = Number(preciosConfig[mesKey] || ultimoMesKey || 0);
+                    const mAcum = mesesAplicados.filter(i => (i.año * 100 + i.mes) > baseNum);
+                    const factor = mAcum.reduce((acc, i) => acc * (1 + i.ipc_aplicado / 100), 1);
+                    return { actual, baseNum, meses: mAcum.length, factor, pct: (factor - 1) * 100, sugerido: actual > 0 ? Math.round(actual * factor) : 0 };
+                  };
 
-                  {/* Técnica Superior */}
-                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Mic className="w-5 h-5 text-amber-400" />
-                      <h4 className="text-lg font-semibold text-amber-400">TÉC. SUPERIOR</h4>
-                    </div>
-                    <label className="text-slate-400 text-sm">Costo de referencia</label>
-                    <div className="relative mt-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
-                      <input
-                        type="text"
-                        value={preciosConfig.precio_tecnica_superior ? formatNumberInput(preciosConfig.precio_tecnica_superior) : ''}
-                        onChange={(e) => setPreciosConfig({ ...preciosConfig, precio_tecnica_superior: parseNumberInput(e.target.value) })}
-                        className="w-full pl-8 pr-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-right"
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
+                  // Selector "Costo de: [mes]" para cada card
+                  const selectorMes = (mesKey) => (
+                    mesesAplicados.length > 0 ? (
+                      <div className="mt-2 flex items-center gap-2">
+                        <label className="text-slate-400 text-xs whitespace-nowrap">Costo de:</label>
+                        <select
+                          value={preciosConfig[mesKey] || ultimoMesKey}
+                          onChange={(e) => setPreciosConfig({ ...preciosConfig, [mesKey]: e.target.value })}
+                          className="flex-1 px-2 py-1 rounded-lg bg-white/10 border border-white/20 text-white text-xs focus:outline-none"
+                        >
+                          {mesesAplicados.map(i => {
+                            const v = String(i.año * 100 + i.mes);
+                            return <option key={v} value={v} className="bg-slate-800">{MESES[i.mes - 1]} {i.año}</option>;
+                          })}
+                        </select>
+                      </div>
+                    ) : null
+                  );
 
-                  {/* DJ */}
-                  <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-2xl">🎧</span>
-                      <h4 className="text-lg font-semibold text-cyan-400">DJ</h4>
-                    </div>
-                    <label className="text-slate-400 text-sm">Costo de referencia</label>
-                    <div className="relative mt-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
-                      <input
-                        type="text"
-                        value={preciosConfig.precio_dj ? formatNumberInput(preciosConfig.precio_dj) : ''}
-                        onChange={(e) => setPreciosConfig({ ...preciosConfig, precio_dj: parseNumberInput(e.target.value) })}
-                        className="w-full pl-8 pr-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-right"
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
-                </div>
+                  const servicios = [
+                    { key: 'precio_tecnica', mesKey: 'precio_tecnica_mes', label: 'Técnica' },
+                    { key: 'precio_tecnica_superior', mesKey: 'precio_tecnica_superior_mes', label: 'Téc. Superior' },
+                    { key: 'precio_dj', mesKey: 'precio_dj_mes', label: 'DJ' },
+                  ];
+
+                  return (
+                    <>
+                      <h4 className="text-base font-semibold mt-8 mb-1 text-indigo-400">Costos adicionales</h4>
+                      <p className="text-slate-400 text-sm mb-4">
+                        Valores de referencia que se mostrarán en gris al cotizar (Técnica, Téc. Superior y DJ).
+                      </p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                        {/* Técnica */}
+                        <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Mic className="w-5 h-5 text-purple-400" />
+                            <h4 className="text-lg font-semibold text-purple-400">TÉCNICA</h4>
+                          </div>
+                          <label className="text-slate-400 text-sm">Costo de referencia</label>
+                          <div className="relative mt-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                            <input
+                              type="text"
+                              value={preciosConfig.precio_tecnica ? formatNumberInput(preciosConfig.precio_tecnica) : ''}
+                              onChange={(e) => setPreciosConfig({ ...preciosConfig, precio_tecnica: parseNumberInput(e.target.value) })}
+                              className="w-full pl-8 pr-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-right"
+                              placeholder="0"
+                            />
+                          </div>
+                          {selectorMes('precio_tecnica_mes')}
+                        </div>
+
+                        {/* Técnica Superior */}
+                        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Mic className="w-5 h-5 text-amber-400" />
+                            <h4 className="text-lg font-semibold text-amber-400">TÉC. SUPERIOR</h4>
+                          </div>
+                          <label className="text-slate-400 text-sm">Costo de referencia</label>
+                          <div className="relative mt-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                            <input
+                              type="text"
+                              value={preciosConfig.precio_tecnica_superior ? formatNumberInput(preciosConfig.precio_tecnica_superior) : ''}
+                              onChange={(e) => setPreciosConfig({ ...preciosConfig, precio_tecnica_superior: parseNumberInput(e.target.value) })}
+                              className="w-full pl-8 pr-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-right"
+                              placeholder="0"
+                            />
+                          </div>
+                          {selectorMes('precio_tecnica_superior_mes')}
+                        </div>
+
+                        {/* DJ */}
+                        <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="text-2xl">🎧</span>
+                            <h4 className="text-lg font-semibold text-cyan-400">DJ</h4>
+                          </div>
+                          <label className="text-slate-400 text-sm">Costo de referencia</label>
+                          <div className="relative mt-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                            <input
+                              type="text"
+                              value={preciosConfig.precio_dj ? formatNumberInput(preciosConfig.precio_dj) : ''}
+                              onChange={(e) => setPreciosConfig({ ...preciosConfig, precio_dj: parseNumberInput(e.target.value) })}
+                              className="w-full pl-8 pr-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-right"
+                              placeholder="0"
+                            />
+                          </div>
+                          {selectorMes('precio_dj_mes')}
+                        </div>
+                      </div>
+
+                      {/* Cuadro: sugerencia de actualización por IPC */}
+                      <div className="mt-8 p-4 rounded-xl border border-indigo-500/30 bg-indigo-500/5">
+                        <div className="flex items-center gap-2 mb-1">
+                          <TrendingUp className="w-5 h-5 text-indigo-400" />
+                          <h4 className="text-base font-semibold text-indigo-400">Actualización sugerida por IPC</h4>
+                        </div>
+                        {ultimoIPC ? (
+                          <>
+                            <p className="text-slate-400 text-sm mb-4 mt-1">
+                              Según el IPC aplicado hasta <span className="text-white font-medium">{MESES[ultimoIPC.mes - 1]} {ultimoIPC.año}</span>. Cada costo se ajusta desde su mes ("Costo de:") hasta hoy, compuesto.
+                            </p>
+                            <div className="space-y-2">
+                              {servicios.map(s => {
+                                const c = calcServicio(s.key, s.mesKey);
+                                const baseAño = Math.floor(c.baseNum / 100);
+                                const baseMes = c.baseNum % 100;
+                                return (
+                                  <div key={s.key} className="flex flex-wrap items-center gap-2 sm:gap-4 p-2 rounded-lg bg-white/5 border border-white/10">
+                                    <span className="text-sm font-medium text-white min-w-[110px]">{s.label}</span>
+                                    {c.actual <= 0 ? (
+                                      <span className="text-xs text-slate-500 ml-auto">Cargá un precio para ver la sugerencia</span>
+                                    ) : c.meses === 0 ? (
+                                      <span className="text-xs text-emerald-400 ml-auto flex items-center gap-1"><Check className="w-3 h-3" /> Al día ({baseMes ? `${MESES[baseMes - 1]} ${baseAño}` : 'sin ajustes'})</span>
+                                    ) : (
+                                      <>
+                                        <span className="text-xs text-slate-400">{baseMes ? MESES[baseMes - 1] : ''} {baseAño || ''}: <span className="text-slate-200">${formatNumberInput(String(c.actual))}</span></span>
+                                        <span className="text-xs text-slate-400">→ <span className="text-emerald-400 font-semibold">${formatNumberInput(String(c.sugerido))}</span> <span className="text-slate-500">(+{c.pct.toFixed(2).replace('.', ',')}%)</span></span>
+                                        <button
+                                          type="button"
+                                          onClick={() => setPreciosConfig({ ...preciosConfig, [s.key]: String(c.sugerido), [s.mesKey]: ultimoMesKey })}
+                                          className="ml-auto px-3 py-1 rounded-lg text-xs border border-emerald-500/40 text-emerald-300 font-medium hover:bg-emerald-500/10 transition-all"
+                                        >
+                                          Usar
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <p className="text-[11px] text-slate-500 mt-3">
+                              "Usar" copia el precio actualizado al campo de arriba y marca el costo como de {MESES[ultimoIPC.mes - 1]} {ultimoIPC.año}. Recién se guarda al apretar "Guardar Precios".
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-slate-400 text-sm">Aún no hay ningún IPC aplicado cargado en Cobranzas.</p>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
 
                 <div className="flex justify-end mt-6">
                   <button
