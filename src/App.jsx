@@ -6802,7 +6802,7 @@ export default function App() {
                 const key = fecha.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' });
                 eventosPorMes[key] = 0;
               }
-              eventos.forEach(e => {
+              eventosValidos.forEach(e => {
                 const fecha = new Date(e.fecha);
                 const key = fecha.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' });
                 if (eventosPorMes[key] !== undefined) {
