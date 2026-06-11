@@ -918,7 +918,7 @@ export const generarCotizacionHTML = (evento) => {
         <div class="box">
           <div class="box-t">DETALLES DEL EVENTO</div>
           <div class="brow"><span class="blbl">Evento:</span><span class="bval">${evento.tipo_evento || 'Evento'}</span></div>
-          <div class="brow"><span class="blbl">Turno:</span><span class="bval">${evento.turno || 'Noche'}</span></div>
+          <div class="brow"><span class="blbl">Turno:</span><span class="bval">${evento.turno || 'Noche'}${evento.hora_inicio && evento.hora_fin ? ` de ${String(evento.hora_inicio).slice(0, 5)} a ${String(evento.hora_fin).slice(0, 5)}` : ''}</span></div>
           <div class="brow"><span class="blbl">Fecha:</span><span class="bval">${fechaEventoStr}</span></div>
           <div class="brow"><span class="blbl">Invitados:</span><span class="bval">${adultos} adultos${menores > 0 ? `, ${menores} menores` : ''}</span></div>
           <div class="brow"><span class="blbl">Salón:</span><span class="bval">${evento.salon || 'Tero'}</span></div>
