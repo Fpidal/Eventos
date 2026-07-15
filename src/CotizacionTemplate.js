@@ -231,9 +231,19 @@ export const generarCotizacionHTML = (evento) => {
     }
   });
 
+  // Notas por defecto de "a elección" según categoría (Menu Tapeo)
+  const NOTAS_CATEGORIA = {
+    'Cazuelas': '2 a elección',
+    'Fin de Fiesta': '1 a elección'
+  };
+  const notaCategoria = (nombre) => NOTAS_CATEGORIA[nombre]
+    ? `<div class="cnote">${NOTAS_CATEGORIA[nombre]}</div>`
+    : '';
+
   // Generar HTML del menú columna 1
   const menuCol1HTML = col1.map(cat => `
     <div class="ct">${cat.nombre.toUpperCase()}</div>
+    ${notaCategoria(cat.nombre)}
     ${cat.items.map(item => `<div class="ci">${item}</div>`).join('')}
     <div class="csp"></div>
   `).join('');
@@ -241,6 +251,7 @@ export const generarCotizacionHTML = (evento) => {
   // Generar HTML del menú columna 2
   const menuCol2HTML = col2.map(cat => `
     <div class="ct">${cat.nombre.toUpperCase()}</div>
+    ${notaCategoria(cat.nombre)}
     ${cat.items.map(item => `<div class="ci">${item}</div>`).join('')}
     <div class="csp"></div>
   `).join('');
@@ -566,6 +577,7 @@ export const generarCotizacionHTML = (evento) => {
     }
     .ci { font-size: 8pt; color: #444; line-height: 1.8; padding-left: 2mm; }
     .ci::before { content: "· "; color: #C9A84C; }
+    .cnote { font-size: 7.5pt; font-style: italic; color: #8a7a3f; margin: -1mm 0 1.5mm 0; }
     .csp { height: 12px; }
     .bevs {
       display: flex;

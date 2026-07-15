@@ -11,7 +11,7 @@ export const DIAS_SEMANA = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 export const VENDEDORES = ['Rodrigo', 'Francisco', 'Piru'];
 export const TIPOS_EVENTO = ['Cumple 15', 'Cumple 40', 'Cumple 50', 'Cumple 60', 'Cumple 80', 'Cumple 1 año', 'Aniversario', 'Casamiento', 'Civil', 'Evento Empresa', 'Fiesta Privada', 'PRIVADO', 'Reunion', 'Cumpleaños', 'Bat/Bar Mitzvah'];
 export const MENUS = ['Tapas', 'Asado', '3 pasos', 'Premium', 'Brunch'];
-export const TIPOS_MENU = ['Menu Tapeo', 'Menu Asado', 'Menu 3 Pasos', 'Menu Premium', 'Menu Brunch', 'Otro'];
+export const TIPOS_MENU = ['Menu Tapeo', 'Menu Asado', 'Menu 3 Pasos', 'Menu Premium', 'Menu Brunch', 'Jornada Laboral', 'Otro'];
 export const TURNOS = ['Noche', 'M. Dia'];
 export const SALONES = ['Tero', 'Cristal', 'Salentein'];
 export const COBRADORES = ['Francisco', 'Rodrigo', 'Piru', 'Banco', 'Caja'];
@@ -67,6 +67,7 @@ export const CATEGORIAS_POR_MENU = {
   'Menu 3 Pasos': ['Entradas', 'Principales', 'Postres', 'Bebidas'],
   'Menu Premium': ['Entradas', 'Principales', 'Postres', 'Bebidas'],
   'Menu Brunch': ['Salado', 'Dulce', 'Bebidas'],
+  'Jornada Laboral': ['Desayuno', 'Entradas', 'Principales', 'Postres', 'Bebidas'],
   'Otro': ['Entradas', 'Principales', 'Postres', 'Bebidas']
 };
 
@@ -206,6 +207,13 @@ export const PLATOS_POR_MENU = {
   'Menu Brunch': {
     'Salado': [],
     'Dulce': [],
+    'Bebidas': []
+  },
+  'Jornada Laboral': {
+    'Desayuno': [],
+    'Entradas': [],
+    'Principales': [],
+    'Postres': [],
     'Bebidas': []
   },
   'Otro': {

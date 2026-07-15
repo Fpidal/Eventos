@@ -178,7 +178,7 @@ export default function App() {
   const [catalogoBusqueda, setCatalogoBusqueda] = useState('');
   const CATEGORIAS_CATALOGO = ['Platos', 'Tapas', 'Islas', 'Bebidas'];
   const SUBCATEGORIAS_CATALOGO = {
-    'Platos': ['Entradas', 'Principales', 'Postres'],
+    'Platos': ['Desayuno', 'Entradas', 'Principales', 'Postres'],
     'Tapas': ['Tapeo Frío', 'Tapeo Caliente', 'Cazuelas', 'Mesa de Dulces', 'Fin de Fiesta'],
     'Islas': ['Quesos', 'Fiambres', 'Frutas', 'Dulces', 'Otros'],
     'Bebidas': ['Vinos', 'Espumantes', 'Cervezas', 'Tragos', 'Sin Alcohol', 'Aguas', 'Gaseosas']
