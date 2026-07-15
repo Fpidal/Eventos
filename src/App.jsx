@@ -25,7 +25,9 @@ import {
   queryUsuarios, queryUsuarioByUserId, queryMenus, queryClientes,
   insertAuditoriaPago, insertAuditoriaEvento, deleteAuditoriaEvento,
   insertAuditoriaCaja, insertCajaMovimiento, updateCajaMovimiento,
-  deleteCajaMovimiento, queryCajaMovimientosByRef, insertPago
+  deleteCajaMovimiento, queryCajaMovimientosByRef, insertPago,
+  queryCatalogo, insertCatalogoItem, insertCatalogoItems,
+  updateCatalogoItem, deleteCatalogoItem
 } from './supabaseQueries';
 
 import { useAuth } from './hooks/useAuth';
@@ -224,6 +226,7 @@ export default function App() {
       fetchCajaMovimientos();
       fetchTipoCambio();
       fetchPreciosConfig();
+      fetchCatalogo();
       if (userRole === 'admin') {
         fetchUsuarios();
       }
@@ -237,11 +240,8 @@ export default function App() {
     }
   }, [informeActivo]);
 
-  // Cargar catálogo desde localStorage o datos iniciales
-  useEffect(() => {
-    const saved = localStorage.getItem('catalogoItems');
-    // Datos iniciales del catálogo
-    const catalogoInicial = [
+  // Catálogo inicial (seed) — solo se usa la primera vez que la tabla de Supabase está vacía
+  const CATALOGO_INICIAL = [
         // TAPAS - Tapeo Frío
         { id: 1, nombre: 'Montadito De Salmon Ahumado', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Frío' },
         { id: 2, nombre: 'Langostino & Mousse De Palta', descripcion: '', categoria: 'Tapas', subcategoria: 'Tapeo Frío' },
@@ -345,24 +345,52 @@ export default function App() {
         { id: 77, nombre: 'Volcán de Dulce de Leche', descripcion: '', categoria: 'Platos', subcategoria: 'Postres' },
       ];
 
-    if (saved) {
-      // Cargar items guardados y agregar los que falten del catálogo inicial
-      const savedItems = JSON.parse(saved);
-      const savedNames = savedItems.map(item => item.nombre.toLowerCase());
-      const itemsFaltantes = catalogoInicial.filter(item => !savedNames.includes(item.nombre.toLowerCase()));
-
-      if (itemsFaltantes.length > 0) {
-        const merged = [...savedItems, ...itemsFaltantes];
-        setCatalogoItems(merged);
-        localStorage.setItem('catalogoItems', JSON.stringify(merged));
-      } else {
-        setCatalogoItems(savedItems);
-      }
-    } else {
-      setCatalogoItems(catalogoInicial);
-      localStorage.setItem('catalogoItems', JSON.stringify(catalogoInicial));
+  // Cargar catálogo desde Supabase (compartido). Siembra inicial + migración one-time de localStorage.
+  const fetchCatalogo = async () => {
+    const { data, error } = await queryCatalogo();
+    if (error) {
+      console.error('Error cargando catálogo:', error);
+      return;
     }
-  }, []);
+    let items = data || [];
+
+    // Seed: si la tabla está vacía (primera vez), sembrarla con el catálogo base
+    if (items.length === 0) {
+      const seed = CATALOGO_INICIAL.map(({ nombre, descripcion, categoria, subcategoria }) => ({
+        nombre, descripcion: descripcion || '', categoria, subcategoria
+      }));
+      const { data: seeded, error: seedError } = await insertCatalogoItems(seed);
+      if (seedError) console.error('Error sembrando catálogo:', seedError);
+      items = seeded || [];
+    }
+
+    // Migración one-time desde localStorage (por navegador): subir platos propios que aún no estén en la DB
+    if (!localStorage.getItem('catalogoMigradoV1')) {
+      const saved = localStorage.getItem('catalogoItems');
+      if (saved) {
+        try {
+          const localItems = JSON.parse(saved);
+          const nombresDB = new Set(items.map(i => (i.nombre || '').toLowerCase()));
+          const faltantes = localItems
+            .filter(i => i && i.nombre && !nombresDB.has(i.nombre.toLowerCase()))
+            .map(({ nombre, descripcion, categoria, subcategoria }) => ({
+              nombre, descripcion: descripcion || '', categoria, subcategoria
+            }));
+          if (faltantes.length > 0) {
+            const { data: migrados, error: migError } = await insertCatalogoItems(faltantes);
+            if (migError) console.error('Error migrando catálogo local:', migError);
+            else if (migrados) items = [...items, ...migrados];
+          }
+        } catch (e) {
+          console.error('Error parseando catálogo local:', e);
+        }
+      }
+      localStorage.setItem('catalogoMigradoV1', 'true');
+    }
+
+    items = [...items].sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+    setCatalogoItems(items);
+  };
 
   const fetchPagos = async () => {
     const { data, error } = await queryPagos();
@@ -6434,11 +6462,14 @@ export default function App() {
                                   </button>
                                   {canDelete && (
                                     <button
-                                      onClick={() => {
+                                      onClick={async () => {
                                         if (confirm('¿Eliminar este item del catálogo?')) {
-                                          const updated = catalogoItems.filter(i => i.id !== item.id);
-                                          setCatalogoItems(updated);
-                                          localStorage.setItem('catalogoItems', JSON.stringify(updated));
+                                          const { error } = await deleteCatalogoItem(item.id);
+                                          if (error) {
+                                            alert('Error al eliminar: ' + error.message);
+                                            return;
+                                          }
+                                          setCatalogoItems(catalogoItems.filter(i => i.id !== item.id));
                                         }
                                       }}
                                       className="p-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all"
@@ -6533,29 +6564,41 @@ export default function App() {
                 </div>
 
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (!catalogoForm.nombre.trim()) {
                       alert('El nombre es obligatorio');
                       return;
                     }
 
+                    const datos = {
+                      nombre: catalogoForm.nombre.trim(),
+                      descripcion: catalogoForm.descripcion || '',
+                      categoria: catalogoForm.categoria,
+                      subcategoria: catalogoForm.subcategoria
+                    };
+
                     let updated;
                     if (editingCatalogoItem) {
+                      const { error } = await updateCatalogoItem(editingCatalogoItem, datos);
+                      if (error) {
+                        alert('Error al guardar: ' + error.message);
+                        return;
+                      }
                       updated = catalogoItems.map(item =>
                         item.id === editingCatalogoItem
-                          ? { ...item, ...catalogoForm }
+                          ? { ...item, ...datos }
                           : item
                       );
                     } else {
-                      const newItem = {
-                        id: Date.now(),
-                        ...catalogoForm
-                      };
-                      updated = [...catalogoItems, newItem];
+                      const { data, error } = await insertCatalogoItem(datos);
+                      if (error) {
+                        alert('Error al agregar: ' + error.message);
+                        return;
+                      }
+                      updated = [...catalogoItems, ...(data || [])];
                     }
 
                     setCatalogoItems(updated);
-                    localStorage.setItem('catalogoItems', JSON.stringify(updated));
                     setShowCatalogoForm(false);
                     // Limpiar búsqueda y cambiar filtro a la categoría/subcategoría del item agregado/editado
                     setCatalogoBusqueda('');

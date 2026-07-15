@@ -231,3 +231,31 @@ export const updateMenu = async (id, data) => {
 export const deleteMenu = async (id) => {
   return await supabase.from('menus').update({ activo: false }).eq('id', id);
 };
+
+// ============================================
+// CATALOGO DE PLATOS
+// ============================================
+
+export const queryCatalogo = async () => {
+  return await supabase
+    .from('catalogo_items')
+    .select('*')
+    .order('nombre', { ascending: true });
+};
+
+export const insertCatalogoItem = async (data) => {
+  return await supabase.from('catalogo_items').insert([data]).select();
+};
+
+// Insert masivo (para seed inicial y migración desde localStorage)
+export const insertCatalogoItems = async (items) => {
+  return await supabase.from('catalogo_items').insert(items).select();
+};
+
+export const updateCatalogoItem = async (id, data) => {
+  return await supabase.from('catalogo_items').update(data).eq('id', id);
+};
+
+export const deleteCatalogoItem = async (id) => {
+  return await supabase.from('catalogo_items').delete().eq('id', id);
+};

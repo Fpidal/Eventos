@@ -187,3 +187,37 @@ CREATE POLICY "Admin puede modificar usuarios"
       AND rol = 'admin'
     )
   );
+
+-- =============================================
+-- TABLA: catalogo_items
+-- Catálogo compartido de platos/bebidas (antes en localStorage)
+-- =============================================
+CREATE TABLE catalogo_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  nombre VARCHAR(255) NOT NULL,
+  descripcion TEXT DEFAULT '',
+  categoria VARCHAR(50) NOT NULL,      -- 'Platos', 'Tapas', 'Islas', 'Bebidas'
+  subcategoria VARCHAR(50) NOT NULL    -- 'Desayuno', 'Entradas', 'Principales', etc.
+);
+
+-- Permisos de API
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.catalogo_items TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.catalogo_items TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.catalogo_items TO service_role;
+
+-- RLS
+ALTER TABLE catalogo_items ENABLE ROW LEVEL SECURITY;
+
+-- NOTA: esta app hace las consultas a Supabase como rol `anon` (la sesión de
+-- login es custom, no Supabase Auth). Igual que el resto de las tablas, las
+-- policies permiten anon. El control de acceso real se hace en la UI por rol.
+CREATE POLICY "catalogo lectura"
+  ON catalogo_items FOR SELECT
+  USING (true);
+
+CREATE POLICY "catalogo escritura"
+  ON catalogo_items FOR ALL
+  USING (true)
+  WITH CHECK (true);
